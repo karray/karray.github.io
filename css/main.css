@@ -8,16 +8,23 @@ body{
 
 .header{
     background-color: #ddf;
+    z-index: 1001;
 }
 
-header nav{
-    z-index: 20;
-}
-
-/* .sticky {
-    position: fixed;
+#sticky {
+    position: absolute;
     top: 0;
-    width: 100%
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: none;
+}
+
+#sticky.scrolled{
+    display: block;
+}
+
+/* #not-sticky.scrolled{
 } */
 
 #turbine-description .title{
