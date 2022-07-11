@@ -4,8 +4,32 @@
 {%- include head.html -%}
 
 <body>
+  <div style="background-color: #3d1b70; height: 15vh; position: fixed; top: 0; left: 0; right: 0;">
+    <div class="wrapper" style="color: white; display: flex; align-items: center; height: 100%">
+      <div><img src="assets/img/me.jpg" alt="photo" style="width: 10vh;" /></div>
+      <div style="margin-left: 2vh; flex-grow: 1;">Aray's Blog</div>
+      <div style="float: right;">
+        <a href="https://github.com/{{ site.github_username| cgi_escape | escape }}" target="_blank">
+          <svg class="svg-icon" style="fill: white;">
+            <use xlink:href="{{ '/assets/minima-social-icons.svg#github' | relative_url }}"></use>
+          </svg>
+        </a>
+        <a href="https://www.linkedin.com/in/{{ site.linkedin_username| cgi_escape | escape }}" target="_blank">
+          <svg class="svg-icon" style="fill: white;">
+            <use xlink:href="{{ '/assets/minima-social-icons.svg#linkedin' | relative_url }}"></use>
+          </svg>
+        </a>
+        <a href="https://stackoverflow.com/users/2329060?tab=profile" target="_blank">
+          <svg class="svg-icon" style="fill: white;">
+            <use xlink:href="{{ '/assets/minima-social-icons.svg#stackoverflow' | relative_url }}"></use>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+  </div>
 
-  <div id="about">
+  <div id="about" style="z-index: 1; position: absolute;">
     <div class="wrapper" style="display: flex; color: white;">
       <div style="width: 60vh; height: 60vh;">
         <img src="assets/img/me.jpg" alt="photo" id='me'
@@ -46,7 +70,7 @@
     <div class='light x9'></div>
   </div>
 
-  <main class="page-content" aria-label="Content">
+  <main class="page-content" aria-label="Content" style="margin-top: 60vh;">
     <div class="wrapper">
       <div class="home">
         {%- if page.title -%}
