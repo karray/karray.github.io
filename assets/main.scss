@@ -1,5 +1,15 @@
 ---
-# Only the main Sass file needs front matter (the dashes are enough)
 ---
 
-@import "minima";
+@import 'minima';
+@import 'about_background';
+
+.fixed {
+    position: fixed;
+    top: 0;
+}
+
+.scrolled {
+    position: absolute;
+    bottom: 0;
+}

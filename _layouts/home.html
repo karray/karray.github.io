@@ -1,34 +1,89 @@
----
-layout: default
----
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang | default: " en" }}">
 
-<div class="home">
-  {%- if page.title -%}
-    <h1 class="page-heading">{{ page.title }}</h1>
-  {%- endif -%}
+{%- include head.html -%}
 
-  {{ content }}
+<body>
 
-  {%- if site.posts.size > 0 -%}
-    <h2 class="post-list-heading">{{ page.list_title | default: "Posts" }}</h2>
-    <ul class="post-list">
-      {%- for post in site.posts -%}
-      <li>
-        {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
-        <span class="post-meta">{{ post.date | date: date_format }}</span>
-        <h3>
-          <a class="post-link" href="{{ post.url | relative_url }}">
-            {{ post.title | escape }}
-          </a>
-        </h3>
-        {%- if site.show_excerpts -%}
-          {{ post.excerpt }}
+  <div id="about">
+    <div class="wrapper" style="display: flex; color: white;">
+      <div style="width: 60vh; height: 60vh;">
+        <img src="assets/img/me.jpg" alt="photo" id='me'
+          style="position: absolute; min-width: 10vh; width: 50vh; bottom: 5vh;" />
+      </div>
+      <div style="margin-top: 5vh;">
+        <div id="description" class="fixed">
+          <h1 style="margin: 0">Aray Karjauv</h1>
+          <p>Research Associate in Machine Learning at Technical University of Berlin</p>
+          <p>
+            <a href="https://github.com/{{ site.github_username| cgi_escape | escape }}" target="_blank">
+              <svg class="svg-icon" style="fill: white;">
+                <use xlink:href="{{ '/assets/minima-social-icons.svg#github' | relative_url }}"></use>
+              </svg>
+            </a>
+            <a href="https://www.linkedin.com/in/{{ site.linkedin_username| cgi_escape | escape }}" target="_blank">
+              <svg class="svg-icon" style="fill: white;">
+                <use xlink:href="{{ '/assets/minima-social-icons.svg#linkedin' | relative_url }}"></use>
+              </svg>
+            </a>
+            <a href="https://stackoverflow.com/users/2329060?tab=profile" target="_blank">
+              <svg class="svg-icon" style="fill: white;">
+                <use xlink:href="{{ '/assets/minima-social-icons.svg#stackoverflow' | relative_url }}"></use>
+              </svg>
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class='light x1'></div>
+    <div class='light x2'></div>
+    <div class='light x3'></div>
+    <div class='light x4'></div>
+    <div class='light x5'></div>
+    <div class='light x6'></div>
+    <div class='light x7'></div>
+    <div class='light x8'></div>
+    <div class='light x9'></div>
+  </div>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <div class="home">
+        {%- if page.title -%}
+        <h1 class="page-heading">{{ page.title }}</h1>
         {%- endif -%}
-      </li>
-      {%- endfor -%}
-    </ul>
 
-    <p class="rss-subscribe">subscribe <a href="{{ "/feed.xml" | relative_url }}">via RSS</a></p>
-  {%- endif -%}
 
-</div>
+
+        {{ content }}
+
+        {%- if site.posts.size > 0 -%}
+        <h2 class="post-list-heading">{{ page.list_title | default: "Posts" }}</h2>
+        <ul class="post-list">
+          {%- for post in site.posts -%}
+          <li>
+            {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
+            <span class="post-meta">{{ post.date | date: date_format }}</span>
+            <h3>
+              <a class="post-link" href="{{ post.url | relative_url }}">
+                {{ post.title | escape }}
+              </a>
+            </h3>
+            {%- if site.show_excerpts -%}
+            {{ post.excerpt }}
+            {%- endif -%}
+          </li>
+          {%- endfor -%}
+        </ul>
+
+        <p class="rss-subscribe">subscribe <a href="{{ " /feed.xml" | relative_url }}">via RSS</a></p>
+        {%- endif -%}
+
+      </div>
+    </div>
+  </main>
+  {%- include footer.html -%}
+  <script src="assets/js/home.js"></script>
+</body>
+
+</html>
