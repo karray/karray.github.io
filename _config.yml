@@ -19,13 +19,11 @@
 # in the templates via {{ site.myvariable }}.
 
 title: Aray Karjauv
-email: your-email@example.com
 description: >- # this means to ignore newlines until "baseurl:"
-  Write an awesome description for your new site here. You can edit this
-  line in _config.yml. It will appear in your document head meta (for
-  Google search results) and in your feed.xml site description.
+  Aray's personal page.
+  
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://karay.me"
 twitter_username: arraysmart
 github_username:  karray
 linkedin_username: Aray-Karjauv
@@ -38,6 +36,9 @@ plugins:
 kramdown:
   math_engine: mathjax
   syntax_highlighter: rouge
+
+show_excerpts: true
+excerpt_separator: <!--more-->
 
 # Exclude from processing.
 # The following items will not be processed, by default.

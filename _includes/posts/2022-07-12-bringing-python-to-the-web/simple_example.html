@@ -1,0 +1,58 @@
+<div>
+    <script type="text/javascript">
+        window.languagePluginUrl = 'https://pyodide-cdn2.iodide.io/v0.15.0/full/';
+    </script>
+    <script src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js"></script>
+
+
+    <!-- <strong>Full source can be found <a
+            href='https://github.com/karray/truepyxel/blob/master/pyodide.html'>here</a></strong> -->
+    <p>You can execute any Python code. Just enter something in the box below and click the button. You can also import
+        packages, but keep in mind that this will take some time to download them (see status in the top right corner)
+    </p>
+    <input id='code' value='sum([1,2,3,4,5])'>
+    <button onclick='evaluatePython()'>Run</button>
+    <br>
+    <br>
+    <div>
+        Output:
+    </div>
+    <textarea id='output' style='width: 100%;' rows='6' disabled></textarea>
+    <div>Status: <span id='msg'>Initializing...</span></div>
+    <br>
+    <br>
+
+<script>
+        function setMsg(s) {
+            document.getElementById("msg").innerHTML = s
+        }
+
+        // init pyodide
+        languagePluginLoader.then(() => { setMsg('Ready') })
+
+        const output = document.getElementById("output")
+        const code = document.getElementById("code")
+        function addToOutput(s) {
+            output.innerHTML = `${output.value}>>>${code.value}\n${s}\n`
+        }
+
+        function evaluatePython() {
+            setMsg('Processing...')
+            setTimeout(() => {
+                pyodide.runPythonAsync(code.value)
+                    .then(output => addToOutput(output))
+                    .catch((err) => { addToOutput(err) })
+                    .finally(() => { setMsg('Ready') })
+            }, 0)
+        }
+
+        function loadScript() {
+            setMsg('Processing...')
+            setTimeout(() => {
+                pyodide.runPythonAsync(document.getElementById("python-script").value)
+                    .catch((err) => { alert(err) })
+                    .finally(() => { setMsg('Ready') })
+            }, 0)
+        }
+    </script>
+</div>
