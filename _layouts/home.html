@@ -30,15 +30,14 @@
   </div>
 
   <div id="about" style="z-index: 1; position: absolute;">
-    <div class="wrapper" style="display: flex; color: white;">
-      <div style="width: 60vh; height: 60vh;">
-        <img src="assets/img/me.jpg" alt="photo" id='me'
-          style="position: absolute; min-width: 10vh; width: 50vh; bottom: 5vh;" />
+    <div class="wrapper about-card">
+      <div class="me-wrapper">
+        <img src="assets/img/me.jpg" alt="photo" id='me' />
       </div>
-      <div style="margin-top: 5vh;">
+      <div>
         <div id="description" class="fixed">
-          <h1 style="margin: 0">Aray Karjauv</h1>
-          <p>Research Associate in Machine Learning at Technical University of Berlin</p>
+          <h1 class="my-name">Aray Karjauv</h1>
+          <p style="font-size: max(1vw, 4vh);">Research Associate in Machine Learning at Technical University of Berlin</p>
           <p>
             <a href="https://github.com/{{ site.github_username| cgi_escape | escape }}" target="_blank">
               <svg class="svg-icon" style="fill: white;">
@@ -70,7 +69,7 @@
     <div class='light x9'></div>
   </div>
 
-  <main class="page-content" aria-label="Content" style="margin-top: 60vh;">
+  <main class="page-content home-content" aria-label="Content">
     <div class="wrapper">
       <div class="home">
         {%- if page.title -%}
@@ -106,7 +105,7 @@
       </div>
     </div>
   </main>
-  {%- include footer.html -%}
+  <!-- {%- include footer.html -%} -->
   <script src="assets/js/home.js"></script>
 </body>
 

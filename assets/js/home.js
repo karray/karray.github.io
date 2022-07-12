@@ -6,16 +6,21 @@ function getScroll() {
 }
 
 let about = document.getElementById('about');
-let me = document.getElementById('me');
+let me_img = document.getElementById('me');
 let desc = document.getElementById('description');
 
 let about_height = 60 - 15;
 let desc_height = to_vh(about.offsetHeight - desc.offsetHeight)
-let me_width = to_vh(me.offsetHeight);
+let me_width = to_vh(me_img.offsetHeight) || 60 - getScroll();
+
+let is_small_screen = window.matchMedia( "(max-width: 600px)" ).matches
 
 function update_elements(){
+    if(is_small_screen)
+        return
+
     let scroll = getScroll()
-    me.style.width = me_width  - scroll + 'vh';
+    me_img.style.width = me_width - scroll + 'vh';
     if(desc_height < scroll){
         desc.classList.add('scrolled')
         desc.classList.remove('fixed')
@@ -29,11 +34,13 @@ function update_elements(){
         about.classList.add('hidden')
     else
         about.classList.remove('hidden')
+    
 }
 
 window.addEventListener('scroll', update_elements);
 window.addEventListener('resize', function(event) {
     desc_height = to_vh(about.offsetHeight - desc.offsetHeight)
+    is_small_screen = window.matchMedia( "(max-width: 600px)" ).matches
     update_elements()
 }, true);
 

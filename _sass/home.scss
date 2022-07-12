@@ -1,0 +1,83 @@
+@import 'about_background';
+
+.home-content {
+    margin-top: 60vh;
+}
+
+.about-card {
+    color: white;
+    display: flex;
+}
+
+.fixed {
+    position: fixed;
+}
+
+.scrolled {
+    position: absolute;
+    bottom: 0;
+}
+
+.hidden {
+    display: none;
+}
+
+.me-wrapper {
+    width: 60vh;
+    height: 60vh;
+
+    #me {
+        position: absolute;
+        min-width: 10vh;
+        width: 50vh;
+        bottom: 5vh;
+    }
+}
+
+.my-name {
+    margin: 5vh 0 0;
+    font-size: max(2vw, 10vh);
+    white-space: nowrap;
+}
+
+.description {
+    width: 60vh;
+    min-width: 180px;
+}
+
+@media (max-width:600px){
+    .home-content {
+        margin-top: 100vh;
+    }
+    #about {
+        height: 100vh;
+    }
+    .about-card {
+        flex-direction: column;
+        height: 100%;
+        justify-content: space-between;
+    }
+
+    .fixed, .scrolled{
+        position: static;
+    }
+
+    .me-wrapper {
+        width: 100%;
+        height: auto;
+        padding-top: 15px;
+        #me {
+            position: static;
+            width: 100%;
+        }
+    }
+
+    .my-name {
+        margin: 0;
+        font-size: 16vw;
+        white-space: nowrap;
+    }
+    .description {
+        width: 100%;
+    }
+}

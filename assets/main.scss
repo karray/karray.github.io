@@ -2,18 +2,4 @@
 ---
 
 @import 'minima';
-@import 'about_background';
-
-.fixed {
-    position: fixed;
-    top: 0;
-}
-
-.scrolled {
-    position: absolute;
-    bottom: 0;
-}
-
-.hidden {
-    display: none;
-}
+@import 'home';
