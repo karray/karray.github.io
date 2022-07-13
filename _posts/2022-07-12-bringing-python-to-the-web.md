@@ -26,7 +26,7 @@ So what can we actually do? Spoiler: With the power of Python and JS, we can do 
 
 I recently started a hobby [project](http://karay.me/truepyxel/) where I implemented image pixelation. I decided to write it in Python, as this language has a bunch of libraries for working with images. The problem was that I couldn't easily share the app without developing an Android app or finding a hosting and deploying a Django or Flask server.
 
-I've heard about WebAssembly before and have wanted to try it out for a long time. Searching the Internet for "webassembly python", I immediately came across a link to an interesting article "[Pyodide: Bringing the scientific Python stack to the browser](https://hacks.mozilla.org/2019/04/pyodide-bringing-the-scientific-python-stack-to-the-browser/)". Unfortunately, the article is mainly about the i[odide project](https://github.com/iodide-project/iodide) that is no longer in development and the documentation of [Pyodide](https://github.com/iodide-project/pyodide) was sparse.
+I've heard about WebAssembly before and have wanted to try it out for a long time. Searching the Internet for "webassembly python", I immediately came across a link to an interesting article "[Pyodide: Bringing the scientific Python stack to the browser](https://hacks.mozilla.org/2019/04/pyodide-bringing-the-scientific-python-stack-to-the-browser/)". Unfortunately, the article is mainly about the [iodide project](https://github.com/iodide-project/iodide) that is no longer in development and the documentation of [Pyodide](https://github.com/iodide-project/pyodide) was sparse.
 
 The idea to write this article came to me when I decided to contribute to the project by improving its [documentation](https://github.com/iodide-project/pyodide/blob/master/docs/using_pyodide_from_javascript.md#alternative-way-to-load-packages-and-run-python-code) after collecting the information about the API piece by piece and a number of experiments with code.
 
@@ -93,7 +93,7 @@ Note that if we want to load `pyodide.js` from a source other than the official 
 
 This sets the path for downloading Python packages.
 
-By default, the environment only includes standard Python modules such as `sys`,`csv`, etc. If we want to import a third-party package like `numpy` we have two options: we can either pre-load required packages manually and then import them in Python
+By default, the environment only includes standard Python modules such as `sys`, `csv`, etc. If we want to import a third-party package like `numpy` we have two options: we can either pre-load required packages manually and then import them in Python
 
 ```jsx
 // JS
@@ -160,7 +160,7 @@ document.body.appendChild(clear_button)
 
 Bear in mind, that we can only access the properties of the `window` object. That is, we can access only the variables directly attached to the window or defined globally with the `var` statement. Because `let` statement declares a block-scoped local variable just like the `const`, it does not create properties of the window object when declared globally.
 
-Moreover, although the`js` module is an alias for the `window`, there is an [issue](https://github.com/iodide-project/pyodide/issues/768) with binding it to the `window` context. The workaround is to explicitly import the object as follows
+Moreover, although the `js` module is an alias for the `window`, there is an [issue](https://github.com/iodide-project/pyodide/issues/768) with binding it to the `window` context. The workaround is to explicitly import the object as follows
 
 ```python
 # Python
@@ -177,11 +177,11 @@ window.fetch('http://karay.me/truepyxel/test.json').then(lambda resp: resp.json(
 
 I personally find this example very cool. Here we write the code in JS way and take advantage of chains of promises. The `resp.json` function converts the response body into an object that we can then access from Python. This also enables us to handle rejections. Just try to give any wrong URL to get the exception message.
 
-The key difference is that it is not a real`Promise`. Therefore, the chaining will execute synchronously and the last value in the chain will be returned instead of a new`Promise`. Besides, as the project is still under development, there are some [issues](https://github.com/iodide-project/pyodide/issues/769). For example, we cannot use `Promise.finally` as this keyword is reserved in Python.
+The key difference is that it is not a real `Promise`. Therefore, the chaining will execute synchronously and the last value in the chain will be returned instead of a new `Promise`. Besides, as the project is still under development, there are some [issues](https://github.com/iodide-project/pyodide/issues/769). For example, we cannot use `Promise.finally` as this keyword is reserved in Python.
 
 # **Accessing Python scope from JS**
 
-We can also go in the opposite direction and get full access to the Python scope from JS through the`pyodide.globals` object. For example, if we import `numpy` into the Python scope, we can immediately use it from JS. This option is for those who prefer JS but want to take advantage of Python libraries.
+We can also go in the opposite direction and get full access to the Python scope from JS through the `pyodide.globals` object. For example, if we import `numpy` into the Python scope, we can immediately use it from JS. This option is for those who prefer JS but want to take advantage of Python libraries.
 
 Let's try it live. Go to the [demo](http://karay.me/truepyxel/demo.html) page and run the following Python code
 
@@ -267,7 +267,7 @@ import matplotlib.pyplotas plt
 import io, base64
 ```
 
-The `numpy` and `scipy.stats` modules are used to create a Probability Density Function (PDF). The `io` and `base64` modules are used to encode the plot into a Base64 string, which we will later set as the source for a`<img>` tag.
+The `numpy` and `scipy.stats` modules are used to create a Probability Density Function (PDF). The `io` and `base64` modules are used to encode the plot into a Base64 string, which we will later set as the source for an `<img>` tag.
 
 Now let's create the HTML layout
 
@@ -347,6 +347,6 @@ Furthermore, [WebAssembly System Interface (WASI)](https://github.com/bytecodeal
 
 For example, WASI enables us to import modules written in any language into [Node.js](https://nodejs.org/api/wasi.html) or into other languages (e.g. import Rust module into Python).
 
-As Docker creator tweeted, WebAssembly has significant potential to become a Docker alternative
+<!-- As Docker creator tweeted, WebAssembly has significant potential to become a Docker alternative -->
 
-[https://twitter.com/solomonstre/status/1111004913222324225](https://twitter.com/solomonstre/status/1111004913222324225)
+<!-- [https://twitter.com/solomonstre/status/1111004913222324225](https://twitter.com/solomonstre/status/1111004913222324225) -->
