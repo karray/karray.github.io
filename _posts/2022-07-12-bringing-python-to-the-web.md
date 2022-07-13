@@ -7,10 +7,8 @@ tags: pyodide python web
 Have you ever wanted to share your cool Python app with the world without deploying an entire Django server or developing a mobile app just for a small project?
 
 Good news, you don’t have to! All you need is to add a single JavaScript library to your HTML page and this will work even on mobile devices mixing JS with Python and take advantage of both worlds for your webpage.
+
 <!--more-->
-
-
-Wasm could potentially have a huge impact on the future of front-end development by extending the JS stack with numerous libraries and opening new possibilities for developers programming in languages other than JS. For example, there are already projext using it under the hood, s
 
 {% capture example1 %}
 {% include posts/2022-07-12-bringing-python-to-the-web/simple_example.html %}
