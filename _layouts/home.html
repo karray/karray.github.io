@@ -4,10 +4,10 @@
 {%- include head.html -%}
 
 <body>
-  <div style="background-color: #3d1b70; height: 15vh; position: fixed; top: 0; left: 0; right: 0;">
+  <!-- <div style="background-color: #3d1b70; height: 15vh; position: fixed; top: 0; left: 0; right: 0;">
     <div class="wrapper" style="color: white; display: flex; align-items: center; height: 100%">
-      <div><img src="assets/img/me.jpg" alt="photo" style="width: 10vh;" /></div>
-      <div style="margin-left: 2vh; flex-grow: 1;">Aray's Blog</div>
+      <div><img src="assets/img/me.jpg" alt="photo" style="width: 10vh; border-radius: 50%;" /></div>
+      <div style="margin-left: 2vh; flex-grow: 1; font-size: 2vw;">Aray's Blog</div>
       <div style="float: right;">
         <a href="https://github.com/{{ site.github_username| cgi_escape | escape }}" target="_blank">
           <svg class="svg-icon" style="fill: white;">
@@ -27,18 +27,18 @@
       </div>
     </div>
   </div>
-  </div>
+  </div> -->
 
   <div id="about" style="z-index: 1; position: absolute;">
     <div class="wrapper about-card">
       <div class="me-wrapper">
         <img src="assets/img/me.jpg" alt="photo" id='me' />
       </div>
-      <div>
+      <div style="flex-grow: 1;">
         <div id="description" class="fixed">
           <h1 class="my-name">Aray Karjauv</h1>
-          <p style="font-size: max(1vw, 4vh);">Research Associate in Machine Learning at Technical University of Berlin</p>
-          <p>
+          <p class="about-me">Research Associate in Machine Learning at Technical University of Berlin</p>
+          <div>
             <a href="https://github.com/{{ site.github_username| cgi_escape | escape }}" target="_blank">
               <svg class="svg-icon" style="fill: white;">
                 <use xlink:href="{{ '/assets/minima-social-icons.svg#github' | relative_url }}"></use>
@@ -54,7 +54,7 @@
                 <use xlink:href="{{ '/assets/minima-social-icons.svg#stackoverflow' | relative_url }}"></use>
               </svg>
             </a>
-          </p>
+          </div>
         </div>
       </div>
     </div>

@@ -3,3 +3,26 @@
 
 @import 'minima';
 @import 'home';
+
+// .wrapper {
+//     min-width: 400px;
+// }
+
+.full-width {
+    width: 99vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    padding-top: 30px;
+    padding-bottom: 30px;
+}
+
+@media (min-width:1000px){
+    .wrapper {
+        width: 60%;
+        font-size: 1vw;
+        max-width: initial;
+    }
+}

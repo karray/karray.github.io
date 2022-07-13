@@ -1,4 +1,150 @@
-@import 'about_background';
+
+#about {
+    position: relative;
+    left: 0;
+    right: 0;
+    margin: 0;
+    font-weight: 100;
+    background: radial-gradient(#563d7c, #3d1b70);
+
+    .light {
+        position: absolute;
+        width: 0px;
+        background-color: white;
+        box-shadow: #e9f1f1 0px 0px 20px 2px;
+        opacity: 0;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+        margin: auto;
+    }
+
+    .x1 {
+        animation: falling 4s infinite linear;
+        transform: scale(1.0);
+    }
+
+    .x2 {
+        animation: falling 7s infinite linear;
+        transform: scale(1.6);
+        left: 15%;
+    }
+
+    .x3 {
+        animation: falling 2.5s infinite linear;
+        transform: scale(.5);
+        left: -15%;
+    }
+
+    .x4 {
+        animation: falling 4.5s infinite linear;
+        transform: scale(1.2);
+        left: -34%;
+    }
+
+    .x5 {
+        animation: falling 8s infinite linear;
+        transform: scale(2.2);
+        left: -57%;
+    }
+
+    .x6 {
+        animation: falling 3s infinite linear;
+        transform: scale(.8);
+        left: -81%;
+    }
+
+    .x7 {
+        animation: falling 5.3s infinite linear;
+        transform: scale(3.2);
+        left: 37%;
+    }
+
+    .x8 {
+        animation: falling 4.7s infinite linear;
+        transform: scale(1.7);
+        left: 62%;
+    }
+
+    .x9 {
+        animation: falling 4.1s infinite linear;
+        transform: scale(0.9);
+        left: 85%;
+    }
+
+    @keyframes falling {
+        0% {
+            top: -100vh;
+            opacity: 0;
+        }
+
+        25% {
+            opacity: 1;
+        }
+
+        50% {
+            top: 0vh;
+            opacity: .8;
+        }
+
+        75% {
+            opacity: 1;
+        }
+
+        100% {
+            top: 100vh;
+            opacity: 0;
+        }
+    }
+}
+
+@keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.about-me{
+    font-size: max(1vw, 4vh);
+}
+
+.fixed-header {
+    position: fixed !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    height: 3vw;
+    min-height: 60px;
+
+    .me-wrapper{
+        width: 45px;
+        height: 45px;
+
+        #me{
+            position: static;
+        }
+    }
+
+    .about-card{
+        align-items: center;
+    }
+
+    #description {
+        position: static;
+        display: flex;
+        align-items: baseline;
+
+        .about-me{
+            display: none;
+        }
+
+        .my-name{
+            margin-top: 0;
+            margin-left: 1vw;
+            font-size: min(1.5vw, 30px);
+            flex-grow: 1;
+            transition: flex-grow .4s ease-in-out;
+            animation: fadein 1s;
+        }
+    }
+}
 
 .home-content {
     margin-top: 60vh;
@@ -7,6 +153,7 @@
 .about-card {
     color: white;
     display: flex;
+    height: 100%;
 }
 
 .fixed {
@@ -31,6 +178,7 @@
         min-width: 10vh;
         width: 50vh;
         bottom: 5vh;
+        border-radius: 50%
     }
 }
 
@@ -45,13 +193,11 @@
     min-width: 180px;
 }
 
-@media (max-width:600px){
+@media (max-width:1000px){
     .home-content {
         margin-top: 100vh;
     }
-    #about {
-        height: 100vh;
-    }
+
     .about-card {
         flex-direction: column;
         height: 100%;
@@ -74,7 +220,7 @@
 
     .my-name {
         margin: 0;
-        font-size: 16vw;
+        font-size: 14vw;
         white-space: nowrap;
     }
     .description {
