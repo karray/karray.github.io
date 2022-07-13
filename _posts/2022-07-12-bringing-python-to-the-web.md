@@ -37,7 +37,6 @@ Here I would like to share my experience. I will also give more examples and dis
 Pyodide is a project from Mozilla that brings the Python runtime to the browser, along with the scientific stack including NumPy, Pandas, Matplotlib, SciPy, and [others](https://github.com/iodide-project/pyodide/tree/master/packages). All of this is made possible by Wasm.
 
 > WebAssembly is a new type of code that can be run in modern web browsers and provides new features and major gains in performance. It is not primarily intended to be written by hand, rather it is designed to be an effective compilation target for source languages like C, C++, Rust, etc.
-> 
 
 Wasm could potentially have a huge impact on the future of front-end development by extending the JS stack with numerous libraries and opening new possibilities for developers programming in languages other than JS. For example, there are already projects using it under the the hood, such as [PyScript](https://pyscript.net/).
 
