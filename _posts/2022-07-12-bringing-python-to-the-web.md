@@ -20,8 +20,6 @@ Easy, right? This is made possible by [WebAssembly](https://webassembly.org/) (W
 
 So what can we actually do? Spoiler: With the power of Python and JS, we can do almost anything. But before getting into the details, let me first tell you a little story behind this writing.
 
----
-
 I recently started a hobby [project](http://karay.me/truepyxel/) where I implemented image pixelation. I decided to write it in Python, as this language has a bunch of libraries for working with images. The problem was that I couldn't easily share the app without developing an Android app or finding a hosting and deploying a Django or Flask server.
 
 I've heard about WebAssembly before and have wanted to try it out for a long time. Searching the Internet for "webassembly python", I immediately came across a link to an interesting article "[Pyodide: Bringing the scientific Python stack to the browser](https://hacks.mozilla.org/2019/04/pyodide-bringing-the-scientific-python-stack-to-the-browser/)". Unfortunately, the article is mainly about the [iodide project](https://github.com/iodide-project/iodide) that is no longer in development and the documentation of [Pyodide](https://github.com/iodide-project/pyodide) was sparse.
