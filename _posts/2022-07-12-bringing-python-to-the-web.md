@@ -6,7 +6,7 @@ tags: pyodide python web
 ---
 Have you ever wanted to share your cool Python app with the world without deploying an entire Django server or developing a mobile app just for a small project?
 
-Good news, you don’t have to! All you need is to add a single JavaScript library to your HTML page and this will work even on mobile devices mixing JS with Python and take advantage of both worlds for your webpage.
+Good news, you don’t have to! All you need is to add one JavaScript library to your HTML page and it will even work on mobile devices, allowing you to mix JS with Python so you can take advantage of both worlds.
 
 <!--more-->
 
@@ -16,7 +16,7 @@ Good news, you don’t have to! All you need is to add a single JavaScript libra
 
 {%include full_width.html content=example1%}
 
-Easy, right? This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide).
+Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide).
 
 So what can we actually do? Spoiler: With the power of Python and JS, we can do almost anything. But before getting into the details, let me first tell you a little story behind this writing.
 
@@ -112,7 +112,7 @@ pyodide.runPythonAsync(python_code)
   .then(output => console.log(output))
 ```
 
-**Note:** although the function is called `Async`, it still blocks the main thread. To run Python code asynchronously, we can use [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API), which I'll talk about next time.
+**Note:** although the function is called `Async`, it still blocks the main thread. To run Python code asynchronously, we can use [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API).
 
 Okay, but how can we use all of this? In fact, we can replace JS and use Python as the main language for web development. Pyodide provides a bridge between JS and Python scopes.
 
