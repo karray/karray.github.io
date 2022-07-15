@@ -1,9 +1,30 @@
+.highlighter-rouge{
+  margin-bottom: 15px;
+}
+
 .highlight {
   border: 1px solid #dcdcdc;
   border-radius: 10px;
 
-  .highlight{
+  pre.highlight{
     border: none;
+    margin: 0;
+  }
+
+  table {
+    margin: 0;
+
+
+    pre, tr, td {
+      padding: 0;
+      margin: 0;
+    }
+
+    .rouge-code {
+      padding-left: 15px;
+    }
+
+
   }
   
   .c, .cm, .c1, .cs {
