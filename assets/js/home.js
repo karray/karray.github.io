@@ -23,7 +23,6 @@ function update_elements(){
 
     let scroll = getScroll()
     me_img.style.width = me_width - scroll + 'vh';
-    console.log(me_width, scroll)
     if(desc_height < scroll){
         desc.classList.add('scrolled')
         desc.classList.remove('fixed')
