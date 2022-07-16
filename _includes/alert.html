@@ -1,5 +1,4 @@
-<div class="alert {{type}}">
-    
-<strong>{{titel}}</strong>
-{{message}}
+<div class="alert alert-{{include.type}}">
+    <b>{{include.title}}:</b>
+    {{include.message  | markdownify }}
 </div>

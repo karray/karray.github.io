@@ -20,16 +20,13 @@ let info = document.getElementById('my-infobox');
 let unit = getMinViewport();
 
 let about_height = 60;
-// console.log(getMinViewHeightWidth(60))
 let desc_height = getMinViewHeightWidth(desc.offsetHeight)
-// let me_width = to_vh(me_img.offsetWidth);
 
 let is_small_screen = window.matchMedia('(max-width: 350px)')
 
 function update_elements(){
     if(is_small_screen.matches){
         about.classList.add('fixed-header')
-        // me_img.style.width = '100%'
         return
     }
 
@@ -42,33 +39,24 @@ function update_elements(){
             desc.style.width = desc.offsetWidth+'px';
         }
         info.classList.add('scrolled')
-        // desc.classList.remove('fixed')
     }
     else{
         info.classList.remove('scrolled')
         desc.style.width = 'auto';
-
-        // desc.classList.add('fixed')
     }
 
     if(new_height<15) {
         about.classList.add('fixed-header')
-        // me_img.style.width = '100%'
     }
     else {
         about.classList.remove('fixed-header')
-        // me_img.style.width = me_width - scroll + 'vh';
-        // me_img.style.top = (60-me_width)/2 + scroll + 'vh';
     }
 }
 
 window.addEventListener('scroll', update_elements);
 window.addEventListener('resize', function(event) {
-    // me_width = to_vh(me_img.offsetWidth);
-    // about_height = getMaxViewHeightWidth(60);
     desc_height = getMinViewHeightWidth(desc.offsetHeight)
     unit = getMinViewport();
-    // is_small_screen = window.matchMedia(`(max-width: ${breakpoint})`).matches
     update_elements()
 }, true);
 
