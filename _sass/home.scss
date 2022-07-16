@@ -116,7 +116,7 @@ $brakepoint: 480px;
 }
 
 .home-content {
-    margin-top: 60vh;
+    margin-top: min(60vh, 60vw);
 }
 
 .about-card {
@@ -171,7 +171,7 @@ $brakepoint: 480px;
 
 .my-name::before {
     margin: 5vh 0 0;
-    font-size: max(min(6vw, 8.6vh), 25px);
+    font-size: max(2.5vw, 20px);
     white-space: nowrap;
     content: "Aray Karjauv";
 }
