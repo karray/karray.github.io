@@ -111,7 +111,7 @@ np.ones((3,3))
 pyodide.runPythonAsync(python_code)
   .then(output => console.log(output))
 ```
-{% include alert.html type='info' title='Note' message='although the function is called `Async`, it still blocks the main thread. To run Python code asynchronously, we can use [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API).' %}
+{% include alert.html type='warning' title='Note' message='although the function is called `Async`, it still blocks the main thread. To run Python code asynchronously, we can use [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API).' %}
 
 Okay, but how can we use all of this? In fact, we can replace JS and use Python as the main language for web development. Pyodide provides a bridge between JS and Python scopes.
 
