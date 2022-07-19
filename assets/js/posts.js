@@ -15,10 +15,10 @@ let is_small_screen = window.matchMedia('(max-width: 350px)')
 let prevScroll = 0
 
 function update_elements(){
-    if(is_small_screen.matches){
-        about.classList.add('fixed-header')
-        return
-    }
+    // if(is_small_screen.matches){
+    //     header.classList.add('fixed-header')
+    //     return
+    // }
 
     let scroll = getScroll()
     let new_height = header_height - scroll

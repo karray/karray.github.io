@@ -1,5 +1,6 @@
 ---
 ---
+$brakepoint: 350px;
 
 @import 'minima';
 @import 'header_background';
@@ -10,6 +11,10 @@
 // .wrapper {
 //     min-width: 400px;
 // }
+
+body {
+    min-width: 300px;
+}
 
 .dynamic-header {
     position: fixed;
@@ -62,13 +67,13 @@
     }
 }
 
-@media (min-width:768px){
-    .wrapper {
-        width: 60%;
-        font-size: 1.5vw;
-        max-width: initial;
-    }
-}
+// @media (min-width:768px){
+//     .wrapper {
+//         width: 60%;
+//         font-size: 1.5vw;
+//         max-width: initial;
+//     }
+// }
 
 @keyframes fadein {
     from {
@@ -78,4 +83,7 @@
     to {
         opacity: 1;
     }
+}
+
+@media (max-width:$brakepoint) {
 }
