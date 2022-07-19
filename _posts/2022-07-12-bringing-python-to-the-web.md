@@ -16,7 +16,7 @@ Good news, you don’t have to! All you need is to add one JavaScript library to
 
 {%include full_width.html content=example1%}
 
-Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide).
+Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide). Full source can be found [here](https://github.com/karray/truepyxel/blob/master/pyodide.html).
 
 So what can we actually do? Spoiler: With the power of Python and JS, we can do almost anything. But before getting into the details, let me first tell you a little story behind this writing.
 
