@@ -4,22 +4,14 @@ $brakepoint: 480px;
     font-weight: 100;
 }
 
-@keyframes fadein {
-    from {
-        opacity: 0;
-    }
 
-    to {
-        opacity: 1;
-    }
-}
 
 .about-me {
-    font-size: max(min(2vw, 5vh), 15px);
+    font-size: max(1.8vmax, 15px);
 }
 
 .dynamic-content {
-    margin-top: min(60vh, 60vw);
+    margin-top: 60vmin;
 }
 
 .about-card {
@@ -73,8 +65,7 @@ $brakepoint: 480px;
 }
 
 .my-name::before {
-    margin: 5vh 0 0;
-    font-size: max(2.5vw, 20px);
+    font-size: max(3.5vmax, 20px);
     white-space: nowrap;
     content: "Aray Karjauv";
 }
@@ -157,14 +148,10 @@ $brakepoint: 480px;
 }
 
 .fixed-header {
-    position: fixed !important;
-    height: 5vw !important;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-    min-height: 40px;
 
     .me-wrapper {
-        width: 4vw;
-        height: 4vw;
+        width: 4vmin;
+        height: 4vmin;
 
         #me {
             position: static;
@@ -192,13 +179,13 @@ $brakepoint: 480px;
 
         .my-name {
             margin-top: 0;
-            margin-left: 1vw;
             flex-grow: 1;
             transition: flex-grow .4s ease-in-out;
             animation: fadein 1s;
 
             &::before {
                 content: "Aray's Blog";
+                 font-size: max(2.5vmin, 20px);
             }
         }
     }

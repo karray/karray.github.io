@@ -8,6 +8,12 @@
   <header id="post-header" class="post-title header-background dynamic-header" role="banner" style="display: flex;">
 
     <div class="wrapper">
+      <div id="me-block">
+        <a href="/">
+          <img src="{{'/assets/img/me.jpg' | relative_url}}" alt="Aray Karjauv" />
+        </a>
+        Aray's
+      </div>
       <h1 class="post-title p-name" itemprop="name headline">{{ page.title | escape }}</h1>
     </div>
     <div class='light x1'></div>
@@ -51,7 +57,7 @@
 
   {%- include footer.html -%}
 
-  <script src="{{ "/assets/js/posts.js" | relative_url }}"></script>
+  <script src="{{ '/assets/js/posts.js' | relative_url }}"></script>
 
 </body>
 

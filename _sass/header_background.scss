@@ -1,5 +1,6 @@
 .header-background {
-    height: min(60vh, 60vw);
+    height: 60vmin;
+    overflow: hidden;
     // background: radial-gradient(#563d7c, #3d1b70);
     background-color: #159957;
     background-image: linear-gradient(120deg, #155799, #159957);

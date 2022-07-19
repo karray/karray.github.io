@@ -7,7 +7,7 @@
   <div id="about" class="header-background dynamic-header">
     <div class="wrapper about-card">
       <div class="me-wrapper">
-        <img src="assets/img/me.jpg" alt="photo" id='me' />
+        <img src="{{'/assets/img/me.jpg' | relative_url}}" alt="Aray Karjauv" id='me' />
       </div>
       <div id="my-infobox">
         <div id="dummy-description"></div>
@@ -75,7 +75,7 @@
     </div>
   </main>
   <!-- {%- include footer.html -%} -->
-  <script src="assets/js/home.js"></script>
+  <script src="{{ '/assets/js/home.js' | relative_url }}"></script>
 </body>
 
 </html>

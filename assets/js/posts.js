@@ -1,9 +1,3 @@
-function getMinViewport(){
-    if(window.innerHeight > window.innerWidth){
-        return 'vw';
-    }
-    return 'vh';
-}
 function getScroll() {
     return getMinViewHeightWidth(window.pageYOffset || document.documentElement.scrollTop);
 }
@@ -13,11 +7,12 @@ function getMinViewHeightWidth(x){
 }
 
 let header = document.getElementById('post-header');
-let unit = getMinViewport();
+const unit = 'vmin';
 
-let header_height = 60;
+const header_height = 60;
 
 let is_small_screen = window.matchMedia('(max-width: 350px)')
+let prevScroll = 0
 
 function update_elements(){
     if(is_small_screen.matches){
@@ -31,6 +26,14 @@ function update_elements(){
 
     if(new_height<15) {
         header.classList.add('fixed-header')
+        // hide the header if scrolling down
+        if(new_height < -15 && scroll > prevScroll) {
+            header.classList.add('hidden-header')
+        }
+        else {
+            header.classList.remove('hidden-header')
+        }
+        prevScroll = scroll
     }
     else {
         header.classList.remove('fixed-header')
@@ -39,7 +42,7 @@ function update_elements(){
 
 window.addEventListener('scroll', ()=>requestAnimationFrame(update_elements));
 window.addEventListener('resize', function(event) {
-    requestAnimationFrame(update_elements)
+    update_elements()
 }, true);
 
-requestAnimationFrame(update_elements)
+update_elements()
