@@ -53,14 +53,14 @@ function update_elements(){
     }
 }
 
-window.addEventListener('scroll', update_elements);
+window.addEventListener('scroll', ()=>requestAnimationFrame(update_elements));
 window.addEventListener('resize', function(event) {
     desc_height = getMinViewHeightWidth(desc.offsetHeight)
     unit = getMinViewport();
-    update_elements()
+    requestAnimationFrame(update_elements)
 }, true);
 
 // ['#FFC0CB', '#DB7093', '#E6E6FA', '#D8BFD8', '#DDA0DD', '#BA55D3', '#7B68EE', '#663399', '#FFA07A', '#FA8072', '#FF8C00',
 // '#FF6347', '#90EE90', '#3CB371', '#228B22', '	#9ACD32', '#66CDAA', '#20B2AA', '#008080', '#00CED1', '#6495ED']
 
-update_elements()
+requestAnimationFrame(update_elements)

@@ -1,14 +1,7 @@
 $brakepoint: 480px;
 
 #about {
-    position: fixed;
-    height: min(60vh, 60vw);
-    top: 0;
-    left: 0;
-    right: 0;
-    margin: 0;
     font-weight: 100;
-    background: radial-gradient(#563d7c, #3d1b70);
 }
 
 @keyframes fadein {
@@ -25,7 +18,7 @@ $brakepoint: 480px;
     font-size: max(min(2vw, 5vh), 15px);
 }
 
-.home-content {
+.dynamic-content {
     margin-top: min(60vh, 60vw);
 }
 

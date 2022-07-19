@@ -1,4 +1,9 @@
-.header-backgoround {
+.header-background {
+    height: min(60vh, 60vw);
+    // background: radial-gradient(#563d7c, #3d1b70);
+    background-color: #159957;
+    background-image: linear-gradient(120deg, #155799, #159957);
+    color: #fff;
     .light {
         position: absolute;
         width: 0px;

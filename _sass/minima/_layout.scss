@@ -202,6 +202,11 @@
   color: $grey-color;
 }
 
+.post-title .post-meta {
+  font-size: $small-font-size;
+  color: #d5d5d5;
+}
+
 .post-link {
   display: block;
   @include relative-font-size(1.5);
@@ -220,6 +225,8 @@
   @include relative-font-size(2.625);
   letter-spacing: -1px;
   line-height: 1;
+  align-items: center;
+  text-align: center;
 
   @include media-query($on-laptop) {
     @include relative-font-size(2.25);
