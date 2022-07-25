@@ -16,8 +16,6 @@ np.ones((10,))
     <div>You can execute any Python code. Just enter something in the box above and click the button. </div>
 
     <script type='text/javascript'>
-        window.languagePluginUrl = 'https://pyodide-cdn2.iodide.io/v0.15.0/full/';
-
         const output = document.getElementById("output")
         const code = document.getElementById("code")
 
@@ -28,31 +26,42 @@ np.ones((10,))
 
             output.value = 'Initializing...\n'
 
-            window.languagePluginUrl = 'https://pyodide-cdn2.iodide.io/v0.15.0/full/'
-
-            let pyodide = document.createElement('script')
-            pyodide.type = 'text/javascript'
-            pyodide.addEventListener('load', function () {
-                // init pyodide
-                languagePluginLoader.then(() => { output.value += 'Ready!\n' })
-            })
-            pyodide.src = 'https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js'
-            div.appendChild(pyodide)
+            if (!document.getElementById('pyodide-script')) {
+                let pyodide_script = document.createElement('script')
+                pyodide_script.id = 'pyodide-script'
+                pyodide_script.type = 'text/javascript'
+                pyodide_script.addEventListener('load', async () => {
+                    // init pyodide
+                    window.pyodide = await loadPyodide()
+                    output.value += 'Ready!\n' 
+                })
+                pyodide_script.src = 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js'
+                div.appendChild(pyodide_script)
+            }
+            else {
+                output.value += 'Ready!\n'
+            }
 
         }
 
         function addToOutput(s) {
-            output.value += `>>>${code.value}\n${s}\n`
+            output.value += `${s}\n`
             output.scrollTop = output.scrollHeight
-            code.value = ''
         }
 
+        async function evaluatePython() {
+            addToOutput(`>>>${code.value}`)
 
-
-        function evaluatePython() {
-            pyodide.runPythonAsync(code.value)
-                .then(output => addToOutput(output))
-                .catch((err) => { addToOutput(err) })
+            // Since pyodide 0.18.0, you must call loadPackagesFromImports() to import any python packages referenced via import statements in your code. This function will no longer do it for you.
+            await pyodide.loadPackagesFromImports(code.value, addToOutput, addToOutput)
+            try {
+                let result = await pyodide.runPython(code.value)
+                addToOutput(`${result}`)
+            }
+            catch (e) {
+                addToOutput(`${e}`)
+            }
+            code.value = ''
         }
     </script>
 </div>

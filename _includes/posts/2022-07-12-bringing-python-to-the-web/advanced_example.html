@@ -1,0 +1,84 @@
+<div id="load-advanced-example" style="text-align: center;">
+    <button onclick="loadAdvancedExample()">Load Example</button>
+    <div>
+        <strong>Note that this may take some time and cause the page to freeze</strong>.
+    </div>
+</div>
+<div id="advanced-example-live" style="display: none;">
+
+    <br><br>
+    mu:
+    <input id='mu' value='1' type="number">
+    <br><br>
+    sigma:
+    <input id='sigma' value='1' type="number">
+    <br><br>
+    <button onclick='pyodide.globals.get("generate_plot_img")()' id="plot-btn">Plot</button>
+    <br>
+    <img id="fig" />
+
+    <script type='text/javascript'>
+
+        const python_code = `
+from js import document
+import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+import io, base64
+
+def generate_plot_img():
+    # get values from inputs
+    mu = int(document.getElementById('mu').value)
+    sigma = int(document.getElementById('sigma').value)
+    # generate an interval
+    x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
+    # calculate PDF for each value in the x given mu and sigma and plot a line
+    plt.plot(x, stats.norm.pdf(x, mu, sigma))
+    # create buffer for an image
+    buf = io.BytesIO()
+    # copy the plot into the buffer
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    # encode the image as Base64 string
+    img_str = 'data:image/png;base64,' + base64.b64encode(buf.read()).decode('UTF-8')
+    # show the image
+    img_tag = document.getElementById('fig')
+    img_tag.src = img_str
+    buf.close()`
+        
+        let plt_btn = document.getElementById('plot-btn')
+
+        async function preparePlot() {
+            await pyodide.loadPackagesFromImports(python_code)
+            await pyodide.runPythonAsync(python_code)
+            pyodide.globals.get("generate_plot_img")()
+            plt_btn.innerHTML = 'Plot'
+            plt_btn.disabled = false
+        }
+
+        function loadAdvancedExample() {
+            document.getElementById('load-advanced-example').remove()
+            plt_btn.innerHTML = 'Plotting...'
+            plt_btn.disabled = true
+            let div = document.getElementById('advanced-example-live')
+            div.style.display = 'block'
+
+            if (!document.getElementById('pyodide-script')) {
+                let pyodide_script = document.createElement('script')
+                pyodide_script.id = 'pyodide-script'
+                pyodide_script.type = 'text/javascript'
+                pyodide_script.addEventListener('load', async () => {
+                    // init pyodide
+                    window.pyodide = await loadPyodide()
+                    preparePlot()
+                })
+                pyodide_script.src = 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js'
+                div.appendChild(pyodide_script)
+            }
+            else {
+                preparePlot()
+            }
+        }
+
+    </script>
+</div>
