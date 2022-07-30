@@ -10,6 +10,8 @@ Good news, you don’t have to! All you need is to add one JavaScript library to
 
 <!--more-->
 
+Take a look at this REPL example:
+
 {% capture example1 %}
 {% include posts/2022-07-12-bringing-python-to-the-web/simple_example.html %}
 {% endcapture %}
@@ -42,12 +44,15 @@ So, it's time to get your hands dirty. Let's take a closer look at the minimal e
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js"></script>
 <script>
-   // init environment
-  languagePluginLoader
-    // then run Python code
-    .then(() => console.log(pyodide.runPython(`import sys; sys.version`)));
+  (async () => { // create anonymous async function to enable await
+    let pyodide = await loadPyodide();
+    console.log(pyodide.runPython(`
+      import sys
+      sys.version
+    `));
+  })(); // call the async function immediately
 </script>
 </head>
 <body>
@@ -59,14 +64,14 @@ First of all, we have to include the `pyodide.js` script by adding the CDN URL
 
 ```html
 <!-- HTML -->
-<script src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js"></script>
 ```
 
-After this, we must wait until the Python environment is bootstrapped
+After this, we must load the main Pyodide wasm module using [loadPyodide](https://pyodide.org/en/stable/usage/api/js-api.html#globalThis.loadPyodide) and wait until the Python environment is bootstrapped
 
 ```jsx
 // JS
-languagePluginLoader.then(...)
+let pyodide = await loadPyodide()
 ```
 
 Finally, we can run Python code
@@ -76,68 +81,65 @@ Finally, we can run Python code
 console.log(pyodide.runPython('import sys; sys.version'))
 ```
 
-Note that if we want to load `pyodide.js` from a source other than the official CDN (e.g. own server), we have to set the base Plugin URL before including the `pyodide.js` as follows
-
-```html
-<!-- HTML -->
-<script type="text/javascript">
-	// default pyodide files URL (packages.json, pyodide.asm.data etc)
-  window.languagePluginUrl = 'https://pyodide-cdn2.iodide.io/v0.15.0/full/';
-</script>
-<script src="https://pyodide-cdn2.iodide.io/v0.15.0/full/pyodide.js"></script>
-```
-
-This sets the path for downloading Python packages.
+<!-- Note that if we want to load `pyodide.js` from a source other than the official CDN (e.g. own server), we have to set the base Plugin URL before including the `pyodide.js` as follows
+This sets the path for downloading Python packages. -->
 
 By default, the environment only includes standard Python modules such as `sys`, `csv`, etc. If we want to import a third-party package like `numpy` we have two options: we can either pre-load required packages manually and then import them in Python
 
 ```jsx
 // JS
-pyodide.loadPackage('numpy').then(() => {
-	// numpy is now available
-  pyodide.runPython('import numpy as np')
-  console.log(pyodide.runPython('np.ones((3, 3)))'))
-})
+
+await pyodide.loadPackage('numpy');
+// numpy is now available
+pyodide.runPython('import numpy as np')
+console.log(pyodide.runPython('np.ones((3, 3)))'))
 ```
 
-or we can use the `pyodide.runPythonAsync` function that will automatically download all packages that the code snippet imports
+or we can use the [pyodide.loadPackagesFromImports](https://pyodide.org/en/stable/usage/api/js-api.html#pyodide.loadPackagesFromImports) function that will automatically download all packages that the code snippet imports
 
-```java
+```jsx
 // JS
-python_code = `
+let python_code = `
 import numpy as np
 np.ones((3,3))
 `
-pyodide.runPythonAsync(python_code)
-  .then(output => console.log(output))
+(async () => {
+  await pyodide.loadPackagesFromImports(python_code)
+  let result = await pyodide.runPythonAsync(code.value)
+  console.log(result)
+})() // call the function immediately
 ```
-{% include alert.html type='warning' title='Note' message='although the function is called `Async`, it still blocks the main thread. To run Python code asynchronously, we can use [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API).' %}
+
+{% include alert.html type='warning' title='Note' message='Since pyodide 0.18.0, [pyodide.runPythonAsync](https://pyodide.org/en/stable/usage/api/js-api.html#pyodide.runPythonAsync) does not automatically load packages, so `loadPackagesFromImports` should be called beforehand. It currently does not download packages from PyPI, but only downloads packages included in the Pyodide distribution (see [Packages list](https://pyodide.org/en/stable/usage/packages-in-pyodide.html#packages-in-pyodide)). More information about loading packages can be found [here](https://pyodide.org/en/stable/usage/loading-packages.html.)' %}
+
+<!-- {% include alert.html type='warning' title='Note' message='although the function is called `Async`, it still blocks the main thread. To run Python code asynchronously, we can use [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API).' %} -->
 
 Okay, but how can we use all of this? In fact, we can replace JS and use Python as the main language for web development. Pyodide provides a bridge between JS and Python scopes.
 
 # **Accessing JavaScript scope from Python**
 
-The JS scope can be accessed from Python through the `js` module. This module gives us access to the global object `window` and allows us to directly manipulate the DOM and access global variables and functions from Python.
+The JS scope can be accessed from Python through the `js` module. This module gives us access to the global object `window` and allows us to directly manipulate the DOM and access global variables and functions from Python. In other words, `js` is an alias for `window`, so we can either use `window` by importing it `from the js import window` or just use `js` directly .
 
-Why not try it yourself? Let's open the [demo page](http://karay.me/truepyxel/demo.html) in a new tab.
+Why not try it yourself? You can use the live demo above or open the [demo page](http://karay.me/truepyxel/demo.html) in a new tab.
 
-**Please be aware that execution of the code may take a while and the UI thread will be blocked until all packages have been downloaded.**
+<!-- **Please be aware that execution of the code may take a while and the UI thread will be blocked until all packages have been downloaded.** -->
 
 Just run this Python code and watch what happens.
 
 ```python
 # Python
-from jsimport documentdiv = document.createElement('div')
+from js import document
+
+div = document.createElement('div')
 div.innerHTML = '<h1>This element was created from Python</h1>'
-#insert into body as a first child
-document.body.prepend(div)
+document.getElementById('simple-example').prepend(div)
 ```
 
-We have just created an `h1` heading at the top of the page from Python. Isn't it cool?!
+We have just created an `h1` heading at the top of the example's container using Python. Isn't it cool?!
 
-We first created a `div` element and then inserted it into the `body` using the JS `document` interface.
+We first created a `div` element and then inserted it into the `<div id='simple-example'>` using the JS `document` interface.
 
-Since we have full control over the `window` object, we can also handle all events. Let's add a button at the bottom of the page that clears the output when clicked
+Since we have full control over the `window` object, we can also handle all events from python. Let's add a button at the bottom of the example that clears the output when clicked
 
 ```python
 # Python
@@ -150,19 +152,15 @@ def handle_clear_output(event):
 clear_button = document.createElement('button')
 clear_button.innerHTML = 'Clear output'
 clear_button.onclick = handle_clear_output
-document.body.appendChild(clear_button)
+document.getElementById('simple-example').appendChild(clear_button)
 ```
 
-Bear in mind, that we can only access the properties of the `window` object. That is, we can access only the variables directly attached to the window or defined globally with the `var` statement. Because `let` statement declares a block-scoped local variable just like the `const`, it does not create properties of the window object when declared globally.
+Note that we use Python function as the event handler.
 
-Moreover, although the `js` module is an alias for the `window`, there is an [issue](https://github.com/iodide-project/pyodide/issues/768) with binding it to the `window` context. The workaround is to explicitly import the object as follows
+{% include alert.html type='info' title='Note' message='We can only access the properties of the `window` object. That is, we can access only the variables directly attached to the window or defined globally with the `var` statement. Because `let` statement declares a block-scoped local variable just like the `const`, it does not create properties of the window object when declared globally.' %}
 
-```python
-# Python
-from js import window
-```
-
-JS has the arrow function expression introduced in ES6, which is very handy if we want to create a callback inline. An alternative in Python is the `lambda` expression. Let's take a look at one more example
+<!-- TODO -->
+<!-- JS has the arrow function expression introduced in ES6, which is very handy if we want to create a callback inline. An alternative in Python is the `lambda` expression. Let's take a look at one more example
 
 ```python
 # Python
@@ -172,58 +170,59 @@ window.fetch('http://karay.me/truepyxel/test.json').then(lambda resp: resp.json(
 
 I personally find this example very cool. Here we write the code in JS way and take advantage of chains of promises. The `resp.json` function converts the response body into an object that we can then access from Python. This also enables us to handle rejections. Just try to give any wrong URL to get the exception message.
 
-The key difference is that it is not a real `Promise`. Therefore, the chaining will execute synchronously and the last value in the chain will be returned instead of a new `Promise`. Besides, as the project is still under development, there are some [issues](https://github.com/iodide-project/pyodide/issues/769). For example, we cannot use `Promise.finally` as this keyword is reserved in Python.
+The key difference is that it is not a real `Promise`. Therefore, the chaining will execute synchronously and the last value in the chain will be returned instead of a new `Promise`. Besides, as the project is still under development, there are some [issues](https://github.com/iodide-project/pyodide/issues/769). For example, we cannot use `Promise.finally` as this keyword is reserved in Python. -->
 
 # **Accessing Python scope from JS**
 
-We can also go in the opposite direction and get full access to the Python scope from JS through the `pyodide.globals` object. For example, if we import `numpy` into the Python scope, we can immediately use it from JS. This option is for those who prefer JS but want to take advantage of Python libraries.
+We can also go in the opposite direction and get full access to the Python scope from JS through the [pyodide.globals.get()](https://pyodide.org/en/stable/usage/api/js-api.html?highlight=globals.get#pyodide.globals) function. Additionally, we also need to convert the returned object to JS type using [toJs()](https://pyodide.org/en/stable/usage/api/js-api.html#PyProxy.toJs). For example, if we import `numpy` into the Python scope, we can immediately use it from JS. This option is for those who prefer JS but want to take advantage of Python libraries.
 
-Let's try it live. Go to the [demo](http://karay.me/truepyxel/demo.html) page and run the following Python code
+Let's try it live. You can go to the [demo](http://karay.me/truepyxel/demo.html) page or try the following Python code in the live demo above
 
 ```python
 # Python
-import numpyas npx = np.ones([3,3])
+import numpy as np
+x = np.ones([3,3])
 ```
 
-Now, while you are on the demo page, I will ask you to open the browser console and run this JS code
+Now, I will ask you to open the browser console and run this JS code
 
 ```jsx
 // JS
-pyodide.globals.x
+pyodide.globals.get('x').toJs()
 // >>> [Float64Array(3), Float64Array(3), Float64Array(3)]
 ```
 
-As we can see, the `x` variable was converted to JS typed array. We can also create the same array from JS:
+As you can see, the `x` variable was converted to JS typed array. We can also create the same array from JS:
 
 ```jsx
 // JS
-let x = pyodide.globals.np.ones(new Int32Array([3, 3]))
+let x = pyodide.globals.get('np').ones(new Int32Array([3, 3])).toJs()
 // x >>> [Float64Array(3), Float64Array(3), Float64Array(3)]
 ```
 
-The `np.ones` function takes a size of the array as an argument, which must be a list or a tuple. If we pass in a standard JS array, we get an error because it won't be converted to a Python type. Therefore, we have to pass a [typed array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays) (see Pyodide [Type conversion](https://github.com/iodide-project/pyodide/blob/master/docs/type_conversions.md) for more details).
+The `np.ones` function takes a size of the array as an argument, which must be a list or a tuple. If we pass in a standard JS array, we get an error because it won't be converted to a Python type. Therefore, we have to pass a [typed array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays) (see Pyodide [Type translations]https://pyodide.org/en/stable/usage/type-conversions.html) for more details).
 
-Since we have full scope access, we can also re-assign new values or even JS functions to variables and create new ones from JS. Feel free to experiment with the code in the browser console.
+Since we have full scope access, we can also re-assign new values or even JS functions to variables and create new ones from JS using `globals.set` function. Feel free to experiment with the code in the browser console.
 
 ```jsx
 // JS
 
 // re-assign a new value to an existing Python variable
-pyodide.globals.x = 'x is now string'
+pyodide.globals.set('x', 'x is now string')
 // create a new js function that will be available from Python
 // this will show a browser alert if the function is called from Python and msg is not null (None in Python)
-pyodide.globals.alert = msg => msg && alert(msg)
+pyodide.globals.set('alert', msg => msg && alert(msg))
 // this new function will also be available in Python and will return the square of the window
-pyodide.globals.window_square = function(){
+pyodide.globals.set('window_square', function(){
   return innerHeight*innerWidth
-}
+})
 ```
 
 All of these variables and functions will be available in the global Python scope
 
 ```python
 # Python
-alert('Hi from Python. Windows square: ' + str(window_square()))
+alert(f'Hi from Python. Windows square: {window_square()}')
 ```
 
 # **Installing packages**
@@ -257,8 +256,8 @@ First, we import all necessary modules. Since this will load a bunch of dependen
 # Python
 from js import document
 import numpy as np
-import scipy.statsas stats
-import matplotlib.pyplotas plt
+import scipy.stats as stats
+import matplotlib.pyplot as plt
 import io, base64
 ```
 
@@ -278,7 +277,7 @@ div_container.innerHTML = """
   sigma:
   <input id='sigma' value='1' type="number">
   <br><br>
-  <buttononclick='pyodide.globals.generate_plot_img()'>Plot</button>
+  <button onclick='pyodide.globals.generate_plot_img()'>Plot</button>
   <br>
   <img id="fig" />
 """
@@ -293,21 +292,21 @@ After that, we define the handler function itself
 # Python
 
 def generate_plot_img():
-	# get values from inputs
+  # get values from inputs
   mu = int(document.getElementById('mu').value)
   sigma = int(document.getElementById('sigma').value)
-	# generate an interval
+  # generate an interval
   x = np.linspace(mu - 3*sigma, mu + 3*sigma, 100)
-	# calculate PDF for each value in the x given mu and sigma and plot a line
+  # calculate PDF for each value in the x given mu and sigma and plot a line
   plt.plot(x, stats.norm.pdf(x, mu, sigma))
-	# create buffer for an image
+  # create buffer for an image
   buf = io.BytesIO()
-	# copy the plot into the buffer
+  # copy the plot into the buffer
   plt.savefig(buf, format='png')
   buf.seek(0)
-	# encode the image as Base64 string
+  # encode the image as Base64 string
   img_str = 'data:image/png;base64,' + base64.b64encode(buf.read()).decode('UTF-8')
-	# show the image
+  # show the image
   img_tag = document.getElementById('fig')
   img_tag.src = img_str
   buf.close()
@@ -317,11 +316,17 @@ This function will generate a plot and encode it as a Base64 string, which will 
 
 You should get the following result:
 
-![https://miro.medium.com/max/1400/1*byZ6FoML4TfhXT-Qn7RSjQ.png](https://miro.medium.com/max/1400/1*byZ6FoML4TfhXT-Qn7RSjQ.png)
+{% capture example2 %}
+{% include posts/2022-07-12-bringing-python-to-the-web/advanced_example.html %}
+{% endcapture %}
 
-Every time we click the button the `generate_plot_img` is called. The function gets values from the inputs, generates a plot, and sets it to the `img` tag. Since the `plt` object is not closed, we can add more charts to the same figure by changing the `mu` and `sigma` values
+{%include full_width.html content=example2%}
 
-![https://miro.medium.com/max/1400/1*Kfp6Fw2IjrSKuyBkvXe8Zw.png](https://miro.medium.com/max/1400/1*Kfp6Fw2IjrSKuyBkvXe8Zw.png)
+<!-- ![https://miro.medium.com/max/1400/1*byZ6FoML4TfhXT-Qn7RSjQ.png](https://miro.medium.com/max/1400/1*byZ6FoML4TfhXT-Qn7RSjQ.png) -->
+
+Every time we click the button the `generate_plot_img` is called. The function gets values from the inputs, generates a plot, and sets it to the `img` tag. Since the `plt` object is not closed, we can add more charts to the same figure by changing the `mu` and `sigma` values.
+
+<!-- ![https://miro.medium.com/max/1400/1*Kfp6Fw2IjrSKuyBkvXe8Zw.png](https://miro.medium.com/max/1400/1*Kfp6Fw2IjrSKuyBkvXe8Zw.png) -->
 
 # **Conclusion**
 
@@ -338,7 +343,6 @@ Wasm is a great technology that opens many possibilities. There are already a lo
 Furthermore, [WebAssembly System Interface (WASI)](https://github.com/bytecodealliance/wasmtime/blob/main/docs/WASI-intro.md) makes it possible to take full advantage of Wasm outside the browser:
 
 > It's designed to be independent of browsers, so it doesn't depend on Web APIs or JS, and isn't limited by the need to be compatible with JS. And it has integrated capability-based security, so it extends WebAssembly's characteristic sandboxing to include I/O.
-> 
 
 For example, WASI enables us to import modules written in any language into [Node.js](https://nodejs.org/api/wasi.html) or into other languages (e.g. import Rust module into Python).
 
