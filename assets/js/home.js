@@ -50,7 +50,6 @@ function update_elements(){
 window.addEventListener('scroll', ()=>requestAnimationFrame(update_elements));
 window.addEventListener('resize', function(event) {
     desc_height = getMinViewHeightWidth(desc.offsetHeight)
-    unit = getMinViewport();
     update_elements()
 }, true);
 
