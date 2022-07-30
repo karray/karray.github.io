@@ -197,6 +197,15 @@ pre {
     width: 100%;
     font-size: 5vw;
   }
+
+}
+@media screen and (orientation:portrait) {
+  .wrapper {
+    padding-right: $spacing-unit / 2;
+    padding-left: $spacing-unit / 2;
+    width: 100%;
+    font-size: 5vw;
+  }
 }
 
 
