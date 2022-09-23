@@ -88,3 +88,54 @@ body {
 
 @media (max-width:$brakepoint) {
 }
+
+.highlighter-rouge {
+    position: relative;
+        div.highlight {
+        padding-top: 2em;
+            code {
+
+                &::before{
+                    display: block;
+                    background-color: #dbdcdb;
+                    color: #000;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    padding: 5px;
+                    padding-left: 20px;
+                }
+            }
+    }
+}
+
+.language-js{
+        div.highlight {
+            code {
+                &::before{
+                    content: 'JS';
+                }
+            }
+    }
+}
+.language-html{
+        div.highlight {
+            code {
+                &::before{
+                    content: 'HTML';
+                }
+            }
+    }
+}
+.language-python{
+        div.highlight {
+            code {
+                &::before{
+                    content: 'Python';
+                }
+            }
+    }
+}
+
+.language-html{}
