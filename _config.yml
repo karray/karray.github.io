@@ -32,6 +32,7 @@ linkedin_username: Aray-Karjauv
 theme: minima
 plugins:
   - jekyll-feed
+  - jekyll-target-blank
 
 kramdown:
   math_engine: mathjax
