@@ -21,7 +21,7 @@ Take a look at this REPL example:
 {% include alert.html type='info' title='Note' message='This guide has been updated to Pyodide v0.21.3.' %}
 
 
-Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide). Full source can be found [here](https://github.com/karray/truepyxel/blob/master/pyodide.html).
+Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide). You can also open the [pyodide_repl.html](/examples/pyodide_repl.html) example in the a tab.
 
 So what can we actually do? Spoiler: With the power of Python and JS, we can do almost anything. But before getting into the details, let me first tell you a little story behind this writing.
 

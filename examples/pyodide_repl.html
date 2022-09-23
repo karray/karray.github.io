@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Pyodide v0.21.3 REPL example</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
+</head>
+
+<body>
+    <div>
+
+        Output:
+        <textarea id='output' style='width: 100%;' rows='10' disabled></textarea>
+        <textarea id='code' rows='3'>
+import numpy as np
+np.ones((10,))
+            </textarea>
+        <button id='run' onclick='evaluatePython()'>Run</button>
+        <div>You can execute any Python code. Just enter something in the box above and click the button. </div>
+
+        <script type='text/javascript'>
+            const output = document.getElementById("output")
+            const code = document.getElementById("code")
+
+            function addToOutput(s) {
+                output.value += `${s}\n`
+                output.scrollTop = output.scrollHeight
+            }
+
+            async function evaluatePython() {
+                addToOutput(`>>>${code.value}`)
+
+                try {
+                    // Since pyodide 0.18.0, you must call loadPackagesFromImports() 
+                    // to import any python packages referenced via import statements in your code.
+                    // This function will no longer do it for you.
+                    await pyodide.loadPackagesFromImports(code.value, addToOutput, addToOutput)
+                    let result = await pyodide.runPythonAsync(code.value)
+                    addToOutput(`${result}`)
+                }
+                catch (e) {
+                    addToOutput(`${e}`)
+                }
+                code.value = ''
+            }
+
+            (async () => { // enable await 
+                output.value = 'Initializing...\n'
+
+                // init Pyodide
+                window.pyodide = await loadPyodide({ stdout: addToOutput, stderr: addToOutput }) // redirect stdout and stderr to addToOutput
+                output.value += 'Ready!\n'
+
+            })(); // execute immediately
+        </script>
+    </div>
+</body>
