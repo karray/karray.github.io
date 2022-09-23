@@ -18,6 +18,9 @@ Take a look at this REPL example:
 
 {%include full_width.html content=example1%}
 
+{% include alert.html type='info' title='Note' message='This guide has been updated to Pyodide v0.21.3.' %}
+
+
 Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide). Full source can be found [here](https://github.com/karray/truepyxel/blob/master/pyodide.html).
 
 So what can we actually do? Spoiler: With the power of Python and JS, we can do almost anything. But before getting into the details, let me first tell you a little story behind this writing.
@@ -69,15 +72,13 @@ First of all, we have to include the `pyodide.js` script by adding the CDN URL
 
 After this, we must load the main Pyodide wasm module using [loadPyodide](https://pyodide.org/en/stable/usage/api/js-api.html#globalThis.loadPyodide) and wait until the Python environment is bootstrapped
 
-```jsx
-// JS
+```js
 let pyodide = await loadPyodide()
 ```
 
 Finally, we can run Python code
 
-```jsx
-// JS
+```js
 console.log(pyodide.runPython('import sys; sys.version'))
 ```
 
@@ -86,9 +87,7 @@ This sets the path for downloading Python packages. -->
 
 By default, the environment only includes standard Python modules such as `sys`, `csv`, etc. If we want to import a third-party package like `numpy` we have two options: we can either pre-load required packages manually and then import them in Python
 
-```jsx
-// JS
-
+```js
 await pyodide.loadPackage('numpy');
 // numpy is now available
 pyodide.runPython('import numpy as np')
@@ -97,8 +96,7 @@ console.log(pyodide.runPython('np.ones((3, 3)))'))
 
 or we can use the [pyodide.loadPackagesFromImports](https://pyodide.org/en/stable/usage/api/js-api.html#pyodide.loadPackagesFromImports) function that will automatically download all packages that the code snippet imports
 
-```jsx
-// JS
+```js
 let python_code = `
 import numpy as np
 np.ones((3,3))
@@ -127,7 +125,6 @@ Why not try it yourself? You can use the live demo above or open the [demo page]
 Just run this Python code and watch what happens.
 
 ```python
-# Python
 from js import document
 
 div = document.createElement('div')
@@ -142,7 +139,6 @@ We first created a `div` element and then inserted it into the `<div id='simple-
 Since we have full control over the `window` object, we can also handle all events from python. Let's add a button at the bottom of the example that clears the output when clicked
 
 ```python
-# Python
 from js import document
 
 def handle_clear_output(event):
@@ -159,18 +155,38 @@ Note that we use Python function as the event handler.
 
 {% include alert.html type='info' title='Note' message='We can only access the properties of the `window` object. That is, we can access only the variables directly attached to the window or defined globally with the `var` statement. Because `let` statement declares a block-scoped local variable just like the `const`, it does not create properties of the window object when declared globally.' %}
 
-<!-- TODO -->
-<!-- JS has the arrow function expression introduced in ES6, which is very handy if we want to create a callback inline. An alternative in Python is the `lambda` expression. Let's take a look at one more example
+# **HTTP requests**
+
+Python has a built-in module called `urllib` that allows us to make HTTP requests. However, it is still [not supported](https://pyodide.org/en/stable/project/roadmap.html#write-http-client-in-terms-of-web-apis) by Pyodide. Luckily, we can use the `fetch` API to make HTTP requests from Python.
+
+Pyodide used to support JS `then/catch/finally` promise functions and we could use `fetch` as follows:
 
 ```python
-# Python
 from js import window
 window.fetch('http://karay.me/truepyxel/test.json').then(lambda resp: resp.json()).then(lambda data: data.msg).catch(lambda err: 'there were error: '+err.message)
 ```
 
-I personally find this example very cool. Here we write the code in JS way and take advantage of chains of promises. The `resp.json` function converts the response body into an object that we can then access from Python. This also enables us to handle rejections. Just try to give any wrong URL to get the exception message.
+I personally find this example very cool. JS has the arrow function expression introduced in ES6, which is very handy if we want to create a callback inline. An alternative in Python is the `lambda` expression. Here we write the code in JS way and take advantage of chains of promises. The `resp.json` function converts the response body into an object that we can then access from Python. This also enables us to handle rejections. 
 
-The key difference is that it is not a real `Promise`. Therefore, the chaining will execute synchronously and the last value in the chain will be returned instead of a new `Promise`. Besides, as the project is still under development, there are some [issues](https://github.com/iodide-project/pyodide/issues/769). For example, we cannot use `Promise.finally` as this keyword is reserved in Python. -->
+However, since 0.17, it integrates the implementation of `await` for [JsProxy](https://pyodide.org/en/stable/usage/api/python-api/ffi.html#pyodide.ffi.JsProxy). So when JS returns a `Promise`, it converts it to `Future` in Python, which allows us to use `await`, but this object has no `then/catch/finally` attributes and hence it is no longer possible to build chains like in older versions. This should be [fixed](https://github.com/pyodide/pyodide/issues/2923) in the future, but for now, we can use the `await` keyword to wait for the response:
+
+```python
+import json
+from js import window
+
+resp = await window.fetch('https://karay.me/truepyxel/test.json')
+data = await resp.json()
+print(type(data))
+# convert JsProxy to Python dict
+data = data.to_py()
+json.dumps(data, indent=2)
+```
+
+{% include alert.html type='info' title='Note' message='Since the code is executed using [runPythonAsync](https://pyodide.org/en/stable/usage/api/js-api.html#pyodide.runPythonAsync) we can use `await` outside of a function.' %}
+
+As you probably noticed, we had to convert the `JsProxy` object to a Python dict. Some standard types are automatically converted to Python types. You can find more information about this [here](https://pyodide.org/en/stable/usage/type-conversions.html).
+
+<!-- The key difference is that it is not a real `Promise`. Therefore, the chaining will execute synchronously and the last value in the chain will be returned instead of a new `Promise`. Besides, as the project is still under development, there are some [issues](https://github.com/iodide-project/pyodide/issues/769). For example, we cannot use `Promise.finally` as this keyword is reserved in Python. -->
 
 # **Accessing Python scope from JS**
 
@@ -179,23 +195,20 @@ We can also go in the opposite direction and get full access to the Python scope
 Let's try it live. You can go to the [demo](http://karay.me/truepyxel/demo.html) page or try the following Python code in the live demo above
 
 ```python
-# Python
 import numpy as np
 x = np.ones([3,3])
 ```
 
 Now, I will ask you to open the browser console and run this JS code
 
-```jsx
-// JS
+```js
 pyodide.globals.get('x').toJs()
 // >>> [Float64Array(3), Float64Array(3), Float64Array(3)]
 ```
 
 As you can see, the `x` variable was converted to JS typed array. We can also create the same array from JS:
 
-```jsx
-// JS
+```js
 let x = pyodide.globals.get('np').ones(new Int32Array([3, 3])).toJs()
 // x >>> [Float64Array(3), Float64Array(3), Float64Array(3)]
 ```
@@ -204,9 +217,7 @@ The `np.ones` function takes a size of the array as an argument, which must be a
 
 Since we have full scope access, we can also re-assign new values or even JS functions to variables and create new ones from JS using `globals.set` function. Feel free to experiment with the code in the browser console.
 
-```jsx
-// JS
-
+```js
 // re-assign a new value to an existing Python variable
 pyodide.globals.set('x', 'x is now string')
 // create a new js function that will be available from Python
@@ -221,7 +232,6 @@ pyodide.globals.set('window_square', function(){
 All of these variables and functions will be available in the global Python scope
 
 ```python
-# Python
 alert(f'Hi from Python. Windows square: {window_square()}')
 ```
 
@@ -230,7 +240,6 @@ alert(f'Hi from Python. Windows square: {window_square()}')
 If we want to import a module that is not in the Pyodide repository, say `seaborn`, we will get the following error
 
 ```python
-# Python
 import seabornas sb
 # => ModuleNotFoundError: No module named 'seaborn'
 ```
@@ -238,7 +247,6 @@ import seabornas sb
 Pyodide currently supports a limited number of [packages](https://github.com/iodide-project/pyodide/tree/master/packages), but you can install the unsupported ones yourself using `micropip` module
 
 ```python
-# Python
 import micropip
 
 micropip.install('seaborn').then(lambda msg: print('Done. You can now import the module'))
@@ -253,7 +261,6 @@ Finally, let's look at the last example. Here we will create a plot using `matpl
 First, we import all necessary modules. Since this will load a bunch of dependencies, the import will take a few minutes. The download progress can be seen in the browser console.
 
 ```python
-# Python
 from js import document
 import numpy as np
 import scipy.stats as stats
@@ -266,8 +273,6 @@ The `numpy` and `scipy.stats` modules are used to create a Probability Density F
 Now let's create the HTML layout
 
 ```python
-# Python
-
 div_container = document.createElement('div')
 div_container.innerHTML = """
   <br><br>
@@ -289,8 +294,6 @@ The layout is pretty simple. The only thing I want to draw your attention to is 
 After that, we define the handler function itself
 
 ```python
-# Python
-
 def generate_plot_img():
   # get values from inputs
   mu = int(document.getElementById('mu').value)

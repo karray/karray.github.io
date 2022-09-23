@@ -32,10 +32,10 @@ np.ones((10,))
                 pyodide_script.type = 'text/javascript'
                 pyodide_script.addEventListener('load', async () => {
                     // init pyodide
-                    window.pyodide = await loadPyodide()
+                    window.pyodide = await loadPyodide({stdout: addToOutput, stderr: addToOutput}) // redirect stdout and stderr to addToOutput
                     output.value += 'Ready!\n' 
                 })
-                pyodide_script.src = 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js'
+                pyodide_script.src = 'https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js'
                 div.appendChild(pyodide_script)
             }
             else {
@@ -55,7 +55,7 @@ np.ones((10,))
             // Since pyodide 0.18.0, you must call loadPackagesFromImports() to import any python packages referenced via import statements in your code. This function will no longer do it for you.
             await pyodide.loadPackagesFromImports(code.value, addToOutput, addToOutput)
             try {
-                let result = await pyodide.runPython(code.value)
+                let result = await pyodide.runPythonAsync(code.value)
                 addToOutput(`${result}`)
             }
             catch (e) {
