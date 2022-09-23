@@ -163,7 +163,7 @@ Pyodide used to support JS `then/catch/finally` promise functions and we could u
 
 ```python
 from js import window
-window.fetch('http://karay.me/truepyxel/test.json').then(lambda resp: resp.json()).then(lambda data: data.msg).catch(lambda err: 'there were error: '+err.message)
+window.fetch('https://karay.me/assets/misc/test.json').then(lambda resp: resp.json()).then(lambda data: data.msg).catch(lambda err: 'there were error: '+err.message)
 ```
 
 I personally find this example very cool. JS has the arrow function expression introduced in ES6, which is very handy if we want to create a callback inline. An alternative in Python is the `lambda` expression. Here we write the code in JS way and take advantage of chains of promises. The `resp.json` function converts the response body into an object that we can then access from Python. This also enables us to handle rejections. 
@@ -174,7 +174,7 @@ However, since 0.17, it integrates the implementation of `await` for [JsProxy](h
 import json
 from js import window
 
-resp = await window.fetch('https://karay.me/truepyxel/test.json')
+resp = await window.fetch('https://karay.me/assets/misc/test.json')
 data = await resp.json()
 print(type(data))
 # convert JsProxy to Python dict
