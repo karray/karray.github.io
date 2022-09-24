@@ -29,7 +29,7 @@ I recently started a hobby [project](http://karay.me/truepyxel/) where I impleme
 
 I've heard about WebAssembly before and have wanted to try it out for a long time. Searching the Internet for "webassembly python", I immediately came across a link to an interesting article "[Pyodide: Bringing the scientific Python stack to the browser](https://hacks.mozilla.org/2019/04/pyodide-bringing-the-scientific-python-stack-to-the-browser/)". Unfortunately, the article is mainly about the [iodide project](https://github.com/iodide-project/iodide) that is no longer in development and the documentation of [Pyodide](https://github.com/iodide-project/pyodide) was sparse.
 
-The idea to write this article came to me when I decided to contribute to the project by improving its [documentation](https://github.com/iodide-project/pyodide/blob/master/docs/using_pyodide_from_javascript.md#alternative-way-to-load-packages-and-run-python-code) after collecting the information about the API piece by piece and a number of experiments with code.
+The idea to write this article came to me when I decided to contribute to the project by improving its [documentation](https://github.com/pyodide/pyodide/pull/767) after collecting the information about the API piece by piece and a number of experiments with code.
 
 Here I would like to share my experience. I will also give more examples and discuss some issues.
 
@@ -365,7 +365,7 @@ As mentioned at the beginning, the Iodide project is no longer in development. T
 
 As the project is being developed quickly, most of the issues mentioned in this guide will be resolved soon. On the other hand, new brake changes can also be introduced, so it's only worth using the latest version as well as checking the [changelog](https://pyodide.org/en/stable/project/changelog.html) before starting a new project.
 
-Wasm is a great technology that opens many possibilities. There are already a lot of interesting ports allowing you to run games such as [Doom 3](http://www.continuation-labs.com/projects/d3wasm/#online-demonstration) and [Open Transport Tycoon Deluxe](https://milek7.pl/openttd-wasm/) inside modern Web Browsers. [MediaPipe](https://google.github.io/mediapipe/getting_started/javascript) allows us to process live media streams using ML on a webpage.
+Wasm is a great technology that opens many possibilities and it has a great future. Since almost any existing C/C++ project can be compiled into Wasm, there are already many interesting ports allowing you to run games such as [Doom 3](http://www.continuation-labs.com/projects/d3wasm/#online-demonstration) and [Open Transport Tycoon Deluxe](https://milek7.pl/openttd-wasm/) inside modern Web Browsers, and Goolge [uses Wasm](https://developers.googleblog.com/2020/01/mediapipe-on-web.html) to rum [mediapipe](https://google.github.io/mediapipe/getting_started/javascript.html) on the web.
 
 Furthermore, [WebAssembly System Interface (WASI)](https://github.com/bytecodealliance/wasmtime/blob/main/docs/WASI-intro.md) makes it possible to take full advantage of Wasm outside the browser:
 
