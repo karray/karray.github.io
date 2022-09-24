@@ -68,7 +68,6 @@ sys.version
 First of all, we have to include the `pyodide.js` script by adding the CDN URL
 
 ```html
-<!-- HTML -->
 <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
 ```
 
@@ -176,7 +175,7 @@ window.fetch('https://karay.me/assets/misc/test.json')
 
 I personally find this example very cool. JS has the arrow function expression introduced in ES6, which is very handy if we want to create a callback inline. An alternative in Python is the `lambda` expression. Here we write the code in JS way and take advantage of chains of promises. The `resp.json()` function converts the response body into an object that we can then access from Python. This also enables us to handle rejections. 
 
-However, since 0.17, it integrates the implementation of `await` for [JsProxy](https://pyodide.org/en/stable/usage/api/python-api/ffi.html#pyodide.ffi.JsProxy). So when JS returns a `Promise`, it converts it to `Future` in Python, which allows us to use `await`, but this object has no `then/catch/finally` attributes and hence it is no longer possible to build chains like in older versions. This should be [fixed](https://github.com/pyodide/pyodide/issues/2923) in the future, but for now, we can use the `await` keyword to wait for the response:
+However, since [v0.17](https://pyodide.org/en/stable/project/release-notes/v0.17.0.html#release-notes), it integrates the implementation of `await` for [JsProxy](https://pyodide.org/en/stable/usage/api/python-api/ffi.html#pyodide.ffi.JsProxy). So when JS returns a `Promise`, it converts it to `Future` in Python, which allows us to use `await`, but this object has no `then/catch/finally` attributes, and hence it is no longer possible to build chains like in older versions. This should be [fixed](https://github.com/pyodide/pyodide/issues/2923) in the future, but for now, we can use the `await` keyword to wait for the response:
 
 ```python
 import json
@@ -190,7 +189,7 @@ data = data.to_py()
 json.dumps(data, indent=2)
 ```
 
-{% include alert.html type='info' title='Note' message='Since the code is executed using [runPythonAsync](https://pyodide.org/en/stable/usage/api/js-api.html#pyodide.runPythonAsync) we can use `await` outside of a function.' %}
+{% include alert.html type='info' title='Note' message='Since the code on the demo page is executed using [runPythonAsync](https://pyodide.org/en/stable/usage/api/js-api.html#pyodide.runPythonAsync) we can use `await` outside of a function.' %}
 
 As you probably noticed, we had to convert the `JsProxy` object to a Python `dict` using [JsProxy.to_py](https://pyodide.org/en/stable/usage/api/python-api/ffi.html#pyodide.ffi.JsProxy.to_py). This is required when we communicate between JS and Python. However, some standard types do not need to be converted since this is done implicitly. You can find more information about this [here](https://pyodide.org/en/stable/usage/type-conversions.html).
 
@@ -216,7 +215,7 @@ pyodide.globals.get('x').toJs()
 
 To access Python scope from JS, we use the [pyodide.globals.get()](https://pyodide.org/en/stable/usage/api/js-api.html#pyodide.globals) that takes the name of the variable or class as an argument. The returned object is a `PyProxy` that we convert to JS using `toJs()`.
 
-As you can see, the `x` variable was converted to JS typed array. In earlier version (prior to v0.17.0), we could directly access Python scope:
+As you can see, the `x` variable was converted to JS typed array. In the earlier version (prior to v0.17.0), we could directly access the Python scope:
 
 ```js
 let x = pyodide.globals.np.ones(new Int32Array([3, 3]))
@@ -360,18 +359,23 @@ Thanks to Pyodide, we can mix JS and Python and use the two languages interchang
 
 On the one hand, it enables us to extend JS with vast numbers of libraries. On the other hand, it gives us the power of HTML and CSS to create a modern GUI. The final application can then be shared as a single HTML document or uploaded to any free hosting service such as the GitHub pages.
 
-There are of course some limitations. Apart from some of the issues discussed earlier, the main one is multithreading. This can be partially solved using WebWorkers.
+There are of course some limitations. Apart from some of the issues discussed earlier, the main one is multithreading. This can be partially solved using [WebWorkers](https://pyodide.org/en/stable/usage/webworker.html).
 
 As mentioned at the beginning, the Iodide project is no longer in development. The Pyodide is a subproject of Iodide and it is [still supported](https://github.com/iodide-project/pyodide/issues/766) by its community, so I encourage everyone to contribute to the project.
 
-Wasm is a great technology that opens many possibilities. There are already a lot of interesting ports allowing to run games such as [Doom 3](http://www.continuation-labs.com/projects/d3wasm/#online-demonstration) and [Open Transport Tycoon Deluxe](https://milek7.pl/openttd-wasm/) inside modern Web Browsers. [MediaPipe](https://google.github.io/mediapipe/getting_started/javascript) allows us to process live media streams using ML on a webpage.
+As the project is being developed quickly, most of the issues mentioned in this guide will be resolved soon. On the other hand, new brake changes can also be introduced, so it's only worth using the latest version as well as checking the [changelog](https://pyodide.org/en/stable/project/changelog.html) before starting a new project.
+
+Wasm is a great technology that opens many possibilities. There are already a lot of interesting ports allowing you to run games such as [Doom 3](http://www.continuation-labs.com/projects/d3wasm/#online-demonstration) and [Open Transport Tycoon Deluxe](https://milek7.pl/openttd-wasm/) inside modern Web Browsers. [MediaPipe](https://google.github.io/mediapipe/getting_started/javascript) allows us to process live media streams using ML on a webpage.
 
 Furthermore, [WebAssembly System Interface (WASI)](https://github.com/bytecodealliance/wasmtime/blob/main/docs/WASI-intro.md) makes it possible to take full advantage of Wasm outside the browser:
 
 > It's designed to be independent of browsers, so it doesn't depend on Web APIs or JS, and isn't limited by the need to be compatible with JS. And it has integrated capability-based security, so it extends WebAssembly's characteristic sandboxing to include I/O.
 
-For example, WASI enables us to import modules written in any language into [Node.js](https://nodejs.org/api/wasi.html) or into other languages (e.g. import Rust module into Python).
+For example, WASI enables us to import modules written in any language into [Node.js](https://nodejs.org/api/wasi.html) or into other languages (e.g. import Rust module into Python), and a recent Pyodide [release](https://blog.pyodide.org/posts/0.21-release/#rust-and-cmake-support) introduces support for Rust packages.
 
 <!-- As Docker creator tweeted, WebAssembly has significant potential to become a Docker alternative -->
 
 <!-- [https://twitter.com/solomonstre/status/1111004913222324225](https://twitter.com/solomonstre/status/1111004913222324225) -->
+
+I hope this guide was helpful to you and you enjoyed playing with Pyodide as much as I did.
+ <!-- Feel free to leave your questions and feedback in the comments. -->
