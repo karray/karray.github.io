@@ -33,6 +33,7 @@ theme: minima
 plugins:
   - jekyll-feed
   - jekyll-target-blank
+  - jekyll-sitemap
 
 kramdown:
   math_engine: mathjax
