@@ -3,6 +3,7 @@ layout: post
 title:  "Bringing Python to the Web"
 date:   2022-07-12 12:01:27 +0200
 tags: pyodide python web
+description: Pyodide is a Python distribution for the web. It runs Python in the browser using WebAssembly, and lets you call Python from JavaScript. This post will show you how to use it.
 ---
 Have you ever wanted to share your cool Python app with the world without deploying an entire Django server or developing a mobile app just for a small project?
 
@@ -35,7 +36,10 @@ Here I would like to share my experience. I will also give more examples and dis
 
 # **What is Pyodide?**
 
-> Pyodide was created in 2018 by [Michael Droettboom](https://github.com/mdboom) at Mozilla as part of the Iodide project. Iodide is an experimental web-based notebook environment for literate scientific computing and communication.
+According to the official [repository](https://github.com/pyodide/pyodide),
+
+> Pyodide is a port of CPython to WebAssembly/Emscripten.
+> It was created in 2018 by [Michael Droettboom](https://github.com/mdboom) at Mozilla as part of the Iodide project. Iodide is an experimental web-based notebook environment for literate scientific computing and communication.
 
 All of this is made possible by Wasm.
 
