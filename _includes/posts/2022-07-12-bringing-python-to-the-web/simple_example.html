@@ -32,7 +32,7 @@ np.ones((10,))
                 pyodide_script.type = 'text/javascript'
                 pyodide_script.addEventListener('load', async () => {
                     // init pyodide
-                    window.pyodide = await lovadPyodide({stdout: addToOutput, stderr: addToOutput}) // redirect stdout and stderr to addToOutput
+                    window.pyodide = await loadPyodide({stdout: addToOutput, stderr: addToOutput}) // redirect stdout and stderr to addToOutput
                     output.value += 'Ready!\n' 
                 })
                 pyodide_script.src = 'https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js'
