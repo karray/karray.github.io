@@ -2,7 +2,7 @@
 layout: post
 title:  "Turning StyleGAN into a latent feature extractor"
 date:   2023-01-06 13:18:00 +0200
-tags: StyleGAN GAN deep-learning
+tags: StyleGAN GAN deep-learning representation-learning self-supervised-learning
 description: Self-supervised representation learning using StyleGAN2 with an encoder.
 ---
 
