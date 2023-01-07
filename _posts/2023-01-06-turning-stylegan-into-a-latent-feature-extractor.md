@@ -2,7 +2,7 @@
 layout: post
 title:  "Turning StyleGAN into a latent feature extractor"
 date:   2023-01-06 13:18:00 +0200
-thumbnail: /assets/img/posts/stylegan-with-encoder/mnist_visualization.png
+image: /assets/img/posts/stylegan-with-encoder/mnist_visualization.png
 tags: StyleGAN GAN deep-learning representation-learning self-supervised-learning
 description: This blog post explores the potential for using StyleGAN as a tool for extracting latent features from images. It investigates the challenges of using it for self-supervised representation learning and assesses its effectiveness at extracting meaningful features.
 ---
