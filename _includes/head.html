@@ -4,7 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {%- seo -%}
   {% if page.thumbnail %}
-    <meta property="og:image" content="{{ page.thumbnail | relative_url }}">
+    <meta property="og:image" content="{{ page.thumbnail | absolute_url }}">
   {% endif  %}
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/css/icons.min.css'  }}">
