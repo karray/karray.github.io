@@ -2,8 +2,9 @@
 layout: post
 title:  "Turning StyleGAN into a latent feature extractor"
 date:   2023-01-06 13:18:00 +0200
+thumbnail: /assets/img/posts/stylegan-with-encoder/mnist_visualization.png
 tags: StyleGAN GAN deep-learning representation-learning self-supervised-learning
-description: Self-supervised representation learning using StyleGAN2 with an encoder.
+description: This blog post explores the potential for using StyleGAN as a tool for extracting latent features from images. It investigates the challenges of using it for self-supervised representation learning and assesses its effectiveness at extracting meaningful features.
 ---
 
 While Generative Adversarial Networks (GANs) are primarily known for their ability to generate high-quality synthetic images, their main task is to learn a latent feature representation of real data. In addition, recent improvements to the original GAN allow it to learn a disentangled latent representation, enabling us to obtain semantically meaningful embeddings.
