@@ -1,0 +1,15 @@
+<div id="stackoverflow"></div>
+<script>
+    // https://api.stackexchange.com/2.3/users/12841/tags?pagesize=15&order=desc&sort=popular&site=ai
+    let stackoverflow = document.getElementById('stackoverflow');
+    fetch('https://api.stackexchange.com/2.3/users/2329060/tags?pagesize={{include.count}}&order=desc&sort=popular&site={{include.platform}}')
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            let content = '';
+            for (const tag of data.items) {
+                content += `<div class='tag'>${tag.name}<span>(x${tag.count})</span></div>`;
+            }
+            stackoverflow.innerHTML = content;
+        });
+</script>

@@ -12,3 +12,21 @@
         }
     }
 }
+
+#stackoverflow{
+    .tag{
+        color: #fff;
+        display: inline-block;
+        font-size: 18px;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        background-color: #3b4045;
+        width: initial;
+        padding: 5px;
+        margin: 5px;
+
+        span{
+            padding: 0 5px;
+        }
+    }
+}

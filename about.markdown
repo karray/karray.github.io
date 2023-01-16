@@ -7,6 +7,10 @@ description: "About me"
 
 
 
-# Wakatime statistics
+# Wakatime stats
 
 {% include about/waka.html %}
+
+# Stackoverflow stats
+
+{% include about/stackoverflow.html platform='stackoverflow' count='15' %}
