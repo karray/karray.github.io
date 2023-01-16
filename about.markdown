@@ -13,4 +13,8 @@ description: "About me"
 
 # Stackoverflow stats
 
-{% include about/stackoverflow.html platform='stackoverflow' count='15' %}
+{% include about/stackexchange.html platform='stackoverflow' user_id=2329060 tag_count=15 %}
+
+# AI Stackexchange stats
+
+{% include about/stackexchange.html platform='ai' user_id=12841 tag_count=15 %}

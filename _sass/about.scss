@@ -13,20 +13,41 @@
     }
 }
 
-#stackoverflow{
+.stackexchange{
     .tag{
         color: #fff;
         display: inline-block;
-        font-size: 18px;
+        font-size: 1.1em;
         border: 1px solid transparent;
         border-radius: 5px;
         background-color: #3b4045;
         width: initial;
-        padding: 5px;
-        margin: 5px;
+        padding: 0.4em 0.5em;
+        margin: .5em 0.5em 0 0;
 
         span{
             padding: 0 5px;
+        }
+    }
+
+    .reputation{
+        margin-bottom: .5em;
+        font-size: 1.1em;
+        .text{
+            background-color: #3b4045;
+            color: #fff;
+            padding: 0.4em 0.5em;
+            
+            .logo{
+                margin-right: .4em;
+                color: #f48225;
+            } 
+       }
+        .value{
+            padding: 0.4em 0.5em;
+            background-color: #f48225;
+            color: #fff;
+            font-weight: 600;
         }
     }
 }
