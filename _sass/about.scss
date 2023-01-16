@@ -1,0 +1,14 @@
+#waka{
+    font-size: 18px;
+    border: none;
+    width: initial;
+
+    td{
+        border: none;
+        padding: 0;
+
+        &:nth-child(2){
+            padding: 0 15px;
+        }
+    }
+}

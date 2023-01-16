@@ -1,0 +1,77 @@
+<table id="waka">
+</table>
+
+<script>
+    const ignored_langs = ['other', 'text', 'git', 'nginx', 'csv', 'json', 'yaml', 'markdown', 'roff', 'ini', 'toml']
+    const zeroPad = (num, places=2, fixed=2) => String(num.toFixed(fixed)).padStart(places+fixed+1, '0')
+    const waka = document.getElementById('waka');
+ 
+    function repeat(s, i) {
+        var r = '';
+        for(let j=0; j<i; j++) r += s;
+            return r;
+    }
+
+    function make_bar(title, p, sections=40) {
+        const x = p * sections/100;
+        const decimal = Math.floor(x);
+        const rest = x - decimal;
+        let result = repeat('█', decimal);
+
+        if(rest>0.5) 
+            result += '▓';
+        else
+            result += '▒';
+
+        
+        result += repeat('░', sections - decimal - 1);
+
+        // format float in string with 2 decimals and one leading zero
+
+        return `<tr><td>${title}</td><td>${result}</td><td>${zeroPad(p)}%</td></tr>`;
+    }
+
+    function getJSONP(url, callback) {
+        var callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+        window[callbackName] = function(data) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            callback(data);
+        };
+    
+        var script = document.createElement('script');
+        script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + callbackName;
+        document.body.appendChild(script);
+    }
+
+    getJSONP('https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json', function(data) {
+        let content = '';
+        let total = 0
+        data = data.data.filter(lang => {
+            const ignore = ignored_langs.some(v => lang.name.toLowerCase().includes(v.toLowerCase())) || lang.percent < 0.01
+            if(!ignore)
+                total += lang.percent
+            lang.name 
+            return !ignore
+        });
+        for (const lang of data) {
+            content += make_bar(lang.name, lang.percent);
+        }
+        content += make_bar('Other', 100-total);
+        waka.innerHTML = `<tbody>${content}</tbody>`;
+    });
+
+    // fetch('https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json', {mode: 'same-origin'})
+    // .then(response => console.log(response))
+    // .then(response => response.json())
+    // .then(data => {
+    //     for (const lang of Object.entries(data.data)) {
+    //         waka.innerHTML += make_bar(lang.name, lang.percent);
+    //     }
+    // });
+</script>
+
+<!-- Get JSONP -->
+<script>
+
+</script>
