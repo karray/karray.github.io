@@ -26,13 +26,13 @@ jobs:
       run: |
         curl -s "https://api.stackexchange.com/2.3/users/12841/tags?pagesize=100&order=desc&sort=popular&site=ai&filter=!bMsg5CXICfJ)0K" > ai_tags.json
     - name: Commit files
-    uses: actions/checkout@v3
-    with:
-      persist-credentials: false
-      fetch-depth: 0    
-    run: |
-      git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      git config --local user.name "github-actions[bot]"
-      git add .
-      git commit -m "Update stats"
-      git push
+      uses: actions/checkout@v3
+      with:
+        persist-credentials: false
+        fetch-depth: 0    
+      run: |
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add .
+        git commit -m "Update stats"
+        git push
