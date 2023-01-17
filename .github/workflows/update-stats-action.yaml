@@ -1,8 +1,7 @@
 name: push-stats-action
-on:
-  schedule:
+on: push
+  # schedule:
   # - cron: "0 0 * * 1"
-  - cron: "* * * * *"
 
 # first, fetch json from stackoverflow and wakatime
 # then, push the json to the repo
