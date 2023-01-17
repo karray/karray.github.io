@@ -19,7 +19,7 @@ jobs:
 
     - name: Fetch stackoverflow tags
       run: |
-        curl -s --compressed ''https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K' > _data/stackoverflow_tags.json
+        curl -s --compressed 'https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K' > _data/stackoverflow_tags.json
     
     - name: Fetch ai stackexchange reputation
       run: |
