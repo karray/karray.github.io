@@ -1,7 +1,7 @@
 name: push-stats-action
-on: 
-  schedule:
-  - cron: "0 0 * * 1"
+on: push
+  # schedule:
+  # - cron: "0 0 * * 1"
 
 jobs:
   push-stats:
@@ -11,23 +11,23 @@ jobs:
 
     - name: Fetch waka stats
       run: |
-        curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > stats.json
+        curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > _data/waka.json
 
     - name: Fetch stackoverflow reputation
       run: |
-        curl -s "https://stackoverflow.com/users/flair/2329060.json" > stackoverflow_reputation.json
+        curl -s "https://stackoverflow.com/users/flair/2329060.json" > _data/stackoverflow_reputation.json
 
     - name: Fetch stackoverflow tags
       run: |
-        curl -s "https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K" > stackoverflow_tags.json
+        curl -s --compressed ''https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K' > _data/stackoverflow_tags.json
     
     - name: Fetch ai stackexchange reputation
       run: |
-        curl -s "https://ai.stackexchange.com/users/flair/12841.json" > ai_reputation.json
+        curl -s "https://ai.stackexchange.com/users/flair/12841.json" > _data/ai_reputation.json
     
     - name: Fetch ai stackexchange tags
       run: |
-        curl -s "https://api.stackexchange.com/2.3/users/12841/tags?pagesize=100&order=desc&sort=popular&site=ai&filter=!bMsg5CXICfJ)0K" > ai_tags.json
+        curl -s --compressed 'https://api.stackexchange.com/2.3/users/12841/tags?pagesize=100&order=desc&sort=popular&site=ai&filter=!bMsg5CXICfJ)0K' > _data/ai_tags.json
     
     - name: Push stats
       run: |
