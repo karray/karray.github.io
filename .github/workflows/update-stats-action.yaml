@@ -24,13 +24,13 @@ jobs:
         curl -s https://stackoverflow.com/users/flair/2329060.json > stackoverflow_reputation.json
     - name: Fetch stackoverflow tags
       run: |
-        curl -s https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K' > stackoverflow_tags.json
+        curl -s https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K > stackoverflow_tags.json
     - name: Fetch ai stackexchange reputation
       run: |
         curl -s https://ai.stackexchange.com/users/flair/12841.json > ai_reputation.json
     - name: Fetch ai stackexchange tags
       run: |
-        curl -s https://api.stackexchange.com/2.3/users/12841/tags?pagesize=100&order=desc&sort=popular&site=ai&filter=!bMsg5CXICfJ)0K' > ai_tags.json
+        curl -s https://api.stackexchange.com/2.3/users/12841/tags?pagesize=100&order=desc&sort=popular&site=ai&filter=!bMsg5CXICfJ)0K > ai_tags.json
     - name: Commit files
       run: |
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
