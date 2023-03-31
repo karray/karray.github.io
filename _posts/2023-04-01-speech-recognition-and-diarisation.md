@@ -8,7 +8,7 @@ description: Learn how to transcribe any video in one of 99 languages, identify 
 
 Multi-Language speech recognition and speaker diarisation are two important tasks in the field of audio processing. Speech recognition can be defined as the process of converting spoken language into written text, while speaker diarisation involves segmenting an audio recording and assigning each segment to a particular speaker. These techniques are used in a variety of applications, including podcasts and conference transcription.
 
-In this blog post, you will learn how to build a pipeline for multi-Language speech recognition and speaker diarisation using existing libraries.
+In this blog post, you will learn how to build a pipeline for multi-language speech recognition and speaker diarisation using existing libraries.
 
 <!--more-->
 
