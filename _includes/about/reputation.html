@@ -1,0 +1,57 @@
+<h1 id="stackoverflow-stats">Stackoverflow stats</h1>
+
+<div class="stackexchange">
+    <a href="{{ site.data.stackoverflow_reputation.profileUrl }}" style="text-decoration: none;" target="_blank">
+        <div class='reputation'>
+            <span class='text'><i class="fa-brands fa-stack-overflow logo"></i>Reputation</span>
+            <span class='value'>{{ site.data.stackoverflow_reputation.reputation }}</span>
+        </div>
+    </a>
+
+    {% for item in site.data.stackoverflow_tags.items %}
+    {% if item.count>1 %}
+        <div class='tag'>{{ item.name }}<span>({{ item.count }})</span></div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<br>
+
+<h1 id="stackoverflow-stats">AI Stackexchange stats</h1>
+
+<div class="stackexchange">
+    <a href="{{ site.data.ai_reputation.profileUrl }}" style="text-decoration: none;" target="_blank">
+        <div class='reputation'>
+            <span class='text'><i class="fa-brands fa-stack-overflow logo"></i>Reputation</span>
+            <span class='value'>{{ site.data.ai_reputation.reputation }}</span>
+        </div>
+    </a>
+
+    {% for item in site.data.ai_tags.items %}
+    {% if item.count>1 %}
+        <div class='tag'>{{ item.name }}<span>({{ item.count }})</span></div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- <script>
+    (async ()=>{
+        let stackexchange = document.getElementById('stackexchange_{{include.platform}}');
+        
+        await fetch('/{{include.platform}}_reputation.json')
+            .then(response => response.json())
+            .then(data => {
+                stackexchange.innerHTML+= `<div class='reputation'><span class='text'><i class="fa-brands fa-stack-overflow logo"></i>Reputation</span><span class='value'>${data.items[0].reputation}</span></div>`;
+            });
+        
+        await fetch('https://api.stackexchange.com/2.3/users/{{include.user_id}}/tags?pagesize={{include.tag_count}}&order=desc&sort=popular&site={{include.platform}}&filter=!bMsg5CXICfJ)0K')
+            .then(response => response.json())
+            .then(data => {
+                let content = '<div style="margin-bottom: 30px;">';
+                for (const tag of data.items) {
+                    content += `<div class='tag'>${tag.name}<span>(${tag.count})</span></div>`;
+                }
+                stackexchange.innerHTML+= content+'</div>';
+            });
+    })();
+</script> -->
