@@ -14,8 +14,15 @@ jobs:
         mkdir -p _data
 
     - name: Fetch waka stats
+    # fetch data from wakatime and save it to _data/waka.json if the file does not contain "error" string
       run: |
-        curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > _data/waka.json
+        curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > _data/waka_tmp.json
+        if ! grep -q "error" _data/waka_tmp.json;
+          then
+            mv _data/waka_tmp.json _data/waka.json
+          else
+            rm _data/waka_tmp.json
+        fi
 
     - name: Fetch stackoverflow reputation
       run: |
@@ -37,6 +44,4 @@ jobs:
       run: |
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add .
-        git commit -m "Update stats"
-        git push
+        git diff --exit-code || git commit -am "Update stats" || git push
