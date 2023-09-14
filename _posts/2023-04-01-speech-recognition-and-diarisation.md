@@ -1,20 +1,20 @@
 ---
 layout: post
-title:  Hands-on Guide to Multi-Language Speech Recognition and Speaker Diarisation
+title:  Hands-on Guide to Multi-Language Speech Recognition and Speaker diarization
 date:   2023-03-31 17:45:00 +0200
-tags: Whisper Pyannote Speech-Recognition Speaker-Diarisation
+tags: Whisper Pyannote Speech-Recognition Speaker-diarization
 description: Learn how to transcribe any video in one of 99 languages, identify speakers, and translate text into any of these languages.
 ---
 
-Multi-Language speech recognition and speaker diarisation are two important tasks in the field of audio processing. Speech recognition can be defined as the process of converting spoken language into written text, while speaker diarisation involves segmenting an audio recording and assigning each segment to a particular speaker. These techniques are used in a variety of applications, including podcasts and conference transcription.
+Multi-Language speech recognition and speaker diarization are two important tasks in the field of audio processing. Speech recognition can be defined as the process of converting spoken language into written text, while speaker diarization involves segmenting an audio recording and assigning each segment to a particular speaker. These techniques are used in a variety of applications, including podcasts and conference transcription.
 
-In this blog post, you will learn how to build a pipeline for multi-language speech recognition and speaker diarisation using existing libraries.
+In this blog post, you will learn how to build a pipeline for multi-language speech recognition and speaker diarization using existing libraries.
 
 <!--more-->
 
 ## Introduction
 
-Podcasts are a great example of how this technology can be useful. Podcasts have gained growing popularity, which has led to an increasing demand for tools capable of automatically transcribing and segmenting podcast episodes, thus saving a significant amount of time on manual work. Many podcasts are recorded with multiple speakers and are often distributed in audio format only. By using speaker diarisation, podcast producers can automatically identify each speaker and generate subtitles for each one. This not only makes the podcast more accessible to hard-of-hearing listeners but also makes it easier to search for specific topics within the podcast or create chapters for YouTube.
+Podcasts are a great example of how this technology can be useful. Podcasts have gained growing popularity, which has led to an increasing demand for tools capable of automatically transcribing and segmenting podcast episodes, thus saving a significant amount of time on manual work. Many podcasts are recorded with multiple speakers and are often distributed in audio format only. By using speaker diarization, podcast producers can automatically identify each speaker and generate subtitles for each one. This not only makes the podcast more accessible to hard-of-hearing listeners but also makes it easier to search for specific topics within the podcast or create chapters for YouTube.
 
 Before diving into the Jupyter notebook, let me briefly introduce three libraries that form the backbone of this pipeline.
 
@@ -96,7 +96,7 @@ def split_audio(tmpdirname, video, chunk_size=120):
     return audio.duration
 ```
 
-The `get_speakers` function removes noise from the chunks, reassembles them back to a cleaned audio file, and passes this file into the Pyannote pipeline for speaker diarisation.
+The `get_speakers` function removes noise from the chunks, reassembles them back to a cleaned audio file, and passes this file into the Pyannote pipeline for speaker diarization.
 
 ```python
 def get_speakers(tmpdirname, use_auth_token=True):
@@ -214,7 +214,7 @@ Lastly, the `process` function is responsible for preparing the video file, as w
 
 ## Conclusion
 
-To sum up, this tutorial provides a comprehensive guide to building a speech recognition and speaker diarisation pipeline utilizing three different models. 
+To sum up, this tutorial provides a comprehensive guide to building a speech recognition and speaker diarization pipeline utilizing three different models. 
 
 With the recent release of the [Whisper API](https://openai.com/blog/introducing-chatgpt-and-whisper-apis) developers can now easily integrate the model into their apps.
 
