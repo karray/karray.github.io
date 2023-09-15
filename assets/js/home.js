@@ -41,9 +41,11 @@ function update_elements(){
 
     if(new_height<15) {
         about.classList.add('fixed-header')
+        about.classList.remove('buttons')
     }
     else {
         about.classList.remove('fixed-header')
+        about.classList.add('buttons')
     }
 }
 

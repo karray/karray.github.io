@@ -4,7 +4,7 @@
 {%- include head.html -%}
 
 <body>
-  <div id="about" class="header-background dynamic-header">
+  <div id="about" class="header-background dynamic-header buttons">
     <div class="wrapper about-card">
       <div class="me-wrapper">
         <img src="{{'/assets/img/me.jpg' | relative_url}}" alt="Aray Karjauv" id='me' />
@@ -15,15 +15,7 @@
           <div class="my-name"></div>
           <p class="about-me">Research Associate in Machine Learning at Technical University of Berlin</p>
           <div>
-            <a href="https://github.com/{{ site.github_username| cgi_escape | escape }}" target="_blank">
-              <i class="fa-brands fa-github"></i>
-            </a>
-            <a href="https://www.linkedin.com/in/{{ site.linkedin_username| cgi_escape | escape }}" target="_blank">
-              <i class="fa-brands fa-linkedin"></i>
-            </a>
-            <a href="https://stackoverflow.com/users/2329060?tab=profile" target="_blank">
-              <i class="fa-brands fa-stack-overflow"></i>
-            </a>
+            <a href="/about" class="about-me-link">About me</a>
           </div>
         </div>
       </div>
