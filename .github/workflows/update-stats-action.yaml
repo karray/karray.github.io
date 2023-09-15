@@ -14,14 +14,13 @@ jobs:
         mkdir -p _data
 
     - name: Fetch waka stats
-    # fetch data from wakatime and save it to _data/waka.json if the file does not contain "error" string
       run: |
-        curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > _data/waka_tmp.json
-        if ! grep -q "error" _data/waka_tmp.json;
+        curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > assets/misc/waka_tmp.json
+        if ! grep -q "error" assets/misc/waka_tmp.json;
           then
-            mv _data/waka_tmp.json _data/waka.json
+            mv assets/misc/waka_tmp.json assets/misc/waka.json
           else
-            rm _data/waka_tmp.json
+            rm assets/misc/waka_tmp.json
         fi
 
     - name: Fetch stackoverflow reputation

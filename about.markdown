@@ -11,6 +11,6 @@ As a seasoned software developer, I have always been drawn to new challenges and
 
 # Wakatime stats
 
-{% waka %}
+{% include about/waka.html %}
 
 {% include about/reputation.html %}
