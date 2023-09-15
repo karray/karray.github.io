@@ -1,50 +1,66 @@
-<table id="waka">
-</table>
+<table id="waka"></table>
 
 <script>
-    const ignored_langs = ['other', 'text', 'git', 'nginx', 'csv', 'json', 'yaml', 'markdown', 'roff', 'ini', 'toml']
-    const zeroPad = (num, places=2, fixed=2) => String(num.toFixed(fixed)).padStart(places+fixed+1, '0')
-    const waka = document.getElementById('waka');
- 
-    function repeat(s, i) {
-        var r = '';
-        for(let j=0; j<i; j++) r += s;
-            return r;
-    }
+  const ignored_langs = [
+    "other",
+    "text",
+    "git",
+    "nginx",
+    "csv",
+    "json",
+    "yaml",
+    "markdown",
+    "roff",
+    "ini",
+    "toml",
+  ];
+  const zeroPad = (num, places = 2, fixed = 2) =>
+    String(num.toFixed(fixed)).padStart(places + fixed + 1, "0");
+  const waka = document.getElementById("waka");
 
-    function make_bar(title, p, sections=40) {
-        const x = p * sections/100;
-        const decimal = Math.floor(x);
-        const rest = x - decimal;
-        let result = repeat('█', decimal);
+  function repeat(s, i) {
+    var r = "";
+    for (let j = 0; j < i; j++) r += s;
+    return r;
+  }
 
-        if(rest>0.5) 
-            result += '▓';
-        else
-            result += '▒';
+  function make_bar(title, p, sections = 40) {
+    const x = (p * sections) / 100;
+    const decimal = Math.floor(x);
+    const rest = x - decimal;
+    let result = repeat("█", decimal);
 
-        
-        result += repeat('░', sections - decimal - 1);
+    if (rest > 0.5) result += "▓";
+    else result += "▒";
 
-        // format float in string with 2 decimals and one leading zero
+    result += repeat("░", sections - decimal - 1);
 
-        return `<tr><td>${title}</td><td>${result}</td><td>${zeroPad(p)}%</td></tr>`;
-    }
+    // format float in string with 2 decimals and one leading zero
 
-    fetch('https://karay.me/assets/misc/waka.json', function(data) {
-        let content = '';
-        let total = 0
-        data = data.data.filter(lang => {
-            const ignore = ignored_langs.some(v => lang.name.toLowerCase().includes(v.toLowerCase())) || lang.percent < 0.01
-            if(!ignore)
-                total += lang.percent
-            lang.name 
-            return !ignore
+    return `<tr><td>${title}</td><td>${result}</td><td>${zeroPad(
+      p
+    )}%</td></tr>`;
+  }
+
+  fetch("https://karay.me/assets/misc/waka.json")
+    .then((res) => res.json())
+    .then(data => {
+        let content = "";
+        let total = 0;
+        data = data.data.filter((lang) => {
+        const ignore =
+            ignored_langs.some((v) =>
+            lang.name.toLowerCase().includes(v.toLowerCase())
+            ) || lang.percent < 1;
+        if (!ignore) total += lang.percent;
+        lang.name;
+        return !ignore;
         });
         for (const lang of data) {
-            content += make_bar(lang.name, lang.percent);
+        content += make_bar(lang.name, lang.percent);
         }
-        content += make_bar('Other', 100-total);
+        content += make_bar("Other", 100 - total);
+        console.log(content);
         waka.innerHTML = `<tbody>${content}</tbody>`;
     });
 </script>
