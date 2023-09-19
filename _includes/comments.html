@@ -1,0 +1,26 @@
+<div class="comment-section">
+  <form
+    method="POST"
+    action="https://karaycomments-c7c36ff4ee67.herokuapp.com/v3/entry/github/karray/karray.github.io/master/comments"
+  >
+    <input
+      name="options[redirect]"
+      type="hidden"
+      value="{{ site.url }}{{ page.url }}"
+    />
+    <input name="options[slug]" type="hidden" value="{{ page.slug }}" />
+    <label><input name="fields[name]" type="text" />Name</label>
+    <label><textarea name="fields[message]"></textarea>Message</label>
+    <button type="submit">Comment</button>
+  </form>
+  <div class="comments">
+    {% for comment in site.data.comments[page.slug] %}
+      <div class="comment">
+        <div class="comment__header">
+          <span class="comment__name">{{ comment[1].name }}</span>
+          <span class="comment__date">{{ comment[1].date | date: "%B %-d, %Y" }}</span>
+        </div>
+        <div class="comment__message">{{ comment[1].message }}</div>
+      </div>
+    {% endfor %}
+</div>
