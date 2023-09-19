@@ -50,6 +50,8 @@ excerpt_separator: <!--more-->
 
 google_analytics: G-GNT1D799WL
 
+staticman_url: https://karaycomments-c7c36ff4ee67.herokuapp.com/v3/entry/github/karray/karray.github.io/master/comments
+
 # Exclude from processing.
 # The following items will not be processed, by default.
 # Any item listed under the `exclude:` key here will be automatically added to
