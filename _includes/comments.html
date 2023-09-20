@@ -1,5 +1,5 @@
 <div class="comment-section">
-  <form
+  <form class="comment-form"
     method="POST"
     action="https://karaycomments-c7c36ff4ee67.herokuapp.com/v3/entry/github/karray/karray.github.io/master/comments"
   >
@@ -9,18 +9,25 @@
       value="{{ site.url }}{{ page.url }}"
     />
     <input name="options[slug]" type="hidden" value="{{ page.slug }}" />
-    <label><input name="fields[name]" type="text" />Name</label>
-    <label><textarea name="fields[message]"></textarea>Message</label>
-    <button type="submit">Comment</button>
+    <textarea class="comment-text-field" name="fields[message]" placeholder="Message (markdown supported)" required></textarea>
+    <div>
+      <input class="comment-name-field" name="fields[name]" type="text" placeholder="name" required />
+      <button type="submit" class="comment-submit">Post</button>
+    </div>
   </form>
   <div class="comments">
-    {% for comment in site.data.comments[page.slug] %}
+    {% assign comments = site.data.comments[page.slug] | where_exp: "item", "true" %} 
+    {% for comment in comments %}
       <div class="comment">
-        <div class="comment__header">
-          <span class="comment__name">{{ comment[1].name }}</span>
-          <span class="comment__date">{{ comment[1].date | date: "%B %-d, %Y" }}</span>
+        <div class="comment-header">
+          <div class="comment-avatar">
+          </div>
+          <div class="comment-name-date">
+            <div class="comment-name">{{ comment.name }}</div>
+            <div class="comment-date">{{ comment.date | date: "%B %-d, %Y" }}</div>
+          </div>
         </div>
-        <div class="comment__message">{{ comment[1].message }}</div>
+        <div class="comment-message">{{ comment.message | strip_html | replace: "#", "" | markdownify }}</div>
       </div>
     {% endfor %}
 </div>
