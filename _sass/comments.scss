@@ -1,0 +1,58 @@
+.comment-section {
+  .comment-form {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+  }
+
+  .comment-name-field {
+    margin-bottom: 1em;
+    font-size: 1em;
+    padding: 0.5em;
+  }
+
+  .comment-text-field {
+    margin-bottom: 1em;
+    font-size: 1em;
+    padding: 0.5em;
+    height: 10em;
+  }
+
+  .comment-submit {
+    background-color: #6ea4ab;
+  }
+
+  .comments {
+    display: flex;
+    flex-direction: column;
+
+    .comment {
+      margin-bottom: 1em;
+
+      .comment-header {
+        display: flex;
+        .comment-avatar {
+          width: 2.6em;
+          height: 2.6em;
+          border-radius: 50%;
+          background-color: #eee;
+          margin-right: 1em;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-weight: bold;
+        }
+        .comment-name {
+          font-weight: bold;
+        }
+        .comment-date {
+          font-size: 0.8rem;
+          color: #999;
+        }
+      }
+      .comment-message {
+        padding: 1em 0;
+      }
+    }
+  }
+}
