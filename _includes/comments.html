@@ -1,5 +1,6 @@
 <div class="comment-section">
-  <form class="comment-form"
+  <form
+    class="comment-form"
     method="POST"
     action="https://karaycomments-c7c36ff4ee67.herokuapp.com/v3/entry/github/karray/karray.github.io/master/comments"
   >
@@ -9,25 +10,56 @@
       value="{{ site.url }}{{ page.url }}"
     />
     <input name="options[slug]" type="hidden" value="{{ page.slug }}" />
-    <textarea class="comment-text-field" name="fields[message]" placeholder="Message (markdown supported)" required></textarea>
+    <input
+      class="comment-name-field"
+      name="fields[name]"
+      type="text"
+      placeholder="Name"
+      required
+      maxlength="40"
+    />
+      <textarea
+      class="comment-text-field"
+      name="fields[message]"
+      placeholder="Message (markdown supported)"
+      required
+    ></textarea>
     <div>
-      <input class="comment-name-field" name="fields[name]" type="text" placeholder="name" required />
       <button type="submit" class="comment-submit">Post</button>
     </div>
   </form>
   <div class="comments">
-    {% assign comments = site.data.comments[page.slug] | where_exp: "item", "true" %} 
-    {% for comment in comments %}
-      <div class="comment">
-        <div class="comment-header">
-          <div class="comment-avatar">
-          </div>
-          <div class="comment-name-date">
-            <div class="comment-name">{{ comment.name }}</div>
-            <div class="comment-date">{{ comment.date | date: "%B %-d, %Y" }}</div>
+    {% assign comments = site.data.comments[page.slug] | where_exp: "item",
+    "true" %} {% for comment in comments %}
+    <div class="comment">
+      <div class="comment-header">
+        {% assign name_stripped = comment.name | strip_html | truncate: 40 %}
+        <div class="comment-avatar" data-name="{{ name_stripped }}">
+          {% assign initials = name_stripped | split: " " %} {% if initials.size
+          == 1 %} {% assign initials = initials[0] | slice: 0, 2 %} {% else %}
+          {% assign initials = initials[0] | slice: 0, 1 %} {% assign initials =
+          initials | append: initials[1] %} {% endif %} {{ initials | upcase }}
+        </div>
+        <div class="comment-name-date">
+          <div class="comment-name">{{ name_stripped }}</div>
+          <div class="comment-date">
+            {{ comment.date | date: "%H:%M - %b %-d, %Y" }}
           </div>
         </div>
-        <div class="comment-message">{{ comment.message | strip_html | replace: "#", "" | markdownify }}</div>
       </div>
+      <div class="comment-message">
+        {{ comment.message | strip_html | remove: "#" | markdownify }}
+      </div>
+    </div>
     {% endfor %}
+  </div>
+  <script>
+    const hashCode = (s) =>
+      s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
+      Array.from(document.getElementsByClassName("comment-avatar")).forEach(function (el) {
+      el.style.backgroundColor = `hsl(${
+        hashCode(el.dataset.name) % 360
+      }, 50%, 80%)`;
+    });
+  </script>
 </div>
