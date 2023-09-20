@@ -18,7 +18,7 @@
       required
       maxlength="40"
     />
-      <textarea
+    <textarea
       class="comment-text-field"
       name="fields[message]"
       placeholder="Message (markdown supported)"
@@ -48,7 +48,7 @@
         </div>
       </div>
       <div class="comment-message">
-        {{ comment.message | strip_html | remove: "#" | markdownify }}
+        {{ comment.message | strip_html | remove: "#" | markdownify | newline_to_br }}
       </div>
     </div>
     {% endfor %}
@@ -56,10 +56,12 @@
   <script>
     const hashCode = (s) =>
       s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
-      Array.from(document.getElementsByClassName("comment-avatar")).forEach(function (el) {
-      el.style.backgroundColor = `hsl(${
-        hashCode(el.dataset.name) % 360
-      }, 50%, 80%)`;
-    });
+    Array.from(document.getElementsByClassName("comment-avatar")).forEach(
+      function (el) {
+        el.style.backgroundColor = `hsl(${
+          hashCode(el.dataset.name) % 360
+        }, 50%, 80%)`;
+      }
+    );
   </script>
 </div>
