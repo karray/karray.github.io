@@ -16,13 +16,17 @@ jobs:
 
     - name: Fetch waka stats
       run: |
-        curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > assets/misc/waka_tmp.json
-        if ! grep -q "error" assets/misc/waka_tmp.json;
-          then
-            mv assets/misc/waka_tmp.json assets/misc/waka.json
-          else
-            rm assets/misc/waka_tmp.json
-        fi
+        # fetch json using curl, if error, retry 3 times
+        for i in {1..3}; do 
+          curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > assets/misc/waka_tmp.json
+          if ! grep -q "error" assets/misc/waka_tmp.json;
+            then
+              mv assets/misc/waka_tmp.json assets/misc/waka.json
+              break
+            else
+              rm assets/misc/waka_tmp.json
+          fi
+        done
 
     - name: Fetch stackoverflow reputation
       run: |
