@@ -28,111 +28,104 @@
         const STD = [0.229, 0.224, 0.225];
         const TOP_N = 20;
 
-        let video;
+        let video = document.createElement('video');
         let predictionList = document.getElementById('prediction-list');
         let rendered_canvas = document.getElementById('rendered_canvas');
         let ctx_rendered = rendered_canvas.getContext('2d');
         let startButton = document.getElementById('startButton');
 
-
         async function main() {
             const imagenet_classes = await fetch('./imagenet_class_index.json').then(response => response.json());
             const session = await ort.InferenceSession.create('./resnet50_imagenet.onnx');
-
-            // Not showing vendor prefixes.
-            navigator.getUserMedia({ video: { height: { ideal: 1024 } } }, localMediaStream => {
-                video = document.createElement('video');
-
-                video.srcObject = localMediaStream;
-                const width = localMediaStream.getVideoTracks()[0].getSettings().width;
-                const height = localMediaStream.getVideoTracks()[0].getSettings().height;
-                // document.body.appendChild(video);
-
-                // video.onloadedmetadata = function (e) {
-                //     video.play();
-                //     video.pause();
-                // };
-
-                // get frame
-
-                let hidden_canvas = document.createElement('canvas');
-                hidden_canvas.width = width;
-                hidden_canvas.height = height;
-                let ctx_hidden = hidden_canvas.getContext('2d');
-
-                const min_side = Math.min(width, height);
-
-                rendered_canvas.width = min_side;
-                rendered_canvas.height = min_side;
-                console.log('min_side', min_side);
-
-                startButton.disabled = false;
-                startButton.textContent = 'Start';
-
-                // let debug_canvas = document.createElement('canvas');
-                // debug_canvas.width = INPUT_WIDTH;
-                // debug_canvas.height = INPUT_HEIGHT;
-                // let ctx_debug = debug_canvas.getContext('2d');
-                // document.body.appendChild(debug_canvas);
-
-                let fps = 0;
-
-                video.addEventListener('play', function () {
-                    let $this = this; //cache
-                    (async function loop() {
-                        const start = performance.now();
-                        if (!$this.paused && !$this.ended) {
-                            ctx_hidden.drawImage($this, 0, 0);
-                            let imgData = ctx_hidden.getImageData(0, 0, width, height);
-
-                            // let imgDataArray = new Float32Array(3 * height * width);
-                            // for (i = 0; i < imgData.data.length; i = i + 4) {
-                            //     imgDataArray[i / 4] = imgData.data[i]; // R
-                            //     imgDataArray[i / 4 + 1] = imgData.data[i + 1]; // G
-                            //     imgDataArray[i / 4 + 2] = imgData.data[i + 2]; // B
-                            // }
-
-                            let transformd_img = ImageProcessor.fromImageData(imgData)
-                                .squareCrop();
-
-                            ctx_rendered.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
-                                transformd_img.width, transformd_img.height), 0, 0);
-
-                            transformd_img = transformd_img
-                                .resize(INPUT_WIDTH, INPUT_HEIGHT, 'bilinear')
-                                .normalize(MEAN, STD)
-                            
-                            // let d_img = ImageProcessor.toImageData(transformd_img.demoralize(MEAN, STD));
-                            // ctx_debug.putImageData(new ImageData(d_img, transformd_img.width, transformd_img.height), 0, 0);
+            const localMediaStream = await navigator.mediaDevices.getUserMedia({ video: { height: { ideal: 1024 } } });
 
 
-                            let imgDataTensor = new ort.Tensor('float32', ImageProcessor.toTensor(transformd_img), [1, 3, 224, 225]);
+            video.srcObject = localMediaStream;
+            const width = localMediaStream.getVideoTracks()[0].getSettings().width;
+            const height = localMediaStream.getVideoTracks()[0].getSettings().height;
+            // document.body.appendChild(video);
 
-                            let feeds = { l_x_: imgDataTensor };
-                            window.results = await session.run(feeds);
-                            let output = Array.from(softmax(results.fc_1.cpuData));
-                            const top_n_idx = argmax_top_n(output, TOP_N);
-                            // console.log('top_n_idx', top_n_idx);
+            // video.onloadedmetadata = function (e) {
+            //     video.play();
+            //     video.pause();
+            // };
 
-                            // console.log('classes', top_n_idx.map(idx => imagenet_classes[idx]));
-                            // console.log('probabilities', top_n_idx.map(idx => output[idx]));
+            // get frame
 
-                            updatePredictionList(top_n_idx.map(idx => imagenet_classes[idx]), top_n_idx.map(idx => output[idx]));
+            let hidden_canvas = document.createElement('canvas');
+            hidden_canvas.width = width;
+            hidden_canvas.height = height;
+            let ctx_hidden = hidden_canvas.getContext('2d');
+
+            const min_side = Math.min(width, height);
+
+            rendered_canvas.width = min_side;
+            rendered_canvas.height = min_side;
+            console.log('min_side', min_side);
+
+            startButton.disabled = false;
+            startButton.textContent = 'Start';
+
+            // let debug_canvas = document.createElement('canvas');
+            // debug_canvas.width = INPUT_WIDTH;
+            // debug_canvas.height = INPUT_HEIGHT;
+            // let ctx_debug = debug_canvas.getContext('2d');
+            // document.body.appendChild(debug_canvas);
+
+            let fps = 0;
+
+            video.addEventListener('play', function () {
+                let $this = this; //cache
+                (async function loop() {
+                    const start = performance.now();
+                    if (!$this.paused && !$this.ended) {
+                        ctx_hidden.drawImage($this, 0, 0);
+                        let imgData = ctx_hidden.getImageData(0, 0, width, height);
+
+                        // let imgDataArray = new Float32Array(3 * height * width);
+                        // for (i = 0; i < imgData.data.length; i = i + 4) {
+                        //     imgDataArray[i / 4] = imgData.data[i]; // R
+                        //     imgDataArray[i / 4 + 1] = imgData.data[i + 1]; // G
+                        //     imgDataArray[i / 4 + 2] = imgData.data[i + 2]; // B
+                        // }
+
+                        let transformd_img = ImageProcessor.fromImageData(imgData)
+                            .squareCrop();
+
+                        ctx_rendered.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
+                            transformd_img.width, transformd_img.height), 0, 0);
+
+                        transformd_img = transformd_img
+                            .resize(INPUT_WIDTH, INPUT_HEIGHT, 'bilinear')
+                            .normalize(MEAN, STD)
+
+                        // let d_img = ImageProcessor.toImageData(transformd_img.demoralize(MEAN, STD));
+                        // ctx_debug.putImageData(new ImageData(d_img, transformd_img.width, transformd_img.height), 0, 0);
 
 
-                            const end = performance.now();
-                            console.log(1000 / (end - start));
+                        let imgDataTensor = new ort.Tensor('float32', ImageProcessor.toTensor(transformd_img), [1, 3, 224, 225]);
+
+                        let feeds = { l_x_: imgDataTensor };
+                        window.results = await session.run(feeds);
+                        let output = Array.from(softmax(results.fc_1.cpuData));
+                        const top_n_idx = argmax_top_n(output, TOP_N);
+                        // console.log('top_n_idx', top_n_idx);
+
+                        // console.log('classes', top_n_idx.map(idx => imagenet_classes[idx]));
+                        // console.log('probabilities', top_n_idx.map(idx => output[idx]));
+
+                        updatePredictionList(top_n_idx.map(idx => imagenet_classes[idx]), top_n_idx.map(idx => output[idx]));
+
+                        const end = performance.now();
+                        console.log(1000 / (end - start));
 
 
-                            setTimeout(loop, 0);
+                        setTimeout(loop, 0);
 
 
-                        }
-                    })();
-                }, 0);
-            }, e => {
-                console.log("Error:", e);
-            });
+                    }
+                })();
+            }, 0);
         }
 
         class ImageProcessor {
