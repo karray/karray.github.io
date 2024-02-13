@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<header>
+    <title>LaFAM Live Demo</title>
+</header>
+
+<body>
+    <section style="display: flex;">
+        <canvas id="rendered_canvas" width="720" height="720" style="border: 1px solid #aaa;">
+        </canvas>
+        <div style="margin-left: 20px;">
+            <button id="startButton" onclick="toggleVideo(this)" disabled>Initializing...</button>
+            <div id="prediction-list" style="display: flex; flex-flow: column;">
+            </div>
+        </div>
+        </div>
+    </section>
+    <!-- see also advanced usage of importing ONNX Runtime Web: -->
+    <!-- https://github.com/microsoft/onnxruntime-inference-examples/tree/main/js/importing_onnxruntime-web -->
+
+    <!-- import ONNXRuntime Web from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script>
+        // use an async context to call onnxruntime functions.
+        const INPUT_WIDTH = 224;
+        const INPUT_HEIGHT = 225;
+        const MEAN = [0.485, 0.456, 0.406];
+        const STD = [0.229, 0.224, 0.225];
+        const TOP_N = 20;
+
+        let video;
+        let predictionList = document.getElementById('prediction-list');
+        let rendered_canvas = document.getElementById('rendered_canvas');
+        let ctx_rendered = rendered_canvas.getContext('2d');
+        let startButton = document.getElementById('startButton');
+
+
+        async function main() {
+            const imagenet_classes = await fetch('./imagenet_class_index.json').then(response => response.json());
+            const session = await ort.InferenceSession.create('./resnet50_imagenet.onnx');
+
+            // Not showing vendor prefixes.
+            navigator.getUserMedia({ video: { height: { ideal: 1024 } } }, localMediaStream => {
+                video = document.createElement('video');
+
+                video.srcObject = localMediaStream;
+                const width = localMediaStream.getVideoTracks()[0].getSettings().width;
+                const height = localMediaStream.getVideoTracks()[0].getSettings().height;
+                // document.body.appendChild(video);
+
+                // video.onloadedmetadata = function (e) {
+                //     video.play();
+                //     video.pause();
+                // };
+
+                // get frame
+
+                let hidden_canvas = document.createElement('canvas');
+                hidden_canvas.width = width;
+                hidden_canvas.height = height;
+                let ctx_hidden = hidden_canvas.getContext('2d');
+
+                const min_side = Math.min(width, height);
+
+                rendered_canvas.width = min_side;
+                rendered_canvas.height = min_side;
+                console.log('min_side', min_side);
+
+                startButton.disabled = false;
+                startButton.textContent = 'Start';
+
+                // let debug_canvas = document.createElement('canvas');
+                // debug_canvas.width = INPUT_WIDTH;
+                // debug_canvas.height = INPUT_HEIGHT;
+                // let ctx_debug = debug_canvas.getContext('2d');
+                // document.body.appendChild(debug_canvas);
+
+                let fps = 0;
+
+                video.addEventListener('play', function () {
+                    let $this = this; //cache
+                    (async function loop() {
+                        const start = performance.now();
+                        if (!$this.paused && !$this.ended) {
+                            ctx_hidden.drawImage($this, 0, 0);
+                            let imgData = ctx_hidden.getImageData(0, 0, width, height);
+
+                            // let imgDataArray = new Float32Array(3 * height * width);
+                            // for (i = 0; i < imgData.data.length; i = i + 4) {
+                            //     imgDataArray[i / 4] = imgData.data[i]; // R
+                            //     imgDataArray[i / 4 + 1] = imgData.data[i + 1]; // G
+                            //     imgDataArray[i / 4 + 2] = imgData.data[i + 2]; // B
+                            // }
+
+                            let transformd_img = ImageProcessor.fromImageData(imgData)
+                                .squareCrop();
+
+                            ctx_rendered.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
+                                transformd_img.width, transformd_img.height), 0, 0);
+
+                            transformd_img = transformd_img
+                                .resize(INPUT_WIDTH, INPUT_HEIGHT, 'bilinear')
+                                .normalize(MEAN, STD)
+                            
+                            // let d_img = ImageProcessor.toImageData(transformd_img.demoralize(MEAN, STD));
+                            // ctx_debug.putImageData(new ImageData(d_img, transformd_img.width, transformd_img.height), 0, 0);
+
+
+                            let imgDataTensor = new ort.Tensor('float32', ImageProcessor.toTensor(transformd_img), [1, 3, 224, 225]);
+
+                            let feeds = { l_x_: imgDataTensor };
+                            window.results = await session.run(feeds);
+                            let output = Array.from(softmax(results.fc_1.cpuData));
+                            const top_n_idx = argmax_top_n(output, TOP_N);
+                            // console.log('top_n_idx', top_n_idx);
+
+                            // console.log('classes', top_n_idx.map(idx => imagenet_classes[idx]));
+                            // console.log('probabilities', top_n_idx.map(idx => output[idx]));
+
+                            updatePredictionList(top_n_idx.map(idx => imagenet_classes[idx]), top_n_idx.map(idx => output[idx]));
+
+
+                            const end = performance.now();
+                            console.log(1000 / (end - start));
+
+
+                            setTimeout(loop, 0);
+
+
+                        }
+                    })();
+                }, 0);
+            }, e => {
+                console.log("Error:", e);
+            });
+        }
+
+        class ImageProcessor {
+            constructor(redChannel, greenChannel, blueChannel, width, height) {
+                this.redChannel = redChannel;
+                this.greenChannel = greenChannel;
+                this.blueChannel = blueChannel;
+
+                this.width = width;
+                this.height = height;
+            }
+
+            static fromImageData(imageData) {
+                let img = new ImageProcessor();
+                img.width = imageData.width;
+                img.height = imageData.height;
+                [img.redChannel, img.greenChannel, img.blueChannel] = ImageProcessor._toNdarray(imageData);
+                return img;
+            }
+
+            static toTensor(img) {
+                let tensor = new Float32Array(3 * img.width * img.height);
+                tensor.set(img.redChannel, 0);
+                tensor.set(img.greenChannel, img.width * img.height);
+                tensor.set(img.blueChannel, 2 * img.width * img.height);
+                return tensor;
+            }
+
+            squareCrop() {
+                const size = Math.min(this.width, this.height);
+                const startX = Math.round((this.width - size) / 2);
+                const startY = Math.round((this.height - size) / 2);
+                const endY = startY + size;
+
+                let croppedRed = new Float32Array(size * size);
+                let croppedGreen = new Float32Array(size * size);
+                let croppedBlue = new Float32Array(size * size);
+                let croppedIndex = 0;
+
+                for (let y = startY; y < endY; y++) {
+                    const rowStart = (y * this.width + startX);
+                    const rowEnd = rowStart + size;
+
+                    const rowSegmentRed = this.redChannel.slice(rowStart, rowEnd);
+                    const rowSegmentGreen = this.greenChannel.slice(rowStart, rowEnd);
+                    const rowSegmentBlue = this.blueChannel.slice(rowStart, rowEnd);
+
+                    croppedRed.set(rowSegmentRed, croppedIndex);
+                    croppedGreen.set(rowSegmentGreen, croppedIndex);
+                    croppedBlue.set(rowSegmentBlue, croppedIndex);
+
+                    croppedIndex += size;
+                }
+
+                return new ImageProcessor(croppedRed, croppedGreen, croppedBlue, size, size);
+            }
+
+            resize(newWidth, newHeight, interpolation = 'bilinear') {
+                const resized = [new Float32Array(newWidth * newHeight), new Float32Array(newWidth * newHeight), new Float32Array(newWidth * newHeight)]
+                const xRatio = this.width / newWidth;
+                const yRatio = this.height / newHeight;
+
+                for (let y = 0; y < newHeight; y++) {
+                    for (let x = 0; x < newWidth; x++) {
+                        if (interpolation === 'nearest') {
+                            this._nearestNeighbor(x, y, xRatio, yRatio, resized, newWidth);
+                        } else if (interpolation === 'bilinear') {
+                            this._bilinearInterpolation(x, y, xRatio, yRatio, resized, newWidth);
+                        }
+                        else {
+                            throw new Error(`interpolation method ${interpolation} is not supported.`);
+                        }
+                    }
+                }
+
+                return new ImageProcessor(...resized, newWidth, newHeight);
+            }
+
+            normalize(mean, std) {
+                // Validate mean and std have 3 elements each
+                if (mean.length !== 3 || std.length !== 3) {
+                    throw new Error('Mean and standard deviation must each have 3 elements.');
+                }
+
+                const length = this.width * this.height;
+                let normalizedRed = new Float32Array(length);
+                let normalizedGreen = new Float32Array(length);
+                let normalizedBlue = new Float32Array(length);
+
+                for (let i = 0; i < length; i++) {
+                    // Normalize each channel
+                    normalizedRed[i] = (this.redChannel[i] / 255 - mean[0]) / std[0]; // Red channel
+                    normalizedGreen[i] = (this.greenChannel[i] / 255 - mean[1]) / std[1]; // Green channel
+                    normalizedBlue[i] = (this.blueChannel[i] / 255 - mean[2]) / std[2]; // Blue channel
+                }
+
+                return new ImageProcessor(normalizedRed, normalizedGreen, normalizedBlue, this.width, this.height);
+            }
+
+            demoralize(mean, std) {
+                // Validate mean and std have 3 elements each
+                if (mean.length !== 3 || std.length !== 3) {
+                    throw new Error('Mean and standard deviation must each have 3 elements.');
+                }
+
+                const length = this.width * this.height;
+                let demoralizedRed = new Float32Array(length);
+                let demoralizedGreen = new Float32Array(length);
+                let demoralizedBlue = new Float32Array(length);
+
+                for (let i = 0; i < length; i++) {
+                    // Normalize each channel
+                    demoralizedRed[i] = (this.redChannel[i] * std[0] + mean[0]) * 255; // Red channel
+                    demoralizedGreen[i] = (this.greenChannel[i] * std[1] + mean[1]) * 255; // Green channel
+                    demoralizedBlue[i] = (this.blueChannel[i] * std[2] + mean[2]) * 255; // Blue channel
+                }
+
+                return new ImageProcessor(demoralizedRed, demoralizedGreen, demoralizedBlue, this.width, this.height);
+            }
+
+            static toImageData(img) {
+                const length = img.width * img.height;
+                let rgba = new Uint8ClampedArray(length * 4);
+                for (let i = 0; i < length * 4; i += 4) {
+                    rgba[i] = img.redChannel[i / 4];
+                    rgba[i + 1] = img.greenChannel[i / 4];
+                    rgba[i + 2] = img.blueChannel[i / 4];
+                    rgba[i + 3] = 255;
+                }
+
+                return rgba;
+            }
+
+            static _toNdarray(imageData) {
+                const length = imageData.width * imageData.height;
+                const [redChannel, greenChannel, blueChannel] = [new Float32Array(length), new Float32Array(length), new Float32Array(length)];
+
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    redChannel[i / 4] = imageData.data[i];
+                    greenChannel[i / 4] = (imageData.data[i + 1]);
+                    blueChannel[i / 4] = (imageData.data[i + 2]);
+                    // ignore [i + 4] as it is alpha channel
+                }
+                // 3. Concatenate RGB to transpose [224, 224, 3] -> [3, 224, 224] to a number array
+                // const transposedData = redArray.concat(greenArray).concat(blueArray);
+
+                return [redChannel, greenChannel, blueChannel];
+            }
+
+            _nearestNeighbor(x, y, xRatio, yRatio, output, newWidth) {
+                const nearestX = Math.floor((x + 0.5) * xRatio);
+                const nearestY = Math.floor((y + 0.5) * yRatio);
+                const idxSrc = (nearestY * this.width + nearestX);
+                const idxDest = (y * newWidth + x);
+
+                const source = [this.redChannel, this.greenChannel, this.blueChannel]
+
+                for (let channel = 0; channel < 3; channel++) {
+                    output[channel][idxDest] = source[channel][idxSrc];
+                }
+            }
+
+            _bilinearInterpolation(x, y, xRatio, yRatio, output, newWidth) {
+                const xL = Math.floor(x * xRatio);
+                const yL = Math.floor(y * yRatio);
+                const xH = Math.ceil(x * xRatio);
+                const yH = Math.ceil(y * yRatio);
+                const xWeight = (x * xRatio) - xL;
+                const yWeight = (y * yRatio) - yL;
+                const idxDest = (y * newWidth + x);
+
+                const source = [this.redChannel, this.greenChannel, this.blueChannel]
+
+                for (let channel = 0; channel < 3; channel++) {
+                    const valTL = source[channel][(yL * this.width + xL)];
+                    const valTR = source[channel][(yL * this.width + xH)];
+                    const valBL = source[channel][(yH * this.width + xL)];
+                    const valBR = source[channel][(yH * this.width + xH)];
+
+                    const top = valTL + (valTR - valTL) * xWeight;
+                    const bottom = valBL + (valBR - valBL) * xWeight;
+                    output[channel][idxDest] = top + (bottom - top) * yWeight;
+                }
+            }
+        }
+
+        function softmax(arr) {
+            return arr.map(function (value, index) {
+                return Math.exp(value) / arr.map(function (y) {
+                    return Math.exp(y)
+                }).reduce(function (a, b) {
+                    return a + b
+                });
+            });
+        }
+
+        function argmax_top_n(arr, n) {
+            let indices = arr.map((e, i) => i);
+            indices.sort((a, b) => arr[b] - arr[a]);
+            return indices.slice(0, n);
+        }
+
+
+        function toggleVideo(el) {
+            if (video.paused) {
+                video.play();
+                el.textContent = 'Pause';
+            } else {
+                video.pause();
+                el.textContent = 'Start';
+            }
+        }
+
+        function updatePredictionList(classes, probabilities) {
+            // create list with progress bars
+            predictionList.innerHTML = '';
+            for (let i = 0; i < classes.length; i++) {
+                let label = document.createElement('label');
+                label.textContent = `${classes[i]}: ${Math.round(probabilities[i] * 100)}%`;
+                predictionList.appendChild(label);
+
+                let progress = document.createElement('progress');
+                progress.value = probabilities[i];
+                progress.max = 1;
+                predictionList.appendChild(progress);
+            }
+        }
+
+        main();
+    </script>
+</body>
+
+</html>
