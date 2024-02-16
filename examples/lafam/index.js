@@ -2,7 +2,7 @@ const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
-const TOP_N = 20;
+const TOP_N = 14;
 
 let video = document.createElement("video");
 let predictionList = document.getElementById("prediction-list");
@@ -10,6 +10,8 @@ let rendered_canvas = document.getElementById("rendered_canvas");
 let ctx_rendered = rendered_canvas.getContext("2d");
 let startButton = document.getElementById("startButton");
 let switchCameraButton = document.getElementById("switchCameraButton");
+let hidden_canvas = document.createElement("canvas");
+let ctx_hidden = hidden_canvas.getContext("2d");
 
 async function init() {
   const imagenet_classes = await fetch("./imagenet_class_index.json").then(
@@ -21,10 +23,7 @@ async function init() {
   );
 
   let cameras = await navigator.mediaDevices.enumerateDevices();
-  cameras = cameras.find((device) => device.kind === "videoinput");
-  if (typeof cameras !== Array) {
-    cameras = [cameras];
-  }
+  cameras = cameras.filter((device) => device.kind === "videoinput");
 
   let currentCameraId = cameras[cameras.length - 1].deviceId;
   let localMediaStream = await navigator.mediaDevices.getUserMedia({
@@ -34,27 +33,7 @@ async function init() {
     },
   });
 
-  if (cameras.length > 1) {
-    switchCameraButton.style.display = "block";
-    switchCameraButton.onclick = async () => {
-      localMediaStream.getTracks().forEach((track) => track.stop());
-      currentCameraId = cameras.find(
-        (camera) => camera.deviceId !== currentCameraId
-      ).deviceId;
-      localMediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: currentCameraId,
-          height: { ideal: 1024 },
-        },
-      });
-      video.srcObject = localMediaStream;
-    };
-  }
-
   video.srcObject = localMediaStream;
-  const width = localMediaStream.getVideoTracks()[0].getSettings().width;
-  const height = localMediaStream.getVideoTracks()[0].getSettings().height;
-  // document.body.appendChild(video);
 
   // video.onloadedmetadata = function (e) {
   //     video.play();
@@ -63,118 +42,147 @@ async function init() {
 
   // get frame
 
-  let hidden_canvas = document.createElement("canvas");
-  hidden_canvas.width = width;
-  hidden_canvas.height = height;
-  let ctx_hidden = hidden_canvas.getContext("2d");
+  // hidden_canvas.width = width;
+  // hidden_canvas.height = height;
 
-  const min_side = Math.min(width, height);
-
-  rendered_canvas.width = min_side;
-  rendered_canvas.height = min_side;
-  console.log("min_side", min_side);
+  // rendered_canvas.width = min_side;
+  // rendered_canvas.height = min_side;
+  // console.log("min_side", min_side);
 
   startButton.disabled = false;
   startButton.textContent = "Start";
 
-  let debug_canvas = document.createElement("canvas");
-  debug_canvas.width = min_side;
-  debug_canvas.height = min_side;
-  let ctx_debug = debug_canvas.getContext("2d");
-  document.body.appendChild(debug_canvas);
+  // let debug_canvas = document.createElement("canvas");
+  // debug_canvas.width = min_side;
+  // debug_canvas.height = min_side;
+  // let ctx_debug = debug_canvas.getContext("2d");
+  // document.body.appendChild(debug_canvas);
+
+  if (cameras.length > 1) {
+    switchCameraButton.style.display = "block";
+    switchCameraButton.onclick = async () => {
+      video.pause();
+      video.removeEventListener("play", onPlay);
+      localMediaStream.getTracks().forEach((track) => track.stop());
+
+      currentCameraId = cameras.find(
+        (camera) => camera.deviceId !== currentCameraId
+      ).deviceId;
+
+      localMediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: currentCameraId,
+          height: { ideal: 1024 },
+        },
+      });
+
+      video.srcObject = localMediaStream;
+      video.addEventListener("play", onPlay, 0);
+      video.play();
+    };
+  }
 
   let fps = 0;
 
-  video.addEventListener(
-    "play",
-    function () {
-      let $this = this; //cache
-      (async function loop() {
-        const start = performance.now();
-        if (!$this.paused && !$this.ended) {
-          ctx_hidden.drawImage($this, 0, 0);
-          let imgData = ctx_hidden.getImageData(0, 0, width, height);
+  video.addEventListener("play", onPlay, 0);
 
-          // let imgDataArray = new Float32Array(3 * height * width);
-          // for (i = 0; i < imgData.data.length; i = i + 4) {
-          //     imgDataArray[i / 4] = imgData.data[i]; // R
-          //     imgDataArray[i / 4 + 1] = imgData.data[i + 1]; // G
-          //     imgDataArray[i / 4 + 2] = imgData.data[i + 2]; // B
-          // }
+  function onPlay() {
+    let $this = this; //cache
 
-          const croppedFrame =
-            ImageProcessor.fromImageData(imgData).squareCrop();
+    const width = localMediaStream.getVideoTracks()[0].getSettings().width;
+    const height = localMediaStream.getVideoTracks()[0].getSettings().height;
+    const min_side = Math.min(width, height);
+    console.log("min_side", min_side);
 
-          // ctx_rendered.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
-          //     transformd_img.width, transformd_img.height), 0, 0);
+    hidden_canvas.width = width;
+    hidden_canvas.height = height;
 
-          const transformed_img = croppedFrame
-            .resize(INPUT_WIDTH, INPUT_HEIGHT, "bilinear")
-            .normalize(MEAN, STD);
+    rendered_canvas.width = min_side;
+    rendered_canvas.height = min_side;
 
-          // let d_img = ImageProcessor.toImageData(transformd_img.demoralize(MEAN, STD));
-          // ctx_debug.putImageData(new ImageData(d_img, transformd_img.width, transformd_img.height), 0, 0);
+    (async function loop() {
+      const start = performance.now();
+      if (!$this.paused && !$this.ended) {
+        ctx_hidden.drawImage($this, 0, 0);
+        let imgData = ctx_hidden.getImageData(0, 0, width, height);
 
-          let imgDataTensor = new ort.Tensor(
-            "float32",
-            ImageProcessor.toTensor(transformed_img),
-            [1, 3, INPUT_HEIGHT, INPUT_WIDTH]
-          );
+        // let imgDataArray = new Float32Array(3 * height * width);
+        // for (i = 0; i < imgData.data.length; i = i + 4) {
+        //     imgDataArray[i / 4] = imgData.data[i]; // R
+        //     imgDataArray[i / 4 + 1] = imgData.data[i + 1]; // G
+        //     imgDataArray[i / 4 + 2] = imgData.data[i + 2]; // B
+        // }
 
-          let feeds = { l_x_: imgDataTensor };
-          window.results = await session.run(feeds);
-          let output = Array.from(softmax(results.fc_1.cpuData));
-          const top_n_idx = argmax_top_n(output, TOP_N);
-          // console.log('top_n_idx', top_n_idx);
+        const croppedFrame = ImageProcessor.fromImageData(imgData).squareCrop();
 
-          // console.log('classes', top_n_idx.map(idx => imagenet_classes[idx]));
-          // console.log('probabilities', top_n_idx.map(idx => output[idx]));
+        // ctx_rendered.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
+        //     transformd_img.width, transformd_img.height), 0, 0);
 
-          updatePredictionList(
-            top_n_idx.map((idx) => imagenet_classes[idx]),
-            top_n_idx.map((idx) => output[idx])
-          );
+        const transformed_img = croppedFrame
+          .resize(INPUT_WIDTH, INPUT_HEIGHT, "bilinear")
+          .normalize(MEAN, STD);
 
-          // console.log(results.layer4_1.cpuData);
-          // console.log('min', Math.min(...results.layer4_1.cpuData))
-          // console.log('max', Math.max(...results.layer4_1.cpuData))
-          // sum
-          // console.log('sum', results.layer4_1.cpuData.reduce((a, b) => a + b, 0));
+        // let d_img = ImageProcessor.toImageData(transformd_img.demoralize(MEAN, STD));
+        // ctx_debug.putImageData(new ImageData(d_img, transformd_img.width, transformd_img.height), 0, 0);
 
-          // let heatmap = new ImageProcessor([results.layer4_1.cpuData], 7, 7)
-          //     .resize(min_side, min_side, 'nearest')
-          // .demoralize([0, 0, 0], [1, 1, 1]);
-          let heatmap = averageHeatmap(results.layer4_1.cpuData, [2048, 7, 7]);
-          heatmap = mapToPallete(heatmap, inferno);
-          // console.log('heatmap', heatmap);
-          heatmap = new ImageProcessor(heatmap, 7, 7).resize(
+        let imgDataTensor = new ort.Tensor(
+          "float32",
+          ImageProcessor.toTensor(transformed_img),
+          [1, 3, INPUT_HEIGHT, INPUT_WIDTH]
+        );
+
+        let feeds = { l_x_: imgDataTensor };
+        window.results = await session.run(feeds);
+        let output = Array.from(softmax(results.fc_1.cpuData));
+        const top_n_idx = argmax_top_n(output, TOP_N);
+        // console.log('top_n_idx', top_n_idx);
+
+        // console.log('classes', top_n_idx.map(idx => imagenet_classes[idx]));
+        // console.log('probabilities', top_n_idx.map(idx => output[idx]));
+
+        updatePredictionList(
+          top_n_idx.map((idx) => imagenet_classes[idx]),
+          top_n_idx.map((idx) => output[idx])
+        );
+
+        // console.log(results.layer4_1.cpuData);
+        // console.log('min', Math.min(...results.layer4_1.cpuData))
+        // console.log('max', Math.max(...results.layer4_1.cpuData))
+        // sum
+        // console.log('sum', results.layer4_1.cpuData.reduce((a, b) => a + b, 0));
+
+        // let heatmap = new ImageProcessor([results.layer4_1.cpuData], 7, 7)
+        //     .resize(min_side, min_side, 'nearest')
+        // .demoralize([0, 0, 0], [1, 1, 1]);
+        let heatmap = averageHeatmap(results.layer4_1.cpuData, [2048, 7, 7]);
+        heatmap = mapToPallete(heatmap, inferno);
+        // console.log('heatmap', heatmap);
+        heatmap = new ImageProcessor(heatmap, 7, 7).resize(
+          min_side,
+          min_side,
+          "nearest"
+        );
+        // console.log('heatmap', heatmap);
+
+        const blended = blendHeatmap(croppedFrame, heatmap, 0.7);
+
+        // ctx_debug.putImageData(new ImageData(ImageProcessor.toImageData(heatmap), min_side, min_side), 0, 0);
+        ctx_rendered.putImageData(
+          new ImageData(
+            ImageProcessor.toImageData(blended),
             min_side,
-            min_side,
-            "nearest"
-          );
-          // console.log('heatmap', heatmap);
+            min_side
+          ),
+          0,
+          0
+        );
 
-          const blended = blendHeatmap(croppedFrame, heatmap, 0.7);
+        console.log(1000 / (performance.now() - start));
 
-          // ctx_debug.putImageData(new ImageData(ImageProcessor.toImageData(heatmap), min_side, min_side), 0, 0);
-          ctx_rendered.putImageData(
-            new ImageData(
-              ImageProcessor.toImageData(blended),
-              min_side,
-              min_side
-            ),
-            0,
-            0
-          );
-
-          console.log(1000 / (performance.now() - start));
-
-          setTimeout(loop, 0);
-        }
-      })();
-    },
-    0
-  );
+        setTimeout(loop, 0);
+      }
+    })();
+  }
 }
 
 function blendHeatmap(img, heatmap, opacity) {
