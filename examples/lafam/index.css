@@ -1,0 +1,63 @@
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.main-section {
+    display: flex;
+    /* The default layout is row, suitable for wider screens */
+    flex-direction: row;
+    width: 100%;
+    /* height: 100%; */
+    padding: 10px;
+    /* Adjusted padding for internal spacing */
+    box-sizing: border-box;
+    /* Include padding in the height and width calculations */
+}
+
+.canvas-block,
+.record-block {
+    /* No longer forcing 100% width here */
+    flex: 1;
+    /* Allows each block to take equal space */
+    box-sizing: border-box;
+    /* Makes sure padding and border are included in the width */
+    padding: 10px;
+    /* Adding padding for internal spacing */
+}
+
+.canvas-block #rendered_canvas {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #aaa;
+}
+
+.record-block button {
+    margin: 10px 0;
+}
+
+#prediction-list {
+    display: flex;
+    flex-flow: column;
+}
+
+#prediction-list label {
+    margin: 5px 0;
+}
+
+/* Adjusting the layout for narrower screens */
+@media (max-width: 767px) {
+    .main-section {
+        flex-direction: column;
+        /* Stack vertically on smaller screens */
+    }
+
+    /* Canvas and record block should take up full width on smaller screens */
+    .canvas-block,
+    .record-block {
+        max-width: 100%;
+    }
+}
