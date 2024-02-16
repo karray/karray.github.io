@@ -13,17 +13,28 @@ let switchCameraButton = document.getElementById("switchCameraButton");
 let hidden_canvas = document.createElement("canvas");
 let ctx_hidden = hidden_canvas.getContext("2d");
 
-async function init() {
+let debug_devices = document.getElementById("devices");
+let debug_log = document.getElementById("log");
+
+// print errors and warnings to the log
+window.onerror = function (message, source, lineno, colno, error) {
+  debug_log.textContent += message + "\n";
+  debug_log.scrollTop = debug_log.scrollHeight;
+};
+
+async function initCamera() {
   const imagenet_classes = await fetch("./imagenet_class_index.json").then(
     (response) => response.json()
   );
-  const session = await ort.InferenceSession.create(
-    "./resnet50_imagenet_modified.onnx",
-    { executionProviders: ["wasm"] }
-  );
 
   let cameras = await navigator.mediaDevices.enumerateDevices();
+  debug_devices.textContent = JSON.stringify(cameras, null, 2);
   cameras = cameras.filter((device) => device.kind === "videoinput");
+
+  if (cameras.length === 0) {
+    startButton.textContent = "No camera";
+    return;
+  }
 
   let currentCameraId = cameras[cameras.length - 1].deviceId;
   let localMediaStream = await navigator.mediaDevices.getUserMedia({
@@ -49,8 +60,10 @@ async function init() {
   // rendered_canvas.height = min_side;
   // console.log("min_side", min_side);
 
-  startButton.disabled = false;
-  startButton.textContent = "Start";
+  const session = await ort.InferenceSession.create(
+    "./resnet50_imagenet_modified.onnx",
+    { executionProviders: ["wasm"] }
+  );
 
   // let debug_canvas = document.createElement("canvas");
   // debug_canvas.width = min_side;
@@ -85,6 +98,9 @@ async function init() {
   let fps = 0;
 
   video.addEventListener("play", onPlay, 0);
+
+  startButton.disabled = false;
+  startButton.textContent = "Start";
 
   function onPlay() {
     let $this = this; //cache
@@ -505,4 +521,4 @@ function averageHeatmap(arr, shape, normalize = true) {
   return heatmap;
 }
 
-init();
+initCamera();
