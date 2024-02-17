@@ -1,3 +1,12 @@
+window.addEventListener("error", (event) => {
+  debug_log.textContent += event.message + "\n";
+  debug_log.scrollTop = debug_log.scrollHeight;
+});
+window.addEventListener("unhandledrejection", (event) => {
+  debug_log.textContent += event.reason + "\n";
+  debug_log.scrollTop = debug_log.scrollHeight;
+});
+
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
 const MEAN = [0.485, 0.456, 0.406];
@@ -6,21 +15,26 @@ const TOP_N = 14;
 
 let video = document.createElement("video");
 let predictionList = document.getElementById("prediction-list");
-let rendered_canvas = document.getElementById("rendered_canvas");
-let ctx_rendered = rendered_canvas.getContext("2d");
-let startButton = document.getElementById("startButton");
-let switchCameraButton = document.getElementById("switchCameraButton");
+
 let hidden_canvas = document.createElement("canvas");
 let ctx_hidden = hidden_canvas.getContext("2d");
 
+let img_canvas = document.getElementById("img-canvas");
+let ctx_img = img_canvas.getContext("2d");
+
+let heatmap_canvas = document.getElementById("heatmap-canvas");
+let ctx_heatmap = heatmap_canvas.getContext("2d");
+
+let startButton = document.getElementById("start-button");
+let switchCameraButton = document.getElementById("switch-camera-button");
+
+let heatmapOpacity = document.getElementById("heatmap-opacity");
+heatmapOpacity.oninput = function () {
+  heatmap_canvas.style.opacity = this.value;
+};
+
 let debug_devices = document.getElementById("devices");
 let debug_log = document.getElementById("log");
-
-// print errors and warnings to the log
-window.onerror = function (message, source, lineno, colno, error) {
-  debug_log.textContent += message + "\n";
-  debug_log.scrollTop = debug_log.scrollHeight;
-};
 
 async function initCamera() {
   const imagenet_classes = await fetch("./imagenet_class_index.json").then(
@@ -56,8 +70,8 @@ async function initCamera() {
   // hidden_canvas.width = width;
   // hidden_canvas.height = height;
 
-  // rendered_canvas.width = min_side;
-  // rendered_canvas.height = min_side;
+  // img_canvas.width = min_side;
+  // img_canvas.height = min_side;
   // console.log("min_side", min_side);
 
   const session = await ort.InferenceSession.create(
@@ -92,6 +106,7 @@ async function initCamera() {
       video.srcObject = localMediaStream;
       video.addEventListener("play", onPlay, 0);
       video.play();
+      startButton.classList.remove("paused");
     };
   }
 
@@ -100,7 +115,6 @@ async function initCamera() {
   video.addEventListener("play", onPlay, 0);
 
   startButton.disabled = false;
-  startButton.textContent = "Start";
 
   function onPlay() {
     let $this = this; //cache
@@ -112,9 +126,12 @@ async function initCamera() {
 
     hidden_canvas.width = width;
     hidden_canvas.height = height;
-
-    rendered_canvas.width = min_side;
-    rendered_canvas.height = min_side;
+  
+    img_canvas.width = min_side;
+    img_canvas.height = min_side;
+  
+    heatmap_canvas.width = min_side;
+    heatmap_canvas.height = min_side;
 
     (async function loop() {
       const start = performance.now();
@@ -131,7 +148,7 @@ async function initCamera() {
 
         const croppedFrame = ImageProcessor.fromImageData(imgData).squareCrop();
 
-        // ctx_rendered.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
+        // ctx_img.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
         //     transformd_img.width, transformd_img.height), 0, 0);
 
         const transformed_img = croppedFrame
@@ -171,7 +188,7 @@ async function initCamera() {
         //     .resize(min_side, min_side, 'nearest')
         // .demoralize([0, 0, 0], [1, 1, 1]);
         let heatmap = averageHeatmap(results.layer4_1.cpuData, [2048, 7, 7]);
-        heatmap = mapToPallete(heatmap, inferno);
+        heatmap = mapToPallete(heatmap, viridis);
         // console.log('heatmap', heatmap);
         heatmap = new ImageProcessor(heatmap, 7, 7).resize(
           min_side,
@@ -180,12 +197,12 @@ async function initCamera() {
         );
         // console.log('heatmap', heatmap);
 
-        const blended = blendHeatmap(croppedFrame, heatmap, 0.7);
+        // const blended = blendHeatmap(croppedFrame, heatmap, 0.7);
 
         // ctx_debug.putImageData(new ImageData(ImageProcessor.toImageData(heatmap), min_side, min_side), 0, 0);
-        ctx_rendered.putImageData(
+        ctx_img.putImageData(
           new ImageData(
-            ImageProcessor.toImageData(blended),
+            ImageProcessor.toImageData(croppedFrame),
             min_side,
             min_side
           ),
@@ -193,7 +210,18 @@ async function initCamera() {
           0
         );
 
-        console.log(1000 / (performance.now() - start));
+        ctx_heatmap.putImageData(
+          new ImageData(
+            ImageProcessor.toImageData(heatmap),
+            min_side,
+            min_side
+          ),
+          0,
+          0
+        );
+
+
+        // console.log(1000 / (performance.now() - start));
 
         setTimeout(loop, 0);
       }
@@ -201,25 +229,25 @@ async function initCamera() {
   }
 }
 
-function blendHeatmap(img, heatmap, opacity) {
-  const length = img.width * img.height;
-  let blended = new ImageProcessor(
-    [
-      new Float32Array(length),
-      new Float32Array(length),
-      new Float32Array(length),
-    ],
-    img.width,
-    img.height
-  );
-  for (let i = 0; i < length; i++) {
-    for (let c = 0; c < img.channels.length; c++) {
-      blended.channels[c][i] =
-        img.channels[c][i] * (1 - opacity) + heatmap.channels[c][i] * opacity;
-    }
-  }
-  return blended;
-}
+// function blendHeatmap(img, heatmap, opacity) {
+//   const length = img.width * img.height;
+//   let blended = new ImageProcessor(
+//     [
+//       new Float32Array(length),
+//       new Float32Array(length),
+//       new Float32Array(length),
+//     ],
+//     img.width,
+//     img.height
+//   );
+//   for (let i = 0; i < length; i++) {
+//     for (let c = 0; c < img.channels.length; c++) {
+//       blended.channels[c][i] =
+//         img.channels[c][i] * (1 - opacity) + heatmap.channels[c][i] * opacity;
+//     }
+//   }
+//   return blended;
+// }
 
 function mapToPallete(x, pallete) {
   let heatmap = [
@@ -479,10 +507,10 @@ function argmax_top_n(arr, n) {
 function toggleVideo(el) {
   if (video.paused) {
     video.play();
-    el.textContent = "Pause";
+    el.classList.remove("paused");
   } else {
     video.pause();
-    el.textContent = "Start";
+    el.classList.add("paused");
   }
 }
 
