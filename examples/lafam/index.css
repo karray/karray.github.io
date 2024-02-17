@@ -19,7 +19,7 @@ html {
 }
 
 .record-block {
-    margin-left: 10px;
+    margin: 0 0 0 10px;
 }
 
 .canvas-block {
@@ -38,7 +38,6 @@ html {
 #heatmap-canvas {
     max-width: 100%;
     height: auto;
-    border: 1px solid #aaa;
 }
 
 #button-group {
@@ -93,49 +92,15 @@ button svg {
     display: none;
 }
 
-#heatmap-opacity {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 15px;
+.card {
+    /* margin: 10px 0 0 0; */
+    padding: 10px;
+    /* border-top: 1px solid #eee; */
     border-radius: 5px;
-    background: #d3d3d3;
-    outline: none;
-    padding: 0;
-    margin: 0;
-    position: relative;
+    box-sizing: border-box;
+    box-shadow: 0 2px 6px 2px rgba(0, 0, 0.08, 0.15);
 }
 
-#heatmap-opacity::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 50%;
-    height: 100%;
-    background: #007BFF;
-    border-radius: 5px;
-}
-
-#heatmap-opacity::-webkit-slider-runnable-track {
-    cursor: pointer;
-    background: transparent;
-}
-
-#heatmap-opacity::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 25px;
-    height: 25px;
-    border-radius: 50%;
-    background: #007BFF;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-#heatmap-opacity::-webkit-slider-thumb:hover {
-    background: #0056b3;
-}
 
 #slider-container {
     flex-grow: 1;
@@ -143,6 +108,14 @@ button svg {
 
 #slider-container input {
     width: 100%;
+}
+
+.predictions-container {
+    margin-top: 10px;
+}
+
+.predictions-container h4 {
+    margin: 0 0 10px 0;
 }
 
 #prediction-list {
@@ -154,6 +127,10 @@ button svg {
 @media (max-width: 767px) {
     .main-section {
         flex-direction: column;
+    }
+
+    .record-block {
+        margin: 10px 0 0 0;
     }
 }
 
@@ -170,4 +147,39 @@ button svg {
         order: 3;
         margin-top: 10px;
     }
+}
+
+#palette-select {
+    display: inline-block;
+    width: auto;
+    padding: 8px 30px 8px 12px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 2px solid #007BFF;
+    appearance: none;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    color: #333;
+    cursor: pointer;
+    line-height: 1.1;
+    outline: none;
+}
+
+/* Optionally, add a wrap div for positioning a custom background arrow */
+.select-wrapper {
+    position: relative;
+    display: inline-block;
+    /* Adjust width and display as necessary */
+}
+
+.select-wrapper:after {
+    content: '▼';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #007BFF;
+    font-size: 0.8em;
 }

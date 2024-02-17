@@ -7,6 +7,31 @@ window.addEventListener("unhandledrejection", (event) => {
   debug_log.scrollTop = debug_log.scrollHeight;
 });
 
+// const worker = new Worker("worker.js");
+// worker.postMessage("Hello from main thread");
+
+let palettes;
+let currentPalette;
+
+const paletteSelect = document.getElementById("palette-select");
+
+fetch("palettes.json")
+  .then((response) => response.json())
+  .then((data) => {
+    palettes = data;
+    currentPalette = Object.keys(data)[0];
+    for (const palette in data) {
+      const option = document.createElement("option");
+      option.value = palette;
+      option.textContent = palette;
+      paletteSelect.appendChild(option);
+    }
+  });
+
+paletteSelect.onchange = function () {
+  currentPalette = this.value;
+};
+
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
 const MEAN = [0.485, 0.456, 0.406];
@@ -126,10 +151,10 @@ async function initCamera() {
 
     hidden_canvas.width = width;
     hidden_canvas.height = height;
-  
+
     img_canvas.width = min_side;
     img_canvas.height = min_side;
-  
+
     heatmap_canvas.width = min_side;
     heatmap_canvas.height = min_side;
 
@@ -188,7 +213,7 @@ async function initCamera() {
         //     .resize(min_side, min_side, 'nearest')
         // .demoralize([0, 0, 0], [1, 1, 1]);
         let heatmap = averageHeatmap(results.layer4_1.cpuData, [2048, 7, 7]);
-        heatmap = mapToPallete(heatmap, viridis);
+        heatmap = mapToPalette(heatmap);
         // console.log('heatmap', heatmap);
         heatmap = new ImageProcessor(heatmap, 7, 7).resize(
           min_side,
@@ -220,7 +245,6 @@ async function initCamera() {
           0
         );
 
-
         // console.log(1000 / (performance.now() - start));
 
         setTimeout(loop, 0);
@@ -249,45 +273,22 @@ async function initCamera() {
 //   return blended;
 // }
 
-function mapToPallete(x, pallete) {
+function mapToPalette(x) {
+  console.log("currentPalette", currentPalette);
+  const palette = palettes[currentPalette];
   let heatmap = [
     new Float32Array(x.length),
     new Float32Array(x.length),
     new Float32Array(x.length),
   ];
   for (let i = 0; i < x.length; i++) {
-    const color = pallete[Math.round(x[i] * (pallete.length - 1))];
+    const color = palette[Math.round(x[i] * (palette.length - 1))];
     heatmap[0][i] = color[0];
     heatmap[1][i] = color[1];
     heatmap[2][i] = color[2];
   }
   return heatmap;
 }
-
-const viridis = [
-  [68, 1, 84],
-  [72, 35, 116],
-  [64, 67, 135],
-  [52, 94, 141],
-  [41, 120, 142],
-  [32, 144, 140],
-  [34, 167, 132],
-  [68, 190, 112],
-  [121, 209, 81],
-  [189, 222, 38],
-  [253, 231, 36],
-];
-const inferno = [
-  [0, 0, 4],
-  [31, 12, 72],
-  [85, 15, 109],
-  [136, 34, 106],
-  [186, 54, 85],
-  [227, 89, 51],
-  [249, 140, 10],
-  [249, 201, 50],
-  [248, 252, 117],
-];
 
 class ImageProcessor {
   constructor(channels, width, height) {

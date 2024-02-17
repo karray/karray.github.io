@@ -11,41 +11,53 @@
 <body data-new-gr-c-s-check-loaded="14.1155.0" data-gr-ext-installed="">
 
     <section class="main-section">
-        <div class="canvas-block">
+        <div class="canvas-block card">
             <canvas id="img-canvas" width="1024" height="1024"></canvas>
             <canvas id="heatmap-canvas" width="1024" height="1024"></canvas>
         </div>
         <div class="record-block">
-            <div id="button-group">
-                <!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
-                <button id="start-button" class="paused" onclick="toggleVideo(this)" disabled>
-                    <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" fill="currentColor">
-                        <path
-                            d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z" />
-                    </svg>
-                    <svg class="pause-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor"
-                        viewBox="0 0 320 512">
-                        <path
-                            d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z" />
-                    </svg>
-                </button>
-                <button id="switch-camera-button">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" fill="currentColor">
-                        <path
-                            d="M213.1 64.8L202.7 96H128c-35.3 0-64 28.7-64 64V416c0 35.3 28.7 64 64 64H512c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H437.3L426.9 64.8C420.4 45.2 402.1 32 381.4 32H258.6c-20.7 0-39 13.2-45.5 32.8zM448 256c0 8.8-7.2 16-16 16H355.3c-6.2 0-11.3-5.1-11.3-11.3c0-3 1.2-5.9 3.3-8L371 229c-13.6-13.4-31.9-21-51-21c-19.2 0-37.7 7.6-51.3 21.3L249 249c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l19.7-19.7C257.4 172.7 288 160 320 160c31.8 0 62.4 12.6 85 35l23.7-23.7c2.1-2.1 5-3.3 8-3.3c6.2 0 11.3 5.1 11.3 11.3V256zM192 320c0-8.8 7.2-16 16-16h76.7c6.2 0 11.3 5.1 11.3 11.3c0 3-1.2 5.9-3.3 8L269 347c13.6 13.4 31.9 21 51 21c19.2 0 37.7-7.6 51.3-21.3L391 327c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-19.7 19.7C382.6 403.3 352 416 320 416c-31.8 0-62.4-12.6-85-35l-23.7 23.7c-2.1 2.1-5 3.3-8 3.3c-6.2 0-11.3-5.1-11.3-11.3V320z" />
-                    </svg>
-                </button>
+            <div class="card">
+                <div id="button-group">
+                    <!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                    <button id="start-button" class="paused" onclick="toggleVideo(this)" disabled>
+                        <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"
+                            fill="currentColor">
+                            <path
+                                d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z" />
+                        </svg>
+                        <svg class="pause-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor"
+                            viewBox="0 0 320 512">
+                            <path
+                                d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z" />
+                        </svg>
+                    </button>
+                    <button id="switch-camera-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" fill="currentColor">
+                            <path
+                                d="M213.1 64.8L202.7 96H128c-35.3 0-64 28.7-64 64V416c0 35.3 28.7 64 64 64H512c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H437.3L426.9 64.8C420.4 45.2 402.1 32 381.4 32H258.6c-20.7 0-39 13.2-45.5 32.8zM448 256c0 8.8-7.2 16-16 16H355.3c-6.2 0-11.3-5.1-11.3-11.3c0-3 1.2-5.9 3.3-8L371 229c-13.6-13.4-31.9-21-51-21c-19.2 0-37.7 7.6-51.3 21.3L249 249c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l19.7-19.7C257.4 172.7 288 160 320 160c31.8 0 62.4 12.6 85 35l23.7-23.7c2.1-2.1 5-3.3 8-3.3c6.2 0 11.3 5.1 11.3 11.3V256zM192 320c0-8.8 7.2-16 16-16h76.7c6.2 0 11.3 5.1 11.3 11.3c0 3-1.2 5.9-3.3 8L269 347c13.6 13.4 31.9 21 51 21c19.2 0 37.7-7.6 51.3-21.3L391 327c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-19.7 19.7C382.6 403.3 352 416 320 416c-31.8 0-62.4-12.6-85-35l-23.7 23.7c-2.1 2.1-5 3.3-8 3.3c-6.2 0-11.3-5.1-11.3-11.3V320z" />
+                        </svg>
+                    </button>
+                    <div class="select-wrapper">
+                        <select id="palette-select">
+
+                        </select>
+                    </div>
+
+                </div>
                 <div id="slider-container">
                     <input type="range" id="heatmap-opacity" min="0.0" max="1.0" value="0.5" step="0.05">
                 </div>
             </div>
-            <div id="prediction-list">
-                <!-- The prediction list goes here -->
+            <div class="predictions-container card">
+                <h4>Predictions</h4>
+                <div id="prediction-list">
+                    <!-- The prediction list goes here -->
+                </div>
             </div>
         </div>
     </section>
 
-    <section style="margin: 20px;">
+    <section style="margin: 10px;">
         This is a live demonstration of the Label-free Activation Map, an eXplainable Artificial Intelligence (XAI)
         method for Convolutional Neural Networks (CNNs). It generates a heatmap derived from the raw activation map
         extracted from the final convolutional layer. Unlike traditional methods, this approach doesn't depend on labels
