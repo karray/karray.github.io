@@ -62,6 +62,15 @@ let debug_devices = document.getElementById("devices");
 let debug_log = document.getElementById("log");
 
 async function initCamera() {
+  if ("serviceWorker" in navigator) {
+    try {
+      await navigator.serviceWorker.register("service-worker.js");
+      console.log("Service Worker Registered");
+    } catch (error) {
+      console.log("Service Worker Registration Failed");
+    }
+  }
+
   const imagenet_classes = await fetch("./imagenet_class_index.json").then(
     (response) => response.json()
   );
@@ -99,10 +108,14 @@ async function initCamera() {
   // img_canvas.height = min_side;
   // console.log("min_side", min_side);
 
-  const session = await ort.InferenceSession.create(
-    "./resnet50_imagenet_modified.onnx",
-    { executionProviders: ["wasm"] }
-  );
+  // console.log("downloading model"); 
+  let model = await fetch("resnet50_imagenet_modified.onnx");
+  model = await model.arrayBuffer();
+  // console.log("model downloaded");
+
+  const session = await ort.InferenceSession.create(model, {
+    executionProviders: ["wasm"],
+  });
 
   // let debug_canvas = document.createElement("canvas");
   // debug_canvas.width = min_side;
