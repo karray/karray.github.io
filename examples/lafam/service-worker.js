@@ -4,14 +4,14 @@ const urlsToCache = ["resnet50_imagenet_modified.onnx"];
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-    //   console.log("Opened cache");
+      // console.log("Opened cache");
       return cache.addAll(urlsToCache);
     })
   );
 });
 
 self.addEventListener("fetch", (event) => {
-//   console.log("Fetching:", event.request.url);
+  // console.log("Fetching:", event.request.url);
   if (!event.request.url.startsWith("http")) {
     // console.log("Skipping non-http request:", event.request.url);
     return;

@@ -7,61 +7,235 @@ window.addEventListener("unhandledrejection", (event) => {
   debug_log.scrollTop = debug_log.scrollHeight;
 });
 
-// const worker = new Worker("worker.js");
-// worker.postMessage("Hello from main thread");
-
-let palettes;
-let currentPalette;
-
-const paletteSelect = document.getElementById("palette-select");
-
-fetch("palettes.json")
-  .then((response) => response.json())
-  .then((data) => {
-    palettes = data;
-    currentPalette = Object.keys(data)[0];
-    for (const palette in data) {
-      const option = document.createElement("option");
-      option.value = palette;
-      option.textContent = palette;
-      paletteSelect.appendChild(option);
-    }
-  });
-
-paletteSelect.onchange = function () {
-  currentPalette = this.value;
-};
-
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 const TOP_N = 14;
 
-let video = document.createElement("video");
-let predictionList = document.getElementById("prediction-list");
+class ModelWorker {
+  constructor(url) {
+    let $this = this;
+    this.initCamera();
 
-let hidden_canvas = document.createElement("canvas");
-let ctx_hidden = hidden_canvas.getContext("2d");
+    this.worker = new window.Worker(url);
+    this.worker.onmessage = (e) => {
+      $this._onmessage(e);
+    };
 
-let img_canvas = document.getElementById("img-canvas");
-let ctx_img = img_canvas.getContext("2d");
+    this.palettes;
+    this.currentPalette;
+    this.paletteSelect = document.getElementById("palette-select");
 
-let heatmap_canvas = document.getElementById("heatmap-canvas");
-let ctx_heatmap = heatmap_canvas.getContext("2d");
+    this.video = document.createElement("video");
+    this.predictionList = document.getElementById("prediction-list");
+    this.hidden_canvas = document.createElement("canvas");
+    this.ctx_hidden = this.hidden_canvas.getContext("2d");
+    this.img_canvas = document.getElementById("img-canvas");
+    this.ctx_img = this.img_canvas.getContext("2d");
+    this.heatmap_canvas = document.getElementById("heatmap-canvas");
+    this.ctx_heatmap = this.heatmap_canvas.getContext("2d");
+    this.startButton = document.getElementById("start-button");
+    this.switchCameraButton = document.getElementById("switch-camera-button");
+    this.heatmapOpacity = document.getElementById("heatmap-opacity");
 
-let startButton = document.getElementById("start-button");
-let switchCameraButton = document.getElementById("switch-camera-button");
+    this.heatmapOpacity.oninput = () => {
+      $this.heatmap_canvas.style.opacity = $this.heatmapOpacity.value;
+    };
+    this.paletteSelect.onchange = function () {
+      $this.currentPalette = this.value;
+    };
+    this.startButton.addEventListener("click", (e) => {
+      if ($this.video.paused) {
+        $this.video.play();
+        $this.startButton.classList.remove("paused");
+      } else {
+        $this.video.pause();
+        $this.startButton.classList.add("paused");
+      }
+    });
+    fetch("palettes.json")
+      .then((response) => response.json())
+      .then((data) => {
+        $this.palettes = data;
+        $this.currentPalette = Object.keys(data)[0];
+        for (const palette in data) {
+          const option = document.createElement("option");
+          option.value = palette;
+          option.textContent = palette;
+          $this.paletteSelect.appendChild(option);
+        }
+      });
+  }
 
-let heatmapOpacity = document.getElementById("heatmap-opacity");
-heatmapOpacity.oninput = function () {
-  heatmap_canvas.style.opacity = this.value;
-};
+  async initCamera() {
+    let $this = this;
+
+    this.imagenet_classes = await fetch("./imagenet_class_index.json").then(
+      (response) => response.json()
+    );
+
+    let cameras = await navigator.mediaDevices.enumerateDevices();
+    debug_devices.textContent = JSON.stringify(cameras, null, 2);
+    cameras = cameras.filter((device) => device.kind === "videoinput");
+
+    if (cameras.length === 0) {
+      startButton.textContent = "No camera";
+      return;
+    }
+
+    this.currentCameraId = cameras[cameras.length - 1].deviceId;
+    this.localMediaStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        deviceId: $this.currentCameraId,
+        height: { ideal: 1024 },
+      },
+    });
+
+    this.video.srcObject = this.localMediaStream;
+
+    if (cameras.length > 1) {
+      this.switchCameraButton.style.display = "block";
+      this.switchCameraButton.onclick = async () => {
+        $this.video.pause();
+        $this.video.removeEventListener("play", $this._onPlay);
+        $this.localMediaStream.getTracks().forEach((track) => track.stop());
+
+        $this.currentCameraId = cameras.find(
+          (camera) => camera.deviceId !== $this.currentCameraId
+        ).deviceId;
+
+        $this.localMediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: $this.currentCameraId,
+            height: { ideal: 1024 },
+          },
+        });
+
+        $this.video.srcObject = $this.localMediaStream;
+        $this.video.addEventListener(
+          "play",
+          () => {
+            $this._onPlay();
+          },
+          0
+        );
+        $this.video.play();
+        $this.startButton.classList.remove("paused");
+      };
+    }
+
+    this.video.addEventListener(
+      "play",
+      () => {
+        this._onPlay();
+      },
+      0
+    );
+  }
+
+  _onPlay() {
+    const settings = this.localMediaStream.getVideoTracks()[0].getSettings();
+    this.width = settings.width;
+    this.height = settings.height;
+    this.min_side = Math.min(this.width, this.height);
+
+    this.hidden_canvas.width = this.width;
+    this.hidden_canvas.height = this.height;
+
+    this.img_canvas.width = this.min_side;
+    this.img_canvas.height = this.min_side;
+
+    this.heatmap_canvas.width = this.min_side;
+    this.heatmap_canvas.height = this.min_side;
+
+    this._postMessage();
+  }
+
+  _onmessage(e) {
+    const { data } = e;
+    if (data.status === "ready") {
+      this.startButton.disabled = false;
+      this.switchCameraButton.disabled = false;
+    }
+    if (data.status === "results") {
+      this.updateResults(data.predictions, data.heatmap);
+    }
+  }
+
+  _postMessage() {
+    this.ctx_hidden.drawImage(this.video, 0, 0);
+    let imgData = this.ctx_hidden.getImageData(0, 0, this.width, this.height);
+
+    const croppedFrame = ImageProcessor.fromImageData(imgData).squareCrop();
+
+    this.ctx_img.putImageData(
+      new ImageData(
+        ImageProcessor.toImageData(croppedFrame),
+        this.min_side,
+        this.min_side
+      ),
+      0,
+      0
+    );
+
+    const transformed_img = croppedFrame
+      .resize(INPUT_WIDTH, INPUT_HEIGHT, "bilinear")
+      .normalize(MEAN, STD);
+
+    this.worker.postMessage(ImageProcessor.toTensor(transformed_img));
+  }
+
+  async updateResults(predictions, heatmap) {
+    if (this.video.paused || this.video.ended) return;
+
+    heatmap = mapToPalette(heatmap, this.palettes[this.currentPalette]);
+    heatmap = new ImageProcessor(heatmap, 7, 7).resize(
+      this.min_side,
+      this.min_side,
+      "nearest"
+    );
+
+    this.ctx_heatmap.putImageData(
+      new ImageData(
+        ImageProcessor.toImageData(heatmap),
+        this.min_side,
+        this.min_side
+      ),
+      0,
+      0
+    );
+
+    const top_n_idx = argmax_top_n(predictions, TOP_N);
+
+    this._updatePredictionList(
+      top_n_idx.map((idx) => this.imagenet_classes[idx]),
+      top_n_idx.map((idx) => predictions[idx])
+    );
+
+    this._postMessage();
+  }
+
+  _updatePredictionList(classes, probabilities) {
+    // create list with progress bars
+    this.predictionList.innerHTML = "";
+    for (let i = 0; i < classes.length; i++) {
+      let label = document.createElement("label");
+      label.textContent = `${classes[i]}: ${Math.round(probabilities[i] * 100)}%`;
+      this.predictionList.appendChild(label);
+  
+      let progress = document.createElement("progress");
+      progress.value = probabilities[i];
+      progress.max = 1;
+      this.predictionList.appendChild(progress);
+    }
+  }
+}
 
 let debug_devices = document.getElementById("devices");
 let debug_log = document.getElementById("log");
 
-async function initCamera() {
+async function init() {
   if ("serviceWorker" in navigator) {
     try {
       await navigator.serviceWorker.register("service-worker.js");
@@ -71,224 +245,10 @@ async function initCamera() {
     }
   }
 
-  const imagenet_classes = await fetch("./imagenet_class_index.json").then(
-    (response) => response.json()
-  );
-
-  let cameras = await navigator.mediaDevices.enumerateDevices();
-  debug_devices.textContent = JSON.stringify(cameras, null, 2);
-  cameras = cameras.filter((device) => device.kind === "videoinput");
-
-  if (cameras.length === 0) {
-    startButton.textContent = "No camera";
-    return;
-  }
-
-  let currentCameraId = cameras[cameras.length - 1].deviceId;
-  let localMediaStream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      deviceId: currentCameraId,
-      height: { ideal: 1024 },
-    },
-  });
-
-  video.srcObject = localMediaStream;
-
-  // video.onloadedmetadata = function (e) {
-  //     video.play();
-  //     video.pause();
-  // };
-
-  // get frame
-
-  // hidden_canvas.width = width;
-  // hidden_canvas.height = height;
-
-  // img_canvas.width = min_side;
-  // img_canvas.height = min_side;
-  // console.log("min_side", min_side);
-
-  // console.log("downloading model"); 
-  let model = await fetch("resnet50_imagenet_modified.onnx");
-  model = await model.arrayBuffer();
-  // console.log("model downloaded");
-
-  const session = await ort.InferenceSession.create(model, {
-    executionProviders: ["wasm"],
-  });
-
-  // let debug_canvas = document.createElement("canvas");
-  // debug_canvas.width = min_side;
-  // debug_canvas.height = min_side;
-  // let ctx_debug = debug_canvas.getContext("2d");
-  // document.body.appendChild(debug_canvas);
-
-  if (cameras.length > 1) {
-    switchCameraButton.style.display = "block";
-    switchCameraButton.onclick = async () => {
-      video.pause();
-      video.removeEventListener("play", onPlay);
-      localMediaStream.getTracks().forEach((track) => track.stop());
-
-      currentCameraId = cameras.find(
-        (camera) => camera.deviceId !== currentCameraId
-      ).deviceId;
-
-      localMediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: currentCameraId,
-          height: { ideal: 1024 },
-        },
-      });
-
-      video.srcObject = localMediaStream;
-      video.addEventListener("play", onPlay, 0);
-      video.play();
-      startButton.classList.remove("paused");
-    };
-  }
-
-  let fps = 0;
-
-  video.addEventListener("play", onPlay, 0);
-
-  startButton.disabled = false;
-
-  function onPlay() {
-    let $this = this; //cache
-
-    const width = localMediaStream.getVideoTracks()[0].getSettings().width;
-    const height = localMediaStream.getVideoTracks()[0].getSettings().height;
-    const min_side = Math.min(width, height);
-    console.log("min_side", min_side);
-
-    hidden_canvas.width = width;
-    hidden_canvas.height = height;
-
-    img_canvas.width = min_side;
-    img_canvas.height = min_side;
-
-    heatmap_canvas.width = min_side;
-    heatmap_canvas.height = min_side;
-
-    (async function loop() {
-      const start = performance.now();
-      if (!$this.paused && !$this.ended) {
-        ctx_hidden.drawImage($this, 0, 0);
-        let imgData = ctx_hidden.getImageData(0, 0, width, height);
-
-        // let imgDataArray = new Float32Array(3 * height * width);
-        // for (i = 0; i < imgData.data.length; i = i + 4) {
-        //     imgDataArray[i / 4] = imgData.data[i]; // R
-        //     imgDataArray[i / 4 + 1] = imgData.data[i + 1]; // G
-        //     imgDataArray[i / 4 + 2] = imgData.data[i + 2]; // B
-        // }
-
-        const croppedFrame = ImageProcessor.fromImageData(imgData).squareCrop();
-
-        // ctx_img.putImageData(new ImageData(ImageProcessor.toImageData(transformd_img),
-        //     transformd_img.width, transformd_img.height), 0, 0);
-
-        const transformed_img = croppedFrame
-          .resize(INPUT_WIDTH, INPUT_HEIGHT, "bilinear")
-          .normalize(MEAN, STD);
-
-        // let d_img = ImageProcessor.toImageData(transformd_img.demoralize(MEAN, STD));
-        // ctx_debug.putImageData(new ImageData(d_img, transformd_img.width, transformd_img.height), 0, 0);
-
-        let imgDataTensor = new ort.Tensor(
-          "float32",
-          ImageProcessor.toTensor(transformed_img),
-          [1, 3, INPUT_HEIGHT, INPUT_WIDTH]
-        );
-
-        let feeds = { l_x_: imgDataTensor };
-        window.results = await session.run(feeds);
-        let output = Array.from(softmax(results.fc_1.cpuData));
-        const top_n_idx = argmax_top_n(output, TOP_N);
-        // console.log('top_n_idx', top_n_idx);
-
-        // console.log('classes', top_n_idx.map(idx => imagenet_classes[idx]));
-        // console.log('probabilities', top_n_idx.map(idx => output[idx]));
-
-        updatePredictionList(
-          top_n_idx.map((idx) => imagenet_classes[idx]),
-          top_n_idx.map((idx) => output[idx])
-        );
-
-        // console.log(results.layer4_1.cpuData);
-        // console.log('min', Math.min(...results.layer4_1.cpuData))
-        // console.log('max', Math.max(...results.layer4_1.cpuData))
-        // sum
-        // console.log('sum', results.layer4_1.cpuData.reduce((a, b) => a + b, 0));
-
-        // let heatmap = new ImageProcessor([results.layer4_1.cpuData], 7, 7)
-        //     .resize(min_side, min_side, 'nearest')
-        // .demoralize([0, 0, 0], [1, 1, 1]);
-        let heatmap = averageHeatmap(results.layer4_1.cpuData, [2048, 7, 7]);
-        heatmap = mapToPalette(heatmap);
-        // console.log('heatmap', heatmap);
-        heatmap = new ImageProcessor(heatmap, 7, 7).resize(
-          min_side,
-          min_side,
-          "nearest"
-        );
-        // console.log('heatmap', heatmap);
-
-        // const blended = blendHeatmap(croppedFrame, heatmap, 0.7);
-
-        // ctx_debug.putImageData(new ImageData(ImageProcessor.toImageData(heatmap), min_side, min_side), 0, 0);
-        ctx_img.putImageData(
-          new ImageData(
-            ImageProcessor.toImageData(croppedFrame),
-            min_side,
-            min_side
-          ),
-          0,
-          0
-        );
-
-        ctx_heatmap.putImageData(
-          new ImageData(
-            ImageProcessor.toImageData(heatmap),
-            min_side,
-            min_side
-          ),
-          0,
-          0
-        );
-
-        // console.log(1000 / (performance.now() - start));
-
-        setTimeout(loop, 0);
-      }
-    })();
-  }
+  new ModelWorker("worker.js");
 }
 
-// function blendHeatmap(img, heatmap, opacity) {
-//   const length = img.width * img.height;
-//   let blended = new ImageProcessor(
-//     [
-//       new Float32Array(length),
-//       new Float32Array(length),
-//       new Float32Array(length),
-//     ],
-//     img.width,
-//     img.height
-//   );
-//   for (let i = 0; i < length; i++) {
-//     for (let c = 0; c < img.channels.length; c++) {
-//       blended.channels[c][i] =
-//         img.channels[c][i] * (1 - opacity) + heatmap.channels[c][i] * opacity;
-//     }
-//   }
-//   return blended;
-// }
-
-function mapToPalette(x) {
-  console.log("currentPalette", currentPalette);
-  const palette = palettes[currentPalette];
+function mapToPalette(x, palette) {
   let heatmap = [
     new Float32Array(x.length),
     new Float32Array(x.length),
@@ -497,70 +457,10 @@ class ImageProcessor {
   }
 }
 
-function softmax(arr) {
-  return arr.map(function (value, index) {
-    return (
-      Math.exp(value) /
-      arr
-        .map(function (y) {
-          return Math.exp(y);
-        })
-        .reduce(function (a, b) {
-          return a + b;
-        })
-    );
-  });
-}
-
 function argmax_top_n(arr, n) {
   let indices = arr.map((e, i) => i);
   indices.sort((a, b) => arr[b] - arr[a]);
   return indices.slice(0, n);
 }
 
-function toggleVideo(el) {
-  if (video.paused) {
-    video.play();
-    el.classList.remove("paused");
-  } else {
-    video.pause();
-    el.classList.add("paused");
-  }
-}
-
-function updatePredictionList(classes, probabilities) {
-  // create list with progress bars
-  predictionList.innerHTML = "";
-  for (let i = 0; i < classes.length; i++) {
-    let label = document.createElement("label");
-    label.textContent = `${classes[i]}: ${Math.round(probabilities[i] * 100)}%`;
-    predictionList.appendChild(label);
-
-    let progress = document.createElement("progress");
-    progress.value = probabilities[i];
-    progress.max = 1;
-    predictionList.appendChild(progress);
-  }
-}
-
-// C*H*W to H*W array
-function averageHeatmap(arr, shape, normalize = true) {
-  let heatmap = new Float32Array(shape[1] * shape[2]);
-  for (let i = 0; i < shape[1]; i++) {
-    for (let j = 0; j < shape[2]; j++) {
-      let sum = 0;
-      for (let k = 0; k < shape[0]; k++) {
-        sum += arr[k * shape[1] * shape[2] + i * shape[2] + j];
-      }
-      heatmap[i * shape[2] + j] = sum / shape[0];
-    }
-  }
-  if (normalize) {
-    let max = Math.max(...heatmap);
-    let min = Math.min(...heatmap);
-    heatmap = heatmap.map((x) => (x - min) / (max - min + 1e-6));
-  }
-  return heatmap;
-}
-
-initCamera();
+init();
