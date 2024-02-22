@@ -6,7 +6,7 @@ html {
     height: 100%;
 }
 
-.main-section {
+#main-section {
     display: flex;
     padding: 10px;
     box-sizing: border-box;
@@ -124,8 +124,45 @@ button svg {
     overflow-y: auto;
 }
 
+.prediction {
+    display: flex;
+    flex-direction: column;
+}
+
+.prediction.selected {
+    background: #ece5ff !important;
+}
+
+#main-section.paused .prediction {
+    cursor: pointer;
+    background: #e9ecef;
+    border: 1px solid #ced4da;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+
+}
+
+#main-section.paused .prediction:hover {
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+#main-section:not(.paused) .prediction {
+    cursor: default;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    box-shadow: none;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+
 @media (max-width: 767px) {
-    .main-section {
+    #main-section {
         flex-direction: column;
     }
 
@@ -135,7 +172,7 @@ button svg {
 }
 
 @media (max-width: 1024px) {
-    .main-section {
+    #main-section {
         flex-wrap: wrap;
     }
 

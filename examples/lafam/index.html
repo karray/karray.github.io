@@ -10,7 +10,7 @@
 
 <body data-new-gr-c-s-check-loaded="14.1155.0" data-gr-ext-installed="">
 
-    <section class="main-section">
+    <section id="main-section" class="paused">
         <div class="canvas-block card">
             <div class="canvas-wrapper">
                 <canvas id="img-canvas" width="1024" height="1024"></canvas>
@@ -21,7 +21,7 @@
             <div class="card">
                 <div id="button-group">
                     <!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
-                    <button id="start-button" class="paused" disabled>
+                    <button id="start-button" disabled>
                         <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"
                             fill="currentColor">
                             <path
@@ -75,10 +75,10 @@
             <textarea id='log' style='width: 100%;' rows='10' disabled></textarea>
 
 
-            <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-            <script src="index.js"></script>
     </section>
     <br>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script src="index.js"></script>
 
 </body>
 

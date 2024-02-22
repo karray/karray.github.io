@@ -27,6 +27,8 @@ class ModelWorker {
     this.currentPalette;
     this.paletteSelect = document.getElementById("palette-select");
 
+    this.mainSection = document.getElementById("main-section");
+
     this.video = document.createElement("video");
     this.predictionList = document.getElementById("prediction-list");
     this.hidden_canvas = document.createElement("canvas");
@@ -39,19 +41,37 @@ class ModelWorker {
     this.switchCameraButton = document.getElementById("switch-camera-button");
     this.heatmapOpacity = document.getElementById("heatmap-opacity");
 
+    this.predictionList.addEventListener("click", (event) => {
+      const div = event.target.closest(".prediction");
+      if (!div) return; // Clicked outside of a prediction div
+
+      const idx = div.getAttribute("data-index");
+      if (idx !== null) {
+        let selected = document.querySelector(".prediction.selected");
+        if (selected) selected.classList.remove("selected");
+        div.classList.add("selected");
+
+        this.worker.postMessage({
+          status: "heatmap_by_class",
+          classIdx: parseInt(idx),
+        });
+      }
+    });
+
     this.heatmapOpacity.oninput = () => {
       $this.heatmap_canvas.style.opacity = $this.heatmapOpacity.value;
     };
     this.paletteSelect.onchange = function () {
       $this.currentPalette = this.value;
+      $this.updateHeatmap(this.results.heatmap);
     };
     this.startButton.addEventListener("click", (e) => {
       if ($this.video.paused) {
         $this.video.play();
-        $this.startButton.classList.remove("paused");
+        $this.mainSection.classList.remove("paused");
       } else {
         $this.video.pause();
-        $this.startButton.classList.add("paused");
+        $this.mainSection.classList.add("paused");
       }
     });
     fetch("palettes.json")
@@ -121,7 +141,7 @@ class ModelWorker {
           0
         );
         $this.video.play();
-        $this.startButton.classList.remove("paused");
+        $this.mainSection.classList.remove("paused");
       };
     }
 
@@ -159,7 +179,12 @@ class ModelWorker {
       this.switchCameraButton.disabled = false;
     }
     if (data.status === "results") {
-      this.updateResults(data.predictions, data.heatmap);
+      if (this.video.paused) return;
+      this.results = data;
+      this.updateResults();
+    }
+    if (data.status === "weighted_heatmap") {
+      this.updateHeatmap(data.heatmap);
     }
   }
 
@@ -183,13 +208,28 @@ class ModelWorker {
       .resize(INPUT_WIDTH, INPUT_HEIGHT, "bilinear")
       .normalize(MEAN, STD);
 
-    this.worker.postMessage(ImageProcessor.toTensor(transformed_img));
+    this.worker.postMessage({
+      status: "predict",
+      tensor: ImageProcessor.toTensor(transformed_img),
+    });
   }
 
-  async updateResults(predictions, heatmap) {
-    if (this.video.paused || this.video.ended) return;
+  async updateResults() {
+    if (!this.results) return;
 
-    heatmap = mapToPalette(heatmap, this.palettes[this.currentPalette]);
+    this.updateHeatmap(this.results.heatmap);
+
+    let top_n_idx = argmax_top_n(this.results.predictions, TOP_N, 0.01);
+
+    this._updatePredictionList(top_n_idx);
+
+    this._postMessage();
+  }
+
+  updateHeatmap(data) {
+    if (!this.results) return;
+
+    let heatmap = mapToPalette(data, this.palettes[this.currentPalette]);
     heatmap = new ImageProcessor(heatmap, 7, 7).resize(
       this.min_side,
       this.min_side,
@@ -205,30 +245,33 @@ class ModelWorker {
       0,
       0
     );
-
-    const top_n_idx = argmax_top_n(predictions, TOP_N);
-
-    this._updatePredictionList(
-      top_n_idx.map((idx) => this.imagenet_classes[idx]),
-      top_n_idx.map((idx) => predictions[idx])
-    );
-
-    this._postMessage();
   }
 
-  _updatePredictionList(classes, probabilities) {
+  _updatePredictionList(indices) {
     // create list with progress bars
     this.predictionList.innerHTML = "";
-    for (let i = 0; i < classes.length; i++) {
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < indices.length; i++) {
+      const idx = indices[i];
+      let div = document.createElement("div");
+      div.classList.add("prediction");
+      div.setAttribute("data-index", idx);
+
       let label = document.createElement("label");
-      label.textContent = `${classes[i]}: ${Math.round(probabilities[i] * 100)}%`;
-      this.predictionList.appendChild(label);
-  
+      const cls = this.imagenet_classes[idx];
+      const prob = this.results.predictions[idx];
+      label.textContent = `${cls}: ${Math.round(prob * 100)}%`;
+      div.appendChild(label);
+
       let progress = document.createElement("progress");
-      progress.value = probabilities[i];
+      progress.value = prob;
       progress.max = 1;
-      this.predictionList.appendChild(progress);
+      div.appendChild(progress);
+
+      fragment.appendChild(div);
     }
+
+    this.predictionList.appendChild(fragment);
   }
 }
 
@@ -457,10 +500,16 @@ class ImageProcessor {
   }
 }
 
-function argmax_top_n(arr, n) {
+function argmax_top_n(arr, n, threshold = 0.01) {
   let indices = arr.map((e, i) => i);
   indices.sort((a, b) => arr[b] - arr[a]);
-  return indices.slice(0, n);
+  let top_n = [];
+  for (let i = 0; i < n; i++) {
+    if (arr[indices[i]] > threshold) {
+      top_n.push(indices[i]);
+    }
+  }
+  return top_n.slice(0, n);
 }
 
 init();
