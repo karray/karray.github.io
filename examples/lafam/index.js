@@ -42,6 +42,7 @@ class ModelWorker {
     this.heatmapOpacity = document.getElementById("heatmap-opacity");
 
     this.predictionList.addEventListener("click", (event) => {
+      if(!this.video.paused) return;
       const div = event.target.closest(".prediction");
       if (!div) return; // Clicked outside of a prediction div
 
@@ -63,7 +64,7 @@ class ModelWorker {
     };
     this.paletteSelect.onchange = function () {
       $this.currentPalette = this.value;
-      $this.updateHeatmap(this.results.heatmap);
+      $this.updateHeatmap($this.currentHeatmap);
     };
     this.startButton.addEventListener("click", (e) => {
       if ($this.video.paused) {
@@ -227,7 +228,7 @@ class ModelWorker {
   }
 
   updateHeatmap(data) {
-    if (!this.results) return;
+    this.currentHeatmap = data;
 
     let heatmap = mapToPalette(data, this.palettes[this.currentPalette]);
     heatmap = new ImageProcessor(heatmap, 7, 7).resize(
