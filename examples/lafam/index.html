@@ -10,16 +10,24 @@
 
 <body data-new-gr-c-s-check-loaded="14.1155.0" data-gr-ext-installed="">
 
-    <section id="main-section" class="paused">
+    <section id="main-section" class="main-section paused">
         <div class="canvas-block card">
             <div class="canvas-wrapper">
+                <div id="loading-indicator" class="loading">
+
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                        <path fill="#17A2B8"
+                            d="M304 48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zm0 416a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM48 304a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm464-48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM142.9 437A48 48 0 1 0 75 369.1 48 48 0 1 0 142.9 437zm0-294.2A48 48 0 1 0 75 75a48 48 0 1 0 67.9 67.9zM369.1 437A48 48 0 1 0 437 369.1 48 48 0 1 0 369.1 437z" />
+                    </svg>
+                </div>
                 <canvas id="img-canvas" width="1024" height="1024"></canvas>
                 <canvas id="heatmap-canvas" width="1024" height="1024"></canvas>
             </div>
         </div>
         <div class="record-block">
             <div class="card">
-                <div id="button-group">
+                <div class="button-group">
                     <!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
                     <button id="start-button" disabled>
                         <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"
@@ -39,6 +47,20 @@
                                 d="M213.1 64.8L202.7 96H128c-35.3 0-64 28.7-64 64V416c0 35.3 28.7 64 64 64H512c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H437.3L426.9 64.8C420.4 45.2 402.1 32 381.4 32H258.6c-20.7 0-39 13.2-45.5 32.8zM448 256c0 8.8-7.2 16-16 16H355.3c-6.2 0-11.3-5.1-11.3-11.3c0-3 1.2-5.9 3.3-8L371 229c-13.6-13.4-31.9-21-51-21c-19.2 0-37.7 7.6-51.3 21.3L249 249c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l19.7-19.7C257.4 172.7 288 160 320 160c31.8 0 62.4 12.6 85 35l23.7-23.7c2.1-2.1 5-3.3 8-3.3c6.2 0 11.3 5.1 11.3 11.3V256zM192 320c0-8.8 7.2-16 16-16h76.7c6.2 0 11.3 5.1 11.3 11.3c0 3-1.2 5.9-3.3 8L269 347c13.6 13.4 31.9 21 51 21c19.2 0 37.7-7.6 51.3-21.3L391 327c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-19.7 19.7C382.6 403.3 352 416 320 416c-31.8 0-62.4-12.6-85-35l-23.7 23.7c-2.1 2.1-5 3.3-8 3.3c-6.2 0-11.3-5.1-11.3-11.3V320z" />
                         </svg>
                     </button>
+                    <div class="upload-wrapper">
+                        <input type="file" id="upload-input" accept="image/*" style="display: none;">
+                        <div id="upload-button">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                                <path
+                                    d="M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM323.8 202.5c-4.5-6.6-11.9-10.5-19.8-10.5s-15.4 3.9-19.8 10.5l-87 127.6L170.7 297c-4.6-5.7-11.5-9-18.7-9s-14.2 3.3-18.7 9l-64 80c-5.8 7.2-6.9 17.1-2.9 25.4s12.4 13.6 21.6 13.6h96 32H424c8.9 0 17.1-4.9 21.2-12.8s3.6-17.4-1.4-24.7l-120-176zM112 192a48 48 0 1 0 0-96 48 48 0 1 0 0 96z" />
+                            </svg>
+                        </div>
+                        <select id="predefined-files">
+                            <option value="" disabled selected hidden></option>
+                            <option value="dog_and_cat.jpg">Dog & Cat</option>
+                        </select>
+                    </div>
                     <div class="select-wrapper">
                         <select id="palette-select">
 
@@ -58,6 +80,39 @@
             </div>
         </div>
     </section>
+
+    <section id="main-section-overlay" class="main-section overlay">
+        <!-- Mirror the structure of #main-section here with descriptions -->
+        <div class="canvas-block overlay-card">
+            <div class="canvas-wrapper">
+                <div>This is where your image from the camera will be displayed. The overlay with a heatmap will show
+                    most important regions.</div>
+            </div>
+        </div>
+        <div class="record-block">
+            <div class="overlay-card">
+                <div class="button-group">
+                    <div class="description" data-description="Start/pause camera">
+                        <button>
+                            <span></span>
+                        </button>
+                    </div>
+                    <div class="overlay-switch-camera" class="description" data-description="Switch camera">
+                        <button>
+                            <span></span>
+                        </button>
+                    </div>
+                </div>
+                <div id="slider-container">
+                    <!-- <div class="description">Adjust the heatmap opacity</div> -->
+                </div>
+            </div>
+            <div class="predictions-container overlay-card">
+                <!-- <div class="description">See the predictions here</div> -->
+            </div>
+        </div>
+    </section>
+
 
     <section style="margin: 10px;">
         This is a live demonstration of the Label-free Activation Map, an eXplainable Artificial Intelligence (XAI)

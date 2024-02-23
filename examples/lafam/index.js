@@ -41,8 +41,89 @@ class ModelWorker {
     this.switchCameraButton = document.getElementById("switch-camera-button");
     this.heatmapOpacity = document.getElementById("heatmap-opacity");
 
+    // file list select
+    this.predefinedFiles = document.getElementById("predefined-files");
+    this.predefinedFiles.addEventListener("change", (e) => {
+      const file = e.target.value;
+      if (file) {
+        fetch(file)
+          .then((response) => response.blob())
+          .then((blob) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new Image();
+              img.onload = () => {
+                this.width = img.width;
+                this.height = img.height;
+                this.min_side = Math.min(img.width, img.height);
+
+                this.hidden_canvas.width = this.width;
+                this.hidden_canvas.height = this.height;
+
+                this.img_canvas.width = this.min_side;
+                this.img_canvas.height = this.min_side;
+
+                this.heatmap_canvas.width = this.min_side;
+                this.heatmap_canvas.height = this.min_side;
+
+                this.ctx_hidden.drawImage(img, 0, 0);
+                let imgData = this.ctx_hidden.getImageData(
+                  0,
+                  0,
+                  img.width,
+                  img.height
+                );
+                this._postMessage(imgData);
+              };
+              img.src = e.target.result;
+            };
+            reader.readAsDataURL(blob);
+          });
+      }
+    });
+
+    this.uploadButton = document.getElementById("upload-button");
+    this.uploadInput = document.getElementById("upload-input");
+
+    this.uploadButton.addEventListener("click", () => {
+      this.uploadInput.click();
+    });
+
+    this.uploadInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          this.width = img.width;
+          this.height = img.height;
+          this.min_side = Math.min(img.width, img.height);
+
+          this.hidden_canvas.width = this.width;
+          this.hidden_canvas.height = this.height;
+
+          this.img_canvas.width = this.min_side;
+          this.img_canvas.height = this.min_side;
+
+          this.heatmap_canvas.width = this.min_side;
+          this.heatmap_canvas.height = this.min_side;
+
+          this.ctx_hidden.drawImage(img, 0, 0);
+          let imgData = this.ctx_hidden.getImageData(
+            0,
+            0,
+            img.width,
+            img.height
+          );
+          this._postMessage(imgData);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
     this.predictionList.addEventListener("click", (event) => {
-      if(!this.video.paused) return;
+      if (!this.video.paused) return;
       const div = event.target.closest(".prediction");
       if (!div) return; // Clicked outside of a prediction div
 
@@ -116,7 +197,8 @@ class ModelWorker {
     this.video.srcObject = this.localMediaStream;
 
     if (cameras.length > 1) {
-      this.switchCameraButton.style.display = "block";
+      // $this.mainSection.classList.add("multiple-cameras");
+      document.body.classList.add("multiple-cameras");
       this.switchCameraButton.onclick = async () => {
         $this.video.pause();
         $this.video.removeEventListener("play", $this._onPlay);
@@ -170,7 +252,10 @@ class ModelWorker {
     this.heatmap_canvas.width = this.min_side;
     this.heatmap_canvas.height = this.min_side;
 
-    this._postMessage();
+    this.ctx_hidden.drawImage(this.video, 0, 0);
+    let imgData = this.ctx_hidden.getImageData(0, 0, this.width, this.height);
+
+    this._postMessage(imgData);
   }
 
   _onmessage(e) {
@@ -178,21 +263,18 @@ class ModelWorker {
     if (data.status === "ready") {
       this.startButton.disabled = false;
       this.switchCameraButton.disabled = false;
+      document.getElementById("loading-indicator").style.display = "none";
     }
     if (data.status === "results") {
-      if (this.video.paused) return;
       this.results = data;
-      this.updateResults();
+      this.updateResults(this.results);
     }
     if (data.status === "weighted_heatmap") {
       this.updateHeatmap(data.heatmap);
     }
   }
 
-  _postMessage() {
-    this.ctx_hidden.drawImage(this.video, 0, 0);
-    let imgData = this.ctx_hidden.getImageData(0, 0, this.width, this.height);
-
+  _postMessage(imgData) {
     const croppedFrame = ImageProcessor.fromImageData(imgData).squareCrop();
 
     this.ctx_img.putImageData(
@@ -215,16 +297,21 @@ class ModelWorker {
     });
   }
 
-  async updateResults() {
-    if (!this.results) return;
+  async updateResults(results) {
+    console.log(results);
 
-    this.updateHeatmap(this.results.heatmap);
+    this.updateHeatmap(results.heatmap);
 
-    let top_n_idx = argmax_top_n(this.results.predictions, TOP_N, 0.01);
+    let top_n_idx = argmax_top_n(results.predictions, TOP_N, 0.01);
 
-    this._updatePredictionList(top_n_idx);
+    this._updatePredictionList(top_n_idx, results.predictions);
 
-    this._postMessage();
+    if (!this.video.paused) {
+      this.ctx_hidden.drawImage(this.video, 0, 0);
+      let imgData = this.ctx_hidden.getImageData(0, 0, this.width, this.height);
+
+      this._postMessage(imgData);
+    }
   }
 
   updateHeatmap(data) {
@@ -248,7 +335,7 @@ class ModelWorker {
     );
   }
 
-  _updatePredictionList(indices) {
+  _updatePredictionList(indices, predictions) {
     // create list with progress bars
     this.predictionList.innerHTML = "";
     const fragment = document.createDocumentFragment();
@@ -260,7 +347,7 @@ class ModelWorker {
 
       let label = document.createElement("label");
       const cls = this.imagenet_classes[idx];
-      const prob = this.results.predictions[idx];
+      const prob = predictions[idx];
       label.textContent = `${cls}: ${Math.round(prob * 100)}%`;
       div.appendChild(label);
 
@@ -514,27 +601,36 @@ function argmax_top_n(arr, n, threshold = 0.01) {
 }
 
 function updateServiceWorker() {
-  if ('caches' in window) {
-    caches.keys().then(keyList => {
-      return Promise.all(keyList.map(key => {
-        return caches.delete(key);
-      }));
-    }).then(() => {
-      console.log('All caches cleared.');
-    }).catch(err => {
-      console.error('Error clearing caches:', err);
-    });
+  if ("caches" in window) {
+    caches
+      .keys()
+      .then((keyList) => {
+        return Promise.all(
+          keyList.map((key) => {
+            return caches.delete(key);
+          })
+        );
+      })
+      .then(() => {
+        console.log("All caches cleared.");
+      })
+      .catch((err) => {
+        console.error("Error clearing caches:", err);
+      });
   }
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(registrations => {
-      // Unregister all service workers
-      for (let registration of registrations) {
-        registration.unregister();
-      }
-    }).catch(error => {
-      console.error("Error unregistering service worker:", error);
-    });
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => {
+        // Unregister all service workers
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      })
+      .catch((error) => {
+        console.error("Error unregistering service worker:", error);
+      });
   }
   window.location.reload();
 }
