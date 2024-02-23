@@ -25,10 +25,27 @@ class ModelWorker {
 
     this.palettes;
     this.currentPalette;
+
+    this.initElements();
+    this.initEvents();
+
+    fetch("palettes.json")
+      .then((response) => response.json())
+      .then((data) => {
+        $this.palettes = data;
+        $this.currentPalette = Object.keys(data)[0];
+        for (const palette in data) {
+          const option = document.createElement("option");
+          option.value = palette;
+          option.textContent = palette;
+          $this.paletteSelect.appendChild(option);
+        }
+      });
+  }
+
+  initElements() {
     this.paletteSelect = document.getElementById("palette-select");
-
     this.mainSection = document.getElementById("main-section");
-
     this.video = document.createElement("video");
     this.predictionList = document.getElementById("prediction-list");
     this.hidden_canvas = document.createElement("canvas");
@@ -40,9 +57,14 @@ class ModelWorker {
     this.startButton = document.getElementById("start-button");
     this.switchCameraButton = document.getElementById("switch-camera-button");
     this.heatmapOpacity = document.getElementById("heatmap-opacity");
-
-    // file list select
     this.predefinedFiles = document.getElementById("predefined-files");
+    this.uploadButton = document.getElementById("upload-button");
+    this.uploadInput = document.getElementById("upload-input");
+  }
+
+  initEvents() {
+    let $this = this;
+
     this.predefinedFiles.addEventListener("change", (e) => {
       const file = e.target.value;
       if (file) {
@@ -82,9 +104,6 @@ class ModelWorker {
       }
     });
 
-    this.uploadButton = document.getElementById("upload-button");
-    this.uploadInput = document.getElementById("upload-input");
-
     this.uploadButton.addEventListener("click", () => {
       this.uploadInput.click();
     });
@@ -95,27 +114,8 @@ class ModelWorker {
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          this.width = img.width;
-          this.height = img.height;
-          this.min_side = Math.min(img.width, img.height);
-
-          this.hidden_canvas.width = this.width;
-          this.hidden_canvas.height = this.height;
-
-          this.img_canvas.width = this.min_side;
-          this.img_canvas.height = this.min_side;
-
-          this.heatmap_canvas.width = this.min_side;
-          this.heatmap_canvas.height = this.min_side;
-
-          this.ctx_hidden.drawImage(img, 0, 0);
-          let imgData = this.ctx_hidden.getImageData(
-            0,
-            0,
-            img.width,
-            img.height
-          );
-          this._postMessage(imgData);
+          this.setSize(img.width, img.height);
+          this._postMessage(this.getImage(img));
         };
         img.src = e.target.result;
       };
@@ -156,18 +156,26 @@ class ModelWorker {
         $this.mainSection.classList.add("paused");
       }
     });
-    fetch("palettes.json")
-      .then((response) => response.json())
-      .then((data) => {
-        $this.palettes = data;
-        $this.currentPalette = Object.keys(data)[0];
-        for (const palette in data) {
-          const option = document.createElement("option");
-          option.value = palette;
-          option.textContent = palette;
-          $this.paletteSelect.appendChild(option);
-        }
-      });
+  }
+
+  setSize(width, height) {
+    this.width = width;
+    this.height = height;
+    this.min_side = Math.min(width, height);
+
+    this.hidden_canvas.width = width;
+    this.hidden_canvas.height = height;
+
+    this.img_canvas.width = this.min_side;
+    this.img_canvas.height = this.min_side;
+
+    this.heatmap_canvas.width = this.min_side;
+    this.heatmap_canvas.height = this.min_side;
+  }
+
+  getImage(img) {
+    this.ctx_hidden.drawImage(img, 0, 0);
+    return this.ctx_hidden.getImageData(0, 0, this.width, this.height);
   }
 
   async initCamera() {
@@ -182,9 +190,11 @@ class ModelWorker {
     cameras = cameras.filter((device) => device.kind === "videoinput");
 
     if (cameras.length === 0) {
-      startButton.textContent = "No camera";
+      // startButton.textContent = "No camera";
       return;
     }
+
+    this.startButton.style.display = "block";
 
     this.currentCameraId = cameras[cameras.length - 1].deviceId;
     this.localMediaStream = await navigator.mediaDevices.getUserMedia({
@@ -252,10 +262,7 @@ class ModelWorker {
     this.heatmap_canvas.width = this.min_side;
     this.heatmap_canvas.height = this.min_side;
 
-    this.ctx_hidden.drawImage(this.video, 0, 0);
-    let imgData = this.ctx_hidden.getImageData(0, 0, this.width, this.height);
-
-    this._postMessage(imgData);
+    this._postMessage(this.getImage(this.video));
   }
 
   _onmessage(e) {
@@ -264,6 +271,7 @@ class ModelWorker {
       this.startButton.disabled = false;
       this.switchCameraButton.disabled = false;
       document.getElementById("loading-indicator").style.display = "none";
+      document.body.classList.add("ready");
     }
     if (data.status === "results") {
       this.results = data;
@@ -298,8 +306,6 @@ class ModelWorker {
   }
 
   async updateResults(results) {
-    console.log(results);
-
     this.updateHeatmap(results.heatmap);
 
     let top_n_idx = argmax_top_n(results.predictions, TOP_N, 0.01);
@@ -307,10 +313,7 @@ class ModelWorker {
     this._updatePredictionList(top_n_idx, results.predictions);
 
     if (!this.video.paused) {
-      this.ctx_hidden.drawImage(this.video, 0, 0);
-      let imgData = this.ctx_hidden.getImageData(0, 0, this.width, this.height);
-
-      this._postMessage(imgData);
+      this._postMessage(this.getImage(this.video));
     }
   }
 
@@ -634,5 +637,22 @@ function updateServiceWorker() {
   }
   window.location.reload();
 }
+
+let loadingText = document.getElementById("loading-text");
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "progress") {
+      loadingText.textContent = `Downloading ${event.data.name} (${event.data.progress}%)`;
+    }
+  });
+}
+
+// release camera on page unload
+window.addEventListener("beforeunload", () => {
+  if (window.localMediaStream) {
+    window.localMediaStream.getTracks().forEach((track) => track.stop());
+  }
+});
 
 init();

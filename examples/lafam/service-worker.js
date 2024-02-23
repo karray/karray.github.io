@@ -1,4 +1,4 @@
-const CACHE_NAME = "model-cache-v2";
+const CACHE_NAME = "model-cache-v3";
 const urlsToCache = ["resnet50_imagenet_modified.onnx"];
 
 self.addEventListener("install", (event) => {
@@ -29,33 +29,77 @@ self.addEventListener('message', event => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // console.log("Fetching:", event.request.url);
   if (!event.request.url.startsWith("http")) {
-    // console.log("Skipping non-http request:", event.request.url);
     return;
   }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Cache hit - return response
       if (response) {
-        // console.log("Fetching from cache:", event.request.url);
+        // Cache hit - return response
         return response;
       }
 
+      // Cache miss - fetch from network
       return fetch(event.request).then((response) => {
         // Check if we received a valid response
         if (!response || response.status !== 200 || response.type !== "basic") {
           return response;
         }
 
-        var responseToCache = response.clone();
+        const responseClone = response.clone();
+        const contentLength = response.headers.get('Content-Length');
+        if (response.body && contentLength) {
+          const total = parseInt(contentLength, 10);
+          let loaded = 0;
 
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
+          const reader = response.body.getReader();
+          const stream = new ReadableStream({
+            async start(controller) {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                  break;
+                }
+                loaded += value.byteLength;
+                // Report progress
+                const progress = Math.round((loaded / total) * 100);
+                const fileName = event.request.url.split('/').pop();
+                reportProgress(fileName, progress);
+                controller.enqueue(value);
+              }
+              controller.close();
+            }
+          });
 
-        return response;
+          // Update the cache with the new response
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, new Response(stream, { headers: response.headers }));
+          });
+
+          // Return the original response
+          return responseClone;
+        } else {
+          // Update the cache
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+          
+          return response;
+        }
       });
     })
   );
 });
+
+function reportProgress(name, progress) {
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'progress',
+        name: name,
+        progress: progress
+      });
+    });
+  });
+}

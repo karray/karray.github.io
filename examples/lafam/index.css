@@ -17,10 +17,15 @@ html {
     background: rgba(0, 0, 0, 0.7);
     /* Semi-transparent background */
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     color: white;
     font-size: 1.5em;
+}
+
+#loading-text {
+    margin-top: 20px;
 }
 
 @keyframes spin {
@@ -85,6 +90,10 @@ html {
     margin-right: 10px;
 }
 
+#start-button{
+    display: none;
+}
+
 #switch-camera-button {
     display: none;
 }
@@ -136,16 +145,17 @@ button svg {
     position: relative;
     display: inline-flex;
     align-items: center;
-    /* Border color should match button color */
     border-radius: 5px;
-    /* Match your button's border-radius */
-    background-color: #007BFF;
-    /* Match your button's background color */
+    background-color: #ccc;
+    cursor: not-allowed;
     color: white;
-    cursor: pointer;
     overflow: hidden;
-    /* To maintain the border-radius */
     padding: 2px;
+}
+
+.ready .upload-wrapper {
+    background-color: #007BFF;
+    cursor: pointer;
 }
 
 .upload-wrapper div {
@@ -165,7 +175,6 @@ button svg {
     /* Remove default dropdown arrow */
     -moz-appearance: none;
     appearance: none;
-    background-color: #007BFF;
     /* Match the wrapper's background color */
     border: none;
     padding: 5px;
@@ -174,7 +183,11 @@ button svg {
     color: white;
     cursor: pointer;
     outline: none;
-    /* Removes the default focus outline */
+    background-color: #ccc;
+}
+
+.ready .upload-wrapper select {
+    background-color: #007BFF;
 }
 
 /* Create a custom dropdown arrow */
@@ -187,19 +200,23 @@ button svg {
     pointer-events: none;
     /* Clicks will pass through to the select element */
     font-size: 12px;
+}
+
+.ready .upload-wrapper:after {
     background-color: #007BFF;
 }
-.upload-wrapper:hover:after {
+
+.ready .upload-wrapper:hover:after {
     background-color: #0056b3;
 }
 
 /* Ensure the hover effect applies to both button and select at once */
-.upload-wrapper:hover {
+.ready .upload-wrapper:hover {
     background-color: #0056b3;
     /* Darker shade for hover effect */
 }
 
-.upload-wrapper:hover select {
+.ready .upload-wrapper:hover select {
     background-color: #0056b3;
     /* Ensure elements don't have different hover colors */
 }
@@ -239,6 +256,24 @@ button svg {
     overflow-y: auto;
 }
 
+.prediction-title {
+    display: flex;
+    flex-direction: row;
+    /* justify-content: space-between; */
+    font-size: 1.5vw;
+    margin: 0;
+}
+.prediction-title svg {
+    margin-left: 10px;
+    width: 1.5vw;
+    fill: #007BFF;
+    cursor: pointer;
+}
+.prediction-title svg:hover {
+    fill: #0056b3;
+}
+
+
 .prediction {
     display: flex;
     flex-direction: column;
@@ -275,6 +310,9 @@ button svg {
     transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
+#loading-text {
+    font-size: 1.5vw;
+}
 
 @media (max-width: 767px) {
     .main-section {
@@ -283,6 +321,10 @@ button svg {
 
     .record-block {
         margin: 10px 0 0 0;
+    }
+
+    #loading-text {
+        font-size: 3vw;
     }
 }
 
