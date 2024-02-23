@@ -513,4 +513,30 @@ function argmax_top_n(arr, n, threshold = 0.01) {
   return top_n.slice(0, n);
 }
 
+function updateServiceWorker() {
+  if ('caches' in window) {
+    caches.keys().then(keyList => {
+      return Promise.all(keyList.map(key => {
+        return caches.delete(key);
+      }));
+    }).then(() => {
+      console.log('All caches cleared.');
+    }).catch(err => {
+      console.error('Error clearing caches:', err);
+    });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      // Unregister all service workers
+      for (let registration of registrations) {
+        registration.unregister();
+      }
+    }).catch(error => {
+      console.error("Error unregistering service worker:", error);
+    });
+  }
+  window.location.reload();
+}
+
 init();

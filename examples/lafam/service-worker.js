@@ -1,4 +1,4 @@
-const CACHE_NAME = "model-cache-v1";
+const CACHE_NAME = "model-cache-v2";
 const urlsToCache = ["resnet50_imagenet_modified.onnx"];
 
 self.addEventListener("install", (event) => {
@@ -8,6 +8,24 @@ self.addEventListener("install", (event) => {
       return cache.addAll(urlsToCache);
     })
   );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keyList => {
+      return Promise.all(keyList.map(key => {
+        if (key !== CACHE_NAME) {
+          return caches.delete(key);
+        }
+      }));
+    })
+  );
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {
