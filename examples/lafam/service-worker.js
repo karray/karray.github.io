@@ -1,4 +1,4 @@
-const CACHE_NAME = "model-cache-v3";
+const CACHE_NAME = "model-cache-v4";
 const urlsToCache = ["resnet50_imagenet_modified.onnx"];
 
 self.addEventListener("install", (event) => {

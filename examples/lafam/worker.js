@@ -46,29 +46,45 @@ onmessage = async (e) => {
     output[data.classIdx] = results[data.classIdx];
     //w = torch.mm(output, resnet_output_weights)
     const w = matrixMultiply(output, output_weights);
-    const weighted_heatmap = averageHeatmap(
-      activations,
-      [2048, 7, 7],
-      w
-    );
+    const weighted_heatmap = averageHeatmap(activations, [2048, 7, 7], w);
 
     postMessage({
       status: "weighted_heatmap",
       heatmap: weighted_heatmap,
     });
   }
+
+  if (data.status === "class_by_heatmap") {
+    const idx = data.cellIdx;
+
+    let a = new Float32Array(2048 * 7 * 7).fill(0);
+    for (let i = 0; i < 2048; i++) {
+      a[i * 7 * 7 + idx] = 20*activations[i * 7 * 7 + idx];
+    }
+
+
+    let logits = await fc.run({
+      l_activations_: new ort.Tensor("float32", a, [1, 2048, 7, 7]),
+    });
+
+    logits = logits.fc_1.cpuData;
+
+    const predictions = Array.from(softmax(logits));
+    postMessage({
+      status: "class_by_heatmap",
+      predictions: predictions,
+    });
+  }
 };
 
 (async () => {
-  layer4 = await ort.InferenceSession.create(
-    "resnet50_imagenet_layer4.onnx",
-    { executionProviders: ["wasm"] }
-  );
+  layer4 = await ort.InferenceSession.create("resnet50_imagenet_layer4.onnx", {
+    executionProviders: ["wasm"],
+  });
 
-  fc = await ort.InferenceSession.create(
-    "resnet50_imagenet_fc.onnx",
-    { executionProviders: ["wasm"] }
-  );
+  fc = await ort.InferenceSession.create("resnet50_imagenet_fc.onnx", {
+    executionProviders: ["wasm"],
+  });
 
   output_weights = await fetch("resnet_output_weights.bin").then((r) =>
     r.arrayBuffer()

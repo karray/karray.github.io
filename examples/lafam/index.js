@@ -60,6 +60,7 @@ class ModelWorker {
     this.predefinedFiles = document.getElementById("predefined-files");
     this.uploadButton = document.getElementById("upload-button");
     this.uploadInput = document.getElementById("upload-input");
+    this.heatmapGrid = document.getElementById("grid");
   }
 
   initEvents() {
@@ -127,6 +128,8 @@ class ModelWorker {
       const div = event.target.closest(".prediction");
       if (!div) return; // Clicked outside of a prediction div
 
+      this._clearGridSelection();
+
       const idx = div.getAttribute("data-index");
       if (idx !== null) {
         let selected = document.querySelector(".prediction.selected");
@@ -149,12 +152,27 @@ class ModelWorker {
     };
     this.startButton.addEventListener("click", (e) => {
       if ($this.video.paused) {
+        this._clearGridSelection();
         $this.video.play();
         $this.mainSection.classList.remove("paused");
       } else {
         $this.video.pause();
         $this.mainSection.classList.add("paused");
       }
+    });
+
+    // root event listener for cells (divs)
+    this.heatmapGrid.addEventListener("click", (e) => {
+      const div = e.target.closest("div");
+      if (!div) return; // Clicked outside of a cell
+      this._clearGridSelection();
+      div.classList.add("selected");
+      let idx = div.getAttribute("data-idx");
+      idx = parseInt(idx);
+      $this.worker.postMessage({
+        status: "class_by_heatmap",
+        cellIdx: idx,
+      });
     });
   }
 
@@ -271,14 +289,18 @@ class ModelWorker {
       this.startButton.disabled = false;
       this.switchCameraButton.disabled = false;
       document.getElementById("loading-indicator").style.display = "none";
-      document.body.classList.add("ready");
+      this.mainSection.classList.add("ready");
     }
     if (data.status === "results") {
       this.results = data;
-      this.updateResults(this.results);
+      this.updateResults(data.heatmap, data.predictions);
     }
     if (data.status === "weighted_heatmap") {
       this.updateHeatmap(data.heatmap);
+    }
+    if (data.status === "class_by_heatmap") {
+      const top_n_idx = argmax_top_n(data.predictions, TOP_N, 0.01);
+      this._updatePredictionList(top_n_idx, data.predictions);
     }
   }
 
@@ -305,12 +327,12 @@ class ModelWorker {
     });
   }
 
-  async updateResults(results) {
-    this.updateHeatmap(results.heatmap);
+  async updateResults(heatmap, predictions) {
+    this.updateHeatmap(heatmap);
 
-    let top_n_idx = argmax_top_n(results.predictions, TOP_N, 0.01);
+    let top_n_idx = argmax_top_n(predictions, TOP_N, 0.01);
 
-    this._updatePredictionList(top_n_idx, results.predictions);
+    this._updatePredictionList(top_n_idx, predictions);
 
     if (!this.video.paused) {
       this._postMessage(this.getImage(this.video));
@@ -336,6 +358,11 @@ class ModelWorker {
       0,
       0
     );
+  }
+
+  _clearGridSelection() {
+    let selected = document.querySelector(".selected");
+    if (selected) selected.classList.remove("selected");
   }
 
   _updatePredictionList(indices, predictions) {
@@ -365,6 +392,17 @@ class ModelWorker {
     this.predictionList.appendChild(fragment);
   }
 }
+
+// document.getElementById("grid").addEventListener("mousemove", (e) => {
+//   for (const date of document.querySelectorAll("#grid div")) {
+//     const rect = date.getBoundingClientRect(),
+//       x = e.clientX - rect.left,
+//       y = e.clientY - rect.top;
+
+//     date.style.setProperty("--mouse-x", `${x}px`);
+//     date.style.setProperty("--mouse-y", `${y}px`);
+//   }
+// });
 
 let debug_devices = document.getElementById("devices");
 let debug_log = document.getElementById("log");
@@ -591,7 +629,7 @@ class ImageProcessor {
   }
 }
 
-function argmax_top_n(arr, n, threshold = 0.01) {
+function argmax_top_n(arr, n, threshold = 0) {
   let indices = arr.map((e, i) => i);
   indices.sort((a, b) => arr[b] - arr[a]);
   let top_n = [];
