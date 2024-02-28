@@ -5,8 +5,10 @@ ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
 
-let session;
+let layer4;
+let fc;
 let results;
+let activations;
 let output_weights;
 
 onmessage = async (e) => {
@@ -19,13 +21,21 @@ onmessage = async (e) => {
       INPUT_WIDTH,
     ]);
 
-    results = await session.run({ l_x_: imgDataTensor });
-    const predictions = Array.from(softmax(results.fc_1.cpuData));
-    const heatmap = averageHeatmap(results.layer4_1.cpuData, [2048, 7, 7]);
+    activations = await layer4.run({ l_x_: imgDataTensor });
+    activations = activations.resnet_layer4_1.cpuData;
+    const activationsTensor = new ort.Tensor(
+      "float32",
+      activations,
+      [1, 2048, 7, 7]
+    );
+    results = await fc.run({ l_activations_: activationsTensor });
+    results = results.fc_1.cpuData;
+    const predictions = Array.from(softmax(results));
+    const heatmap = averageHeatmap(activations, [2048, 7, 7]);
 
     postMessage({
       status: "results",
-      output: results.fc_1.cpuData,
+      output: results,
       predictions: predictions,
       heatmap: heatmap,
     });
@@ -33,12 +43,11 @@ onmessage = async (e) => {
 
   if (data.status === "heatmap_by_class") {
     let output = new Float32Array(1000).fill(0);
-    const model_output = results.fc_1.cpuData;
-    output[data.classIdx] = model_output[data.classIdx];
+    output[data.classIdx] = results[data.classIdx];
     //w = torch.mm(output, resnet_output_weights)
     const w = matrixMultiply(output, output_weights);
     const weighted_heatmap = averageHeatmap(
-      results.layer4_1.cpuData,
+      activations,
       [2048, 7, 7],
       w
     );
@@ -51,8 +60,13 @@ onmessage = async (e) => {
 };
 
 (async () => {
-  session = await ort.InferenceSession.create(
-    "resnet50_imagenet_modified.onnx",
+  layer4 = await ort.InferenceSession.create(
+    "resnet50_imagenet_layer4.onnx",
+    { executionProviders: ["wasm"] }
+  );
+
+  fc = await ort.InferenceSession.create(
+    "resnet50_imagenet_fc.onnx",
     { executionProviders: ["wasm"] }
   );
 
