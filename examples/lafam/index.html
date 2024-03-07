@@ -178,11 +178,15 @@
     </section>
 
     <section style="margin: 10px 10px 20px 10px;">
-        This is a live demonstration of the Label-free Activation Map, an eXplainable Artificial Intelligence (XAI)
-        method for Convolutional Neural Networks (CNNs). It generates a heatmap derived from the raw activation map
-        extracted from the final convolutional layer. Unlike traditional methods, this approach doesn't depend on labels
-        and necessitates only a single forward pass. In this demonstration, we employ a pre-trained ResNet50 model
-        trained on the ImageNet dataset.
+        <h2>About</h2>
+        This interactive demo showcases the Label-free Activation Map for Convolutional Neural Networks. It uses a ResNet50 model trained on the ImageNet dataset (<a href="imagenet_class_index.json" target="_blank">1000 categories</a>) and generates heatmaps from the model's final convolutional layer without relying on labels.
+
+        <h4>Interactions</h4>
+        Use your camera, upload an image, or select a pre-defined image from the dropdown menu. To interact with the predictions, you first need to pause the camera first if it's active.
+        <ul>
+            <li>Click on predictions to see related image regions.</li>
+            <li>Click on image regions to view associated predictions. </li>
+        </ul>
     </section>
 
     <section id="debug-section" style="margin: 200px 20px 20px">
