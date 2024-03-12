@@ -74,7 +74,7 @@ onmessage = async (e) => {
     postMessage({
       status: "class_by_heatmap",
       predictions: predictions,
-      logits: logits ,
+      logits: logits,
     });
   }
 };
