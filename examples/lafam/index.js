@@ -29,6 +29,10 @@ class ModelWorker {
     this.initElements();
     this.initEvents();
 
+    fetch("./imagenet_class_index.json")
+      .then((response) => response.json())
+      .then((data) => (this.imagenet_classes = data));
+
     fetch("palettes.json")
       .then((response) => response.json())
       .then((data) => {
@@ -143,23 +147,29 @@ class ModelWorker {
         }
       }
 
-
       if (selectedIdxs.length > 0) {
         this.clearSelection.disabled = false;
         this.worker.postMessage({
           status: "heatmap_by_class",
           classIdxs: selectedIdxs,
         });
-      }
-      else{
+      } else {
         this.clearSelection.disabled = true;
-        this.updateResults(this.results.heatmap, this.results.predictions, this.results.logits);
+        this.updateResults(
+          this.results.heatmap,
+          this.results.predictions,
+          this.results.logits
+        );
       }
     });
 
     this.clearSelection.addEventListener("click", () => {
       this._clearSelections();
-      this.updateResults(this.results.heatmap, this.results.predictions, this.results.logits);
+      this.updateResults(
+        this.results.heatmap,
+        this.results.predictions,
+        this.results.logits
+      );
     });
 
     this.heatmapOpacity.oninput = () => {
@@ -208,7 +218,11 @@ class ModelWorker {
         });
       } else {
         this.clearSelection.disabled = true;
-        this.updateResults(this.results.heatmap, this.results.predictions, this.results.logits);
+        this.updateResults(
+          this.results.heatmap,
+          this.results.predictions,
+          this.results.logits
+        );
       }
     });
   }
@@ -236,9 +250,9 @@ class ModelWorker {
   async initCamera() {
     let $this = this;
 
-    this.imagenet_classes = await fetch("./imagenet_class_index.json").then(
-      (response) => response.json()
-    );
+    const state = await navigator.permissions.query({ name: "camera" });
+    if (state.state === "denied") 
+      return;
 
     let cameras = await navigator.mediaDevices.enumerateDevices();
     debug_devices.textContent = JSON.stringify(cameras, null, 2);
@@ -425,13 +439,15 @@ class ModelWorker {
       let div = document.createElement("div");
       div.classList.add("prediction");
       div.setAttribute("data-idx", idx);
-        // div.setAttribute("data-logits", logits[idx]);
+      // div.setAttribute("data-logits", logits[idx]);
 
       let label = document.createElement("label");
       const cls = this.imagenet_classes[idx];
       const prob = predictions[idx];
       const l = logits[idx].toFixed(2);
-      label.innerHTML = `<b>${cls}</b> (Logits: ${l}; Softmax: ${Math.round(prob * 100)}%)`;
+      label.innerHTML = `<b>${cls}</b> (Logits: ${l}; Softmax: ${Math.round(
+        prob * 100
+      )}%)`;
       div.appendChild(label);
 
       let progress = document.createElement("progress");
@@ -687,8 +703,7 @@ function argmax_top_n(logits, n, threshold = 0) {
   indices.sort((a, b) => logits[b] - logits[a]);
   let top_n = [];
   for (let i = 0; i < n; i++) {
-    if (logits[indices[i]] < threshold) 
-      break
+    if (logits[indices[i]] < threshold) break;
 
     top_n.push(indices[i]);
   }
