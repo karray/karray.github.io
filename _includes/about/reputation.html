@@ -1,35 +1,38 @@
-<h1 id="stackoverflow-stats">Stackoverflow stats</h1>
+<div class="section">
+    <h2 id="stackoverflow-stats">$ cat stackoverflow_stats.json</h2>
 
-<div class="stackexchange">
-    <a href="{{ site.data.stackoverflow_reputation.profileUrl }}" style="text-decoration: none;" target="_blank">
-        <div class='reputation'>
-            <span class='text'><i class="fa-brands fa-stack-overflow logo"></i>Reputation</span>
-            <span class='value'>{{ site.data.stackoverflow_reputation.reputation }}</span>
-        </div>
-    </a>
+    <div class="stackexchange">
+        <a href="{{ site.data.stackoverflow_reputation.profileUrl }}" style="text-decoration: none;" target="_blank">
+            <div class='reputation'>
+                <span class='text'><i class="fa-brands fa-stack-overflow logo"></i>Reputation</span>
+                <span class='value'>{{ site.data.stackoverflow_reputation.reputation }}</span>
+            </div>
+        </a>
 
-    {% for item in site.data.stackoverflow_tags.items %}
+        {% for item in site.data.stackoverflow_tags.items %}
         {% if item.count>1 %}
-            <div class='tag'>{{ item.name }}<span>({{ item.count }})</span></div>
+        <div class='tag'>{{ item.name }}<span>({{ item.count }})</span></div>
         {% endif %}
-    {% endfor %}
+        {% endfor %}
+    </div>
 </div>
 
-<br>
+<div class="section">
 
-<h1 id="stackoverflow-stats">AI Stackexchange stats</h1>
+    <h2 id="stackoverflow-stats">$ cat ai_stackexchange.json</h2>
 
-<div class="stackexchange">
-    <a href="{{ site.data.ai_reputation.profileUrl }}" style="text-decoration: none;" target="_blank">
-        <div class='reputation'>
-            <span class='text'><i class="fa-brands fa-stack-overflow logo"></i>Reputation</span>
-            <span class='value'>{{ site.data.ai_reputation.reputation }}</span>
-        </div>
-    </a>
+    <div class="stackexchange">
+        <a href="{{ site.data.ai_reputation.profileUrl }}" style="text-decoration: none;" target="_blank">
+            <div class='reputation'>
+                <span class='text'><i class="fa-brands fa-stack-overflow logo"></i>Reputation</span>
+                <span class='value'>{{ site.data.ai_reputation.reputation }}</span>
+            </div>
+        </a>
 
-    {% for item in site.data.ai_tags.items %}
+        {% for item in site.data.ai_tags.items %}
         {% if item.count>1 %}
-            <div class='tag'>{{ item.name }}<span>({{ item.count }})</span></div>
+        <div class='tag'>{{ item.name }}<span>({{ item.count }})</span></div>
         {% endif %}
-    {% endfor %}
+        {% endfor %}
+    </div>
 </div>
