@@ -63,7 +63,7 @@ onmessage = async (e) => {
     let a = new Float32Array(2048 * 7 * 7).fill(0);
     for (let i = 0; i < 2048; i++) {
       for (const idx of data.classIdxs) {
-        a[i * 7 * 7 + idx] = 20 * activations[i * 7 * 7 + idx];
+        a[i * 7 * 7 + idx] = activations[i * 7 * 7 + idx];
       }
     }
 
