@@ -350,7 +350,7 @@ class ModelWorker {
       this.updateHeatmap(data.heatmap);
     }
     if (data.status === "class_by_heatmap") {
-      const top_n_idx = argmax_top_n(data.logits, TOP_N, 1.7);
+      const top_n_idx = argmax_top_n(data.logits, TOP_N, 0);
       this._updatePredictionList(top_n_idx, data.predictions, data.logits);
     }
   }
