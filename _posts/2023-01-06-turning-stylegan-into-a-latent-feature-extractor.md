@@ -9,7 +9,9 @@ description: This blog post explores the potential for using StyleGAN as a tool 
 
 While Generative Adversarial Networks (GANs) are primarily known for their ability to generate high-quality synthetic images, their main task is to learn a latent feature representation of real data. In addition, recent improvements to the original GAN allow it to learn a disentangled latent representation, enabling us to obtain semantically meaningful embeddings.
 
-This property could possibly allow GANs to be used as high-level feature extractors. However, the problem is that the original GAN architecture is not invertible or, in other words, it is impossible to project real images into the latent space. This article addresses this issue and attempts to answer whether GANs can extract meaningful features from real images and if they are suitable for downstream tasks.
+This property could possibly allow GANs to be used as high-level feature extractors. However, the problem is that the original GAN architecture is not invertible or, in other words, it is impossible to project real images into the latent space.
+
+This article addresses this issue and attempts to answer whether GANs can extract meaningful features from real images and if they are suitable for downstream tasks.
 
 <!--more-->
 
@@ -22,8 +24,6 @@ Disentangled representations are a type of representation in which the factors o
 <span class='image-description'>**Illustrative example taken from StyleGAN [1]**. Two factors of variation (image features, e.g., masculinity and hair length): (a) An example training set where some combination (e.g., long-haired males) is missing. (b) This forces the mapping from $\mathcal{Z}$ to image features to become curved so that the forbidden combination disappears in $\mathcal{Z}$ to prevent the sampling of invalid combinations. (c) The learned mapping from $\mathcal{Z}$ to $\mathcal{W}$ is able to “undo” much of the warping.</span>
 
 GAN can be viewed as a self-supervised representation learning approach with contrastive loss, where real images are positive examples and the generator produces negative ones.
-
-As mentioned, one of the limitations is that a common GAN is non-invertible, meaning it can only generate images from random noise and cannot extract embeddings from real images. Although there are methods to project real images into GAN's latent space, the most popular is slow and computationally expensive as it is based on an optimization approach. Instead, we can train an encoder along with the generator and discriminator.
 
 As mentioned, one of the limitations is that a common GAN is non-invertible, meaning it can only generate images from random noise and cannot extract embeddings from real images. Although there are methods to project real images into GAN's latent space, the most popular is slow and computationally expensive as it is based on an optimization approach. 
 Instead, we can train an encoder along with the generator and discriminator. From this point of view, GAN can be viewed as a self-supervised representation learning approach with contrastive loss, where real images are positive examples and the generator produces negative ones.
