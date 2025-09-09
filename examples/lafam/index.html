@@ -1,4 +1,4 @@
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
@@ -24,6 +24,7 @@
                 </div>
                 <canvas id="img-canvas" width="1024" height="1024"></canvas>
                 <canvas id="heatmap-canvas" width="1024" height="1024"></canvas>
+                <canvas id="bounding-boxes-canvas" width="1024" height="1024"></canvas>
                 <div id="grid">
                     <div data-idx="0"></div>
                     <div data-idx="1"></div>
@@ -114,11 +115,20 @@
                             <option value="misc.png">Misc</option>
                         </select>
                     </div>
-                    <div class="select-wrapper">
-                        <select id="palette-select">
+                    <div class="select-wrapper" style="gap: 10px;">
+                        <select id="palette-select" class="lafam-select">
 
                         </select>
+
+                        <select id="mode-select" class="lafam-select">
+                            <option value="predict" selected>Predict</option>
+                            <option value="imagenet-classes">Imagenet Classes</option>
+                            <option value="groupmap-bbs">Groups + Bounding Boxes</option>
+                            <!-- option value="predict_squares_for_bounding_boxes">Show Bounding Boxes</option -->
+                        </select>
                     </div>
+                    <!-- button type="button" id="btn-show-logits" class="lafam-btn">Show Groups</button -->
+                    <!-- button type="button" id="btn-show-bboxes" class="lafam-btn">Show Bounding Boxes</button -->
 
                 </div>
                 <div id="slider-container">
@@ -142,47 +152,12 @@
         </div>
     </section>
 
-    <section id="main-section-overlay" class="main-section overlay">
-        <!-- Mirror the structure of #main-section here with descriptions -->
-        <div class="canvas-block overlay-card">
-            <div class="canvas-wrapper">
-                <div>This is where your image from the camera will be displayed. The overlay with a heatmap will show
-                    most important regions.</div>
-            </div>
-        </div>
-        <div class="record-block">
-            <div class="overlay-card">
-                <div class="button-group">
-                    <div class="description" data-description="Start/pause camera">
-                        <button class="btn">
-                            <span></span>
-                        </button>
-                    </div>
-                    <div class="overlay-switch-camera" class="description" data-description="Switch camera">
-                        <button class="btn">
-                            <span></span>
-                        </button>
-                    </div>
-                </div>
-                <div id="slider-container">
-                    <!-- <div class="description">Adjust the heatmap opacity</div> -->
-                </div>
-            </div>
-            <div class="predictions-container overlay-card">
-                <!-- <div class="description">See the predictions here</div> -->
-            </div>
-        </div>
-    </section>
-
     <section style="margin: 10px 10px 20px 10px;">
         <h2>About</h2>
-        This interactive demo showcases the Label-free Activation Map for Convolutional Neural Networks. It uses a
-        ResNet50 model trained on the ImageNet dataset (<a href="imagenet_class_index.json" target="_blank">1000
-            categories</a>) and generates heatmaps from the model's final convolutional layer without relying on labels.
+        This interactive demo showcases the Label-free Activation Map for Convolutional Neural Networks. It uses a ResNet50 model trained on the ImageNet dataset (<a href="imagenet_class_index.json" target="_blank">1000 categories</a>) and generates heatmaps from the model's final convolutional layer without relying on labels.
 
         <h4>Interactions</h4>
-        Use your camera, upload an image, or select a pre-defined image from the dropdown menu. To interact with the
-        predictions, you first need to pause the camera first if it's active.
+        Use your camera, upload an image, or select a pre-defined image from the dropdown menu. To interact with the predictions, you first need to pause the camera first if it's active.
         <ul>
             <li>Click on predictions to see related image regions.</li>
             <li>Click on image regions to view associated predictions. </li>
@@ -194,13 +169,13 @@
         <button onclick="updateServiceWorker()">Hard reload</button>
         <h4>Available devices</h4>
         <textarea id="devices" style='width: 100%;' rows='10' disabled></textarea>
-        <h4>Log</h3>
+        <h3>Log</h3>
             <textarea id='log' style='width: 100%;' rows='10' disabled></textarea>
 
 
     </section>
     <br>
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"></script>
+    <script src="boundingboxes.js"></script>
     <script src="index.js"></script>
 
 </body>
