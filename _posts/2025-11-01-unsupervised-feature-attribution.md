@@ -17,17 +17,17 @@ This journey started with my attempt to use Generative Adversarial Networks (GAN
 
 <!-- (If you're just joining, no worries – each part stands alone. But know that Part 1 dealt with GANs and encoder limitations, and Part 3 will tackle Multiple Instance Learning. Now let's dive in!) -->
 
-Background: Self-Supervised Learning Meets XAI
+## Self-Supervised Learning Meets XAI
 
 Self-Supervised Learning (SSL) has emerged as a way for models to learn useful representations without manual labels. Vision models like SimCLR and SwAV can train on millions of images by solving proxy tasks (e.g., contrasting different augmented views of the same image) and then be fine-tuned for actual tasks. SSL models are often called foundation models for their broad adaptability. Yet, the absence of labels makes it difficult to verify whether the learned features are actually relevant for a given downstream task. Moreover, when trained with proxy tasks such as random cropping, a model may unintentionally associate irrelevant features without us realizing, and evaluating it is non-trivial [0].
 
-Explainable AI (XAI) techniques offer ways to probe a model’s reasoning by producing saliency maps or attributions that highlight important regions of an input. Most popular XAI methods, though, assume a supervised setting: they explain why the model predicted class X. Methods like Class Activation Maps (CAM) and Grad-CAM need a class label or score to guide the explanation. Similarly, gradient-based methods and occlusion tests usually require knowing which output we care about. This poses a problem for SSL, as there is no explicit class or label to explain.
+Explainable AI (XAI) offers ways to probe a model’s reasoning by producing saliency maps or attributions that highlight important regions of an input. Most popular XAI methods, though, are designed for supervised setting by attribution input for a specific class. Methods like Class Activation Maps (CAM) and Grad-CAM need a class label or score to guide the explanation. Similarly, gradient-based methods like Grad-CAM or occlusion-based like RISE require a class score function to guide the explanation. This poses a problem for SSL, as there are no explicit labels to explain.
 
-There have been attempts to adapt XAI to label-free models. One such attempt is RELAX (Representation Learning Explainability) which extended an occlusion method (RISE) to SSL by measuring how random masking affects the model’s embedding[0]. But RELAX ended up computationally expensive (it needs many forward passes with different masks) and often produced very noisy maps[0]. Moreover, using random patch occlusions can introduce unnatural artifacts – the model might react strangely to a big grey patch that it would never see during normal operation[0].
+There have been attempts to adapt XAI to label-free models. One such attempt is RELAX (Representation Learning Explainability) which extended an occlusion method (RISE). The key idea is very smart. SSL model output embeddings, that are unitless meaning that each value..... Since we don't know how a target embedding should look like, the authors propose to first crate a reference embedding from the original input and extract embeddings from by occluding the input. We can the define a score function that measure cosine similarity and use it to attribute most salient features. But RELAX ended up computationally expensive (it needs many forward passes with different masks) and often produced very noisy maps[0]. Moreover, using random patch occlusions can introduce unnatural artifacts – the model might react strangely to a big grey patch that it would never see during normal operation[0].
 
 In short, by late 2023 the label-free XAI toolbox was limited and somewhat unsatisfying. This was exactly the situation I found myself in after the GAN debugging saga: I had an SSL model and no easy way to interpret it.
 
-Enter LaFAM: Label-Free Activation Maps
+## Label-Free Activation Maps
 
 LaFAM (Label-free Activation Map) is a breath of fresh air in this context. Proposed in 2024 by Karjauv and Albayrak
 arxiv.org[0], LaFAM asks: why not use the model’s own internal activations to explain it, even without labels? Convolutional neural networks (CNNs) naturally produce activation maps (AMs) in their convolutional layers. These activation maps highlight spatial regions of the input that trigger different feature detectors. For example, a deep CNN might have a channel that activates on “dog faces” and another on “fur texture,” each producing a 2D map of where that feature is present in the image. In supervised setups, CAM/Grad-CAM use the weighted sum of such maps (weighted by how important each feature is for a specific class)[0]. But if we don’t have a class of interest, we can’t weight or choose maps in the usual way.
@@ -219,3 +219,37 @@ For practitioners, the takeaway is to use these tools in combination: start simp
 On a personal note, applying these methods felt a bit like turning on a light inside the “black box” of my SSL model. It didn’t answer everything (I still may not know why exactly a certain region is important), but it sure helped guide my next questions and debugging steps. It’s a reminder that explainability is often an iterative, human-in-the-loop process: the tools show something, and it’s up to us to reason about it or design further tests.
 
 In the next part of this series, we’ll venture into another tricky area: Multiple Instance Learning (MIL), where only bag-level labels are given and we have to figure out which instances contribute to the prediction. Interpretability in MIL comes with its own set of challenges (since the model might hide its reasoning across many instances). We’ll see how some of the themes from this post – like needing unsupervised localization and dealing with weak signals – play out there. Stay tuned!
+
+
+## References
+<br />
+
+{%- capture references -%}
+Karjauv, A., et al. | 2024 | LaFAM: Label-Free Activation Mapping for Interpreting Self-Supervised Vision Models;
+Montavon, G., Samek, W., & Müller, K.-R. | 2018 | Methods for interpreting and understanding deep neural networks;
+Adebayo, J., et al. | 2018 | Sanity checks for saliency maps
+{%- endcapture -%}
+
+{%- assign ref_lines = references | split: ';' -%}
+
+
+  {%- assign r = r | strip -%}
+  {%- if r != "" -%}
+    {%- assign parts = r | split: "|" -%}
+    {%- assign author = parts[0] | strip -%}
+    {%- assign year   = parts[1] | strip -%}
+    {%- assign title  = parts[2] | strip -%}
+
+    {%- comment %} surname before the comma {%- endcomment -%}
+    {%- assign surname = author | split: "," | first | strip -%}
+    {%- assign title_first = title | split: " " | first | strip -%}
+
+    {%- comment %} slugify to make it anchor safe {%- endcomment -%}
+    {%- assign anchor = surname | append: " " | append: year | append: " " | append: title_first | slugify: "latin" -%}
+
+    <p id="{{ anchor }}">
+      [{{ forloop.index }}] {{ author }} ({{ year }}). <em>{{ title }}</em>.<br />
+      <!-- anchor: {{ anchor }} -->
+    </p>
+  {%- endif -%}
+{%- endfor -%}
