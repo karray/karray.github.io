@@ -1,0 +1,41 @@
+
+{%- assign raw = include.ref | default: "" | strip -%}
+{%- assign line_sep = include.line_delim | default: ";" -%}
+{%- assign ref_sep = include.ref_delim | default: "|" -%}
+
+{% assign ref_lines = raw | split: line_sep %}
+<div>
+    {% for r in ref_lines %}
+    {% assign r = r | strip -%}
+    {% if r != "" %}
+    {%- assign parts = r | split: ref_sep -%}
+
+    {%- assign author = parts[0] | default: "" | strip -%}
+    {%- assign year = parts[1] | default: "" | strip -%}
+    {%- assign title = parts[2] | default: "" | strip -%}
+    {%- assign author_bits = author | split: "," -%}
+    {%- if include.name_part == "surname" -%}
+    {%- assign name_token = author_bits[0] | default: author | strip -%}
+    {%- else -%}
+    {%- assign after_comma = author_bits[1] | default: author_bits[0] | default: author -%}
+    {%- assign name_token = after_comma | strip | split: " " | first -%}
+    {%- endif -%}
+
+    {%- assign title_first = title | split: " " | first | default: "" | strip -%}
+
+    {%- assign anchor_raw = name_token | append: " " | append: year | append: " " | append: title_first -%}
+    {%- assign anchor = anchor_raw | slugify: "latin" -%}
+    {%- if include.uniq and include.index -%}
+    {%- assign anchor = anchor | append: "-" | append: include.index -%}
+    {%- endif -%}
+
+    {%- assign tag = include.tag | default: "li" -%}
+
+    <div id="{{ anchor }}" data-index="{{ forloop.index }}">
+        [{{ forloop.index }}]
+        {{ author }}{% if year != "" %} ({{ year }}){% endif %}.
+        {% if title != "" %}<em>{{ title }}</em>.{% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>

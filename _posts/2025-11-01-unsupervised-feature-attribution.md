@@ -222,34 +222,11 @@ In the next part of this series, we’ll venture into another tricky area: Multi
 
 
 ## References
-<br />
 
 {%- capture references -%}
 Karjauv, A., et al. | 2024 | LaFAM: Label-Free Activation Mapping for Interpreting Self-Supervised Vision Models;
 Montavon, G., Samek, W., & Müller, K.-R. | 2018 | Methods for interpreting and understanding deep neural networks;
-Adebayo, J., et al. | 2018 | Sanity checks for saliency maps
+Adebayo, J., et al. | 2018 | Sanity checks for saliency maps;
 {%- endcapture -%}
 
-{%- assign ref_lines = references | split: ';' -%}
-
-
-  {%- assign r = r | strip -%}
-  {%- if r != "" -%}
-    {%- assign parts = r | split: "|" -%}
-    {%- assign author = parts[0] | strip -%}
-    {%- assign year   = parts[1] | strip -%}
-    {%- assign title  = parts[2] | strip -%}
-
-    {%- comment %} surname before the comma {%- endcomment -%}
-    {%- assign surname = author | split: "," | first | strip -%}
-    {%- assign title_first = title | split: " " | first | strip -%}
-
-    {%- comment %} slugify to make it anchor safe {%- endcomment -%}
-    {%- assign anchor = surname | append: " " | append: year | append: " " | append: title_first | slugify: "latin" -%}
-
-    <p id="{{ anchor }}">
-      [{{ forloop.index }}] {{ author }} ({{ year }}). <em>{{ title }}</em>.<br />
-      <!-- anchor: {{ anchor }} -->
-    </p>
-  {%- endif -%}
-{%- endfor -%}
+{% include reference.html ref=references %}
