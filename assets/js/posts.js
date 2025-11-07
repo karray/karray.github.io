@@ -52,25 +52,21 @@ window.addEventListener(
 update_elements();
 
 (() => {
-  console.log("Inint popup...");
   const refRoot = document.getElementById("reference-list");
   if (!refRoot) return;
-  console.log("Found references...", refRoot);
   // Build reference index from the list
   const refIndex = new Map();
-refRoot.querySelectorAll('.ref').forEach((div) => {
-    console.log("Indexing ref...", div);
+  refRoot.querySelectorAll(".ref").forEach((div) => {
     if (!div.id) return;
     refIndex.set(div.id, {
-        id: div.id,
-        index: Number(div.dataset.index) || "?",
-        author: div.dataset.author || "",
-        year: div.dataset.year || "",
-        title: div.dataset.title || "",
-        node: div,
+      id: div.id,
+      index: Number(div.dataset.index) || "?",
+      author: div.dataset.author || "",
+      year: div.dataset.year || "",
+      title: div.dataset.title || "",
+      node: div,
     });
-});
-  console.log("Built index...", refIndex);
+  });
 
   // Helpers
   const clean = (s) => (s || "").toLowerCase().replace(/[^a-z]+/g, ""); // letters only
@@ -78,7 +74,6 @@ refRoot.querySelectorAll('.ref').forEach((div) => {
 
   const cache = new Map(); // cleanedTitle -> Promise<metadata|null>
 
-  // Data providers (sequential, minimal pattern)
   const providers = [
     async function crossrefProvider(key, rawTitle) {
       const url =
@@ -223,7 +218,7 @@ refRoot.querySelectorAll('.ref').forEach((div) => {
     console.log(ref);
     if (!ref) return;
     console.log("... found reference", ref);
-    a.textContent = `[${ref.index}]`;
+    a.textContent = `${ref.index}`;
     a.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
