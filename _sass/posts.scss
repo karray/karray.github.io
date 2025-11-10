@@ -101,3 +101,31 @@
   margin: 6px 0;
   cursor: pointer;
 }
+
+
+details {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.5em;
+  margin: 1em 0;
+}
+
+details[open] {
+ padding: 0.5em;
+}
+
+summary {
+  font-weight: 600;
+  padding: 0.5em;
+  cursor: pointer;
+}
+
+summary::marker {
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+
+details p {
+  padding: 0 1em;
+}
