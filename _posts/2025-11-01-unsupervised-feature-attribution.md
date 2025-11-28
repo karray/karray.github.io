@@ -22,15 +22,17 @@ This post explores how LaFAM provides quick saliency maps for CNNs in an unsuper
 
 Self-Supervised Learning (SSL) has emerged as a way for models to learn useful representations without manual labels. Vision models like SimCLR and DINO can train on millions of images by solving proxy tasks (e.g., contrasting different augmented views of the same image) and then be fine-tuned for actual tasks. SSL models are often called foundation models for their broad adaptability. Yet, the absence of labels makes it difficult to verify whether the learned features are actually relevant for a given downstream task. Moreover, when trained with proxy tasks such as random cropping, a model may unintentionally associate irrelevant features without us realizing, and evaluating it is non-trivial [<a href="#meehan2023do" data-ref="meehan2023do">Meehan et al.</a>].
 
-Explainable AI (XAI) offers ways to probe a model’s reasoning, for example, by producing saliency maps that highlight important regions of an input. Traditional XAI methods, though, are designed for supervised models by attribution input for a specific class. Methods like Grad-CAM and occlusion-based methods (e.g., RISE) require a so called score function. This function takes a target class as input to guide the attribution. This poses a problem for SSL, as there are no explicit labels to explain.
+Explainable AI (XAI) offers ways to probe a model’s reasoning, for example, by producing saliency maps that highlight important regions of an input. Traditional XAI methods, though, are designed for supervised models by attributing input importance for a specific class. Methods like Grad-CAM and occlusion-based methods (e.g., RISE) require a so-called score function. This function takes a target class as input to guide the attribution. This poses a problem for SSL, as there are no explicit labels to explain.
 
-There have been attempts to adapt XAI to label-free models. One such attempt is RELAX (Representation Learning Explainability) which extended an occlusion method (RISE). The key idea is very smart. SSL model output embeddings, that are unitless meaning that each value does not refer to any particular feature. Since we don't know how a target embedding should look like, the authors propose to first crate a reference embedding from the original input and extract embeddings from by occluding the input. We can then define a score function that measure cosine similarity between the reference embedding and the occluded ones and use it to attribute most salient features. But RELAX ended up computationally expensive as it needs many forward passes with different masks, and often produced very noisy maps. Moreover, using random patch occlusions can introduce unnatural artifacts leading the model to react strangely to a big grey patch that it would never see during normal operation.
+There have been attempts to adapt XAI to label-free models. One such attempt is RELAX (Representation Learning Explainability) which extended an occlusion method (RISE). The key idea is clever. SSL models output embeddings that are unitless, meaning that each value does not refer to any particular feature. Since we don't know what a target embedding should look like, the authors propose to first create a reference embedding from the original input and extract embeddings from occluded inputs. We can then define a score function that measures cosine similarity between the reference embedding and the occluded ones and use it to attribute the most salient features.
+
+However, RELAX ended up being computationally expensive as it needs many forward passes with different masks, and it often produced very noisy maps. Moreover, using random patch occlusions can introduce unnatural artifacts, leading the model to react strangely to a big gray patch that it would never see during normal operation.
 
 ## Label-Free Activation Maps
 
 <!-- An important advantage of CNNs is that their spatial feature maps preserve the structure of the input image. As layers stack, each convolution processes a local region of the previous feature map, which causes receptive fields to expand with depth. By the final convolutional layer, neurons cover enough of the image to encode class-specific signals while still retaining coarse spatial layout. -->
 
-A key strength of CNNs is that their activation maps maintain a connection between detected patterns and their positions in the input image. This property makes the models more explainable and underpins the success of CAM-based methods. By weighting the maps in the final convolutional layer according to their contribution to a target class, these methods can localize the image regions most relevant in supervised settings.
+A key strength of CNNs is that their activation maps maintain a connection between detected patterns and their positions in the input image. This property makes the models inherently more explainable and underpins the success of Class Activation Map (CAM) methods. By weighting the maps in the final convolutional layer according to their contribution to a target class, these methods can localize the image regions most relevant in supervised settings.
 
 <details><summary>What is an activation map?</summary>
 <p>
@@ -40,20 +42,22 @@ Each convolutional layer takes an input and produces activation maps (also calle
 
 <!-- In other words, each channel in a conv layer can be seen as a spatial map of how strongly that feature is present across the image. For example, a deep CNN might have a channel that activates on “dog faces” and another on “fur texture,” each producing a 2D map of where that feature is present in the image.  -->
 
-But what if we don’t have a class? The answer is simple - we don't need it. We can simply average all the activation maps at the last convolutional layer to get a generic saliency map. This label-free map doesn’t focus on any one class. It treats every learned feature as equally interesting, highlighting regions that strongly activate any of the high-level features in that layer. Essentially, it’s a visualization of “where the network is looking” in a class-agnostic sense.
+But what if we don’t have a class? The answer is simple -- we don't need it. We can simply average all the activation maps at the last convolutional layer to get a generic saliency map. This label-free map doesn’t focus on any one class. It treats every learned feature as equally interesting, highlighting regions that strongly activate any of the high-level features in that layer. Essentially, it’s a visualization of “where the network is looking” in a class-agnostic sense.
 
 LaFAM (Label-free Activation Map) [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv et al.</a>] evaluates this approach systematically. The method is astonishingly simple yet effective. It outperforms RELAX and even stands up well against Grad-CAM.
 
-<!-- ![LaFAM vs. Grad-CAM vs. RELAX](/assets/img/lafam/pascal_voc_2012_results.svg){: .center-image } -->
+### Qualitative Comparison
 
 <figure>
 <img src="/assets/img/lafam/pascal_voc_2012_results.svg" alt="LaFAM vs. Grad-CAM vs. RELAX" />
-  <figcaption>This is my caption text.</figcaption>
+  <figcaption>Comparison on PASCAL VOC 2012. LaFAM produces maps similar to Grad-CAM but remains robust when the model misclassifies (first row).</figcaption>
 </figure>
 
-In the figure above we see this comparison in action. This figure compares three attribution methods: LaFAM, RELAX, and Grad-CAM as a baseline. LaFAM produces very similar saliency maps to those produced by Grad-CAM in supervised models (i.e., applied to the same supervised model). In the first row, the model actually mispredicted the ImageNet class, so Grad-CAM dutifully highlighted an irrelevant region. This illustrates a subtle strength -- by not being yoked to the top-1 predicted label, simply averaging last CNN layer won’t completely go off the rails when the model’s prediction is off. It shows everything the model found salient, not just what influenced the (possibly incorrect) class choice. For SSL models, notably less noisy than RELAX’s outputs.
+In the figure above we see this comparison in action. This figure compares three attribution methods: LaFAM, RELAX, and Grad-CAM as a baseline. LaFAM produces very similar saliency maps to those produced by Grad-CAM in supervised models (i.e., applied to the same supervised model).
 
-The next figure demonstrates that LaFAM, being class-agnostic, highlights multiple objects in the image (e.g., both dogs), whereas Grad-CAM focuses on just one object tied to the predicted class. This multi-object sensitivity is a useful trait in many scenarios, as in real-world images almost always contain several relevant items.
+In the first row, the model actually mispredicted the ImageNet class, so Grad-CAM dutifully highlighted an irrelevant region associated with the wrong class. This illustrates a subtle strength--by not being yoked to the top-1 predicted label, simply averaging the last CNN layer won’t completely go off the rails when the model’s prediction is off. It shows everything the model found salient, not just what influenced the (possibly incorrect) class choice. For SSL models, LaFAM is notably less noisy than RELAX’s outputs.
+
+The next figure demonstrates that LaFAM, being class-agnostic, highlights multiple objects in the image (e.g., both dogs), whereas Grad-CAM focuses on just one object tied to the predicted class. This multi-object sensitivity is a useful trait in many scenarios, as real-world images almost always contain several relevant items.
 
 ![LaFAM for Multiple Objects](/assets/img/lafam/pascal_voc_2012_2_classes.svg){: .center-image }
 
@@ -61,26 +65,11 @@ Let's look closer at the model misprediction cases. For Grad-CAM we visualize th
 
 ![Grad-CAM for Missclussification Case](/assets/img/lafam/imgnet_missclf_short.svg){: .center-image }
 
-LaFAM clearly highlights true objects, suggesting that these objects strongly activate multiple channels in the final conv layer. However, the prediction is wrong. The reason could be that the the last fully connected layer puts more weight on specific features that mislead the final decision, even though many other features correctly identify the object.
+LaFAM clearly highlights true objects, suggesting that these objects strongly activate multiple channels in the final conv layer. However, the prediction is wrong. The reason could be that the last fully connected layer puts more weight on specific features that mislead the final decision, even though many other features correctly identify the object.
 
-<!-- <details><summary>Under the Hood: Why Averaging Activations Makes Sense</summary> Aside from empirical results, one might wonder *why does averaging feature maps produce meaningful saliency at all?* There’s some intuition rooted in CNN architecture:
+## What Do the Numbers Say?
 
-Hierarchy of features: In CNNs, earlier layers detect simple patterns (edges, textures) and later layers detect complex concepts (object parts, etc.). By the final convolutional layer, each channel often acts like a rough detector for some semantic concept (e.g., one channel might activate on “dog face”, another on “ball”). Research has shown CNNs can develop these detectors even without labels[0]. So an activation map in a deep layer highlights where that concept is present.
-
-CAM without the C: Class Activation Mapping (CAM) methods normally weight these feature maps by how important each concept is to a specific class. LaFAM essentially uses equal weights for all concepts – a “universal” heatmap. Surprisingly, this still aligns well with true salient objects in many cases[0]. Why? Because generally, any strongly activated feature in a deep layer corresponds to something that the model found interesting in the image. If multiple objects are present, their features activate different channels, and averaging brings them all together.
-
-For implementation, LaFAM is extremely light: one forward pass, grab the conv feature maps, average, normalize, upsample. In code, if feat_maps is a tensor of shape (C,H,W) from the model, it’s basically:
-
-saliency = feat_maps.mean(dim=0)            # average over channels -> (H,W)
-saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-5)
-saliency = upsample(saliency, size=input_image.size)
-
-
-The result is a 2D map you can overlay on the input image (e.g., as a heatmap). Simple, yet surprisingly effective!
-
-</details> -->
-
-### What do the Numbers Say?
+To move beyond visual inspection, Karjauv & Albayrak tested LaFAM on standard datasets (ImageNet-S and PASCAL VOC 2012) using segmentation masks as ground truth. The logic is simple: if the saliency map highlights the pixels that actually belong to the object, the attribution is accurate.
 
 <table id="imagenet_results">
   <caption>Saliency maps performance comparison on ImageNet-S (higher values are better).</caption>
@@ -191,7 +180,7 @@ Karjauv & Albayrak put LaFAM to the test on standard datasets to see how well th
 <details><summary>What are these metrics?</summary>
 
 <p>
-<strong>Pointing Game:</strong> Percentage of samples where the top point (max value) in the saliency map falls inside the ground-truth object region (higher = better).
+<strong>Pointing Game:</strong> Percentage of samples where the single most salient pixel falls inside the ground-truth object region.
 </p>
 
 <p>
@@ -199,161 +188,64 @@ Karjauv & Albayrak put LaFAM to the test on standard datasets to see how well th
 </p>
 
 <p>
-<strong>Relevance Mass Accuracy / Rank Accuracy:</strong> Metrics that assess how much of the saliency “mass” or ordering aligns with the ground truth region.
-</p>
-$$
-\text{RMA} = \frac{\sum_{i \in \mathcal{M}} R_i}{\sum_{i \in \mathcal{I}} R_i}
-$$
-
-<p>
-<strong>Sparseness:</strong> A measure of how concentrated the saliency map is (higher means it’s focused on fewer pixels, lower means more spread out).
+<strong>Relevance Mass Accuracy / Rank Accuracy:</strong> Metrics that assess how much of the total saliency "mass" falls within the object mask, or how well the saliency values are ordered (foreground > background).
 </p>
 
 <p>
-<strong>AUC (Area Under the Curve)</strong>: The metric evaluates how accurately a salience map aligns with the object of interest by treating every pixel as a classification prediction (foreground vs. background). Using segmenatation mask as the ground truth, the metric assesses whether pixels inside the object are consistently assigned higher importance scores than background pixels. A high AUC indicates that the explanation aligns well with the object, regardless of the specific intensity threshold applied to the saliency map. Here is the implementation https://github.com/understandable-machine-intelligence-lab/Quantus/blob/85bcf2c8e88f7b8f3334f552ee72f8a37e870e1a/quantus/metrics/localisation/auc.py#L273
+<strong>Sparseness:</strong> A measure of how concentrated the saliency map is. Higher means the map is tight and focused; lower means it is more diffuse or noisy.
+</p>
 
-
+<p>
+<strong>AUC (Area Under the Curve)</strong>: Treats every pixel’s saliency value as a prediction of "foreground vs background" and measures how well they separate. A high AUC means the object pixels generally have higher values than background pixels.
 </p>
 </details>
 
-The results were encouraging for LaFAM. In the self-supervised setting, LaFAM outperformed RELAX across all metrics on both ImageNet-S and PASCAL VOC[0]. For example, on ImageNet-S (SimCLR model), LaFAM’s Pointing Game score was ~92% vs RELAX’s ~85%, and Sparseness ~50 vs RELAX’s ~31[0]. Higher sparseness indicates LaFAM’s explanations were more tightly focused, whereas RELAX’s were diffuse and noisy (matching the qualitative observation that RELAX maps can look “speckled”)[0]. Especially on small objects, RELAX struggled, often highlighting scattered patches, while LaFAM gave a cleaner highlight[0]. Figure 1 earlier already hinted at this: RELAX’s output had lots of stray highlighted bits not clearly forming an object shape.
+### Analyzing the Results
 
-Even in the supervised case, where Grad-CAM is a strong competitor, LaFAM held its ground. Grad-CAM did have the edge in some metrics – notably higher Sparseness (meaning Grad-CAM zeroed in on a tighter region)[0]. This makes sense: Grad-CAM is designed to pick out the single most discriminative region for a class, often just one object or part of it, whereas LaFAM is happy to highlight multiple regions if the network found multiple things interesting. Indeed, LaFAM’s Sparseness was lower, indicating a broader spread[0]. But is that really a bad thing? The authors argue not necessarily: if an image contains multiple relevant objects, LaFAM will highlight all of them, whereas Grad-CAM (focused on one predicted class) might ignore secondary objects[0]. So LaFAM’s “less sparse” maps can be interpreted as more comprehensive rather than sloppy. Figure 2 in the paper illustrated a scene with two distinct objects, where LaFAM successfully highlighted both simultaneously[0]. In scenarios like multi-object or multi-concept images, this trait is an advantage.
+The results tell us a story that goes deeper than just comparing two methods. The high performance of LaFAM confirms that CNNs inherently develop detectors for semantic objects, even without explicit supervision. Remember, LaFAM is simply averaging all activations in the final layer. The fact that this naive average aligns so perfectly with ground-truth objects implies that the most active features in the network are naturally the semantic objects. The network has learned to ignore the background noise on its own.
 
-To sum up the evaluation: LaFAM delivered robust saliency maps without needing labels, often rivaling the quality of supervised Grad-CAM maps[0]. It beat the prior SSL method (RELAX) handily, both in quantitative terms and visually (RELAX’s noise was evident)[0]. Of course, LaFAM isn’t perfect. The biggest caveat one might notice is that those saliency maps are low-resolution blobs due to the coarse feature map size. They tell you the general region of importance, but lack fine-grained detail. For instance, LaFAM might highlight “there is something important in this 50×50 pixel patch of the image,” but it won’t outline the object’s boundary or pinpoint whether it’s the object’s eyes or legs that are the focus. In my own experience applying LaFAM, I found myself both impressed by how well it found the right area, and simultaneously wanting more detail to truly trust or understand the model’s focus. The question became: Can we sharpen these explanations?
+Beyond its application in SSL, LaFAM offers a unique lens for debugging supervised models by removing the "tunnel vision" inherent in class-specific methods. While tools like Grad-CAM essentially tell the model to ignore everything except the target class, LaFAM reveals the quality of the learned representation as a whole. This holistic view is critical for diagnostics: it allows us to distinguish between a model that is "blind" (failing to detect the object entirely) and one that is "confused" (seeing the object clearly but misclassifying it due to the final decision layer). By highlighting everything the generic feature extractor considers important—rather than just what supports a specific decision—we can more easily spot when a model is relying on background shortcuts or ignoring secondary objects in complex scenes.
 
-This is where I turned to an established technique in XAI: Layer-wise Relevance Propagation.
+Besides the application in SSL, LaFAM can also be useful for debugging supervised models. CAM-based methods use the class label to filter the view—we essentially tell the model, ignoring everything else. But sometimes we want to verify the quality of the learned representation as a whole. We need to know everything the model considers important: If a supervised model is misclassifying an image, averaged convolution can reveal whether the model is focusing on the right object or getting distracted by irrelevant features. This can help diagnose issues like dataset bias or spurious correlations.
 
-Supercharging LaFAM with LRP (Layer-wise Relevance Propagation)
+The comparison with RELAX highlights this difference. RELAX struggles (low Sparseness) because it relies on perturbing the input to see what changes the embedding. LaFAM, by contrast, directly maps the presence of the learned features. The huge gap in performance suggests that the information was already there in the activation maps—we just needed to look at it directly rather than poking it with occlusion masks.
 
-If LaFAM gives us the where, perhaps \*LRP can give us the finer details of the what. Layer-wise Relevance Propagation (LRP) is a method developed a few years back for explaining classifier decisions by propagating the prediction score backwards through the network layers. Unlike gradient-based approaches, LRP doesn’t compute how the output would change if an input pixel changes; instead, it attributes a portion of the output score to each neuron (and eventually each input pixel) by a conservation rule – essentially bookkeeping how each layer’s activations contribute to the final output
-researchgate.net
-researchgate.net
-. The end result is a heatmap on the input highlighting which pixels were most “responsible” for the prediction.
+In the Supervised setting, LaFAM is competitive with Grad-CAM, but with a key distinction. Grad-CAM wins on "Sparseness" because it artificially suppresses features belonging to other classes. LaFAM includes them. While this hurts the sparseness score, it arguably provides a more honest view of the model's state: if the model sees a Cat and a Dog, LaFAM shows you both.
 
-For example, in a dog image classified as “dog,” LRP would start with the final score for “dog” and propagate backwards, dividing that score among pixels: pixels that strongly supported the “dog” detection get a high relevance value, pixels that had nothing to do with it get near-zero, and pixels that actively contradicted it could even get negative relevance (though often we focus on absolute or positive relevance). LRP has a variety of propagation rules (ε-rule, αβ-rule, etc.) to handle different layer types and ensure numerical stability, but the core idea is preserving the total relevance as you move from layer to layer (so the sum of relevances in layer $n$ equals the sum in layer $n+1$, eventually equal to the model output)
-researchgate.net
-.
+## Extending LaFAM: The Quest for Resolution
 
-Now, normally LRP is class-specific – you ask it to explain a particular output neuron (like the “dog” class score). How can we use it in a label-free setting? Here’s the trick we attempted: use the LaFAM activation sum as a pseudo-output. In other words, instead of a class probability, take the sum of activations in that conv layer (or the average, up to a constant factor) as the quantity to explain. After all, the LaFAM map is derived from those conv activations. If an image region lights up the LaFAM map, it means it caused a lot of activation in the conv layer. We can ask LRP: which input pixels caused these high activations? By propagating the relevance from that conv layer back to the input, we aim to get an LRP heatmap that is high-res and detailed. Intuitively, it’s like saying, “This whole conv layer was excited; please distribute that excitement back onto the pixels that were responsible.”
+While LaFAM is fast and effective, it has one inherent limitation: resolution. It relies on the final convolutional layer, which in a ResNet50 is a coarse $7 \times 7$ grid. Upsampling this to the image size results in "blobby" heatmaps that show the general location of an object but miss the fine contours.
 
-The expectation was that this hybrid approach would yield a saliency map with the broad coverage of LaFAM (no particular class bias, can catch multiple concepts) but with the pixel-level precision of LRP (outlining edges and specific features). Indeed, when I tried this on some images, the difference was stark: instead of 7×7 blocks, I got finely textured heatmaps. For example, a LaFAM blob on a dog’s face became an LRP heatmap that outlined the dog’s eyes, nose, and ears – details that were completely lost in LaFAM’s averaging approach.
+The paper suggests a potential path forward: combining LaFAM with Layer-wise Relevance Propagation (LRP).
 
-To set this up practically, one can do: forward pass to get conv features -> compute LaFAM map (average) -> take the scalar sum of all feature values in that conv layer (which is proportional to the sum of LaFAM map before normalization) -> call that $R_{layer}$ (the relevance at that layer) and propagate it back with LRP rules. Many deep learning libraries or XAI toolkits have LRP implementations; we just need to specify that all neurons in that conv layer start with equal relevance (or relevance equal to their activation actually, which essentially seeds the backward pass with the activation values themselves). This is akin to propagating through the network without looking at final classification at all, focusing only on that layer’s activation magnitude.
+LRP is a technique that normally starts with a class score and propagates it backward through the network, distributing "relevance" to neurons that contributed to that score. In a label-free context, we don't have a class score. However, we can treat the LaFAM map itself as the starting signal. By redistributing the coarse activation values from the top layer back down to the pixel level using LRP rules, we might theoretically recover fine-grained details—like the sharp edges of a cat’s ear—that the coarse map smooths over.
 
-LRP’s potential benefits:
+While this extension is still exploratory, it represents an exciting direction. It would bridge the gap between the semantic richness of deep layers and the spatial precision of shallow layers, all without needing a single label.
 
-High resolution: LRP’s output is the size of the input image (or close, depending on whether you propagate all the way to pixels or stop at an input embedding). It doesn’t rely on upsampling; it directly attributes to each pixel. So we get fine-grained heatmaps. Edges and small discriminative details often appear clearly in LRP maps.
+## Are Our Evaluation Metrics Actually Fair?
 
-Faithfulness to the model’s logic: LRP follows the network’s pathways. If a specific neuron in conv layer was huge because of a specific pattern in the image, LRP will highlight that pattern’s pixels. It’s not just an arbitrary edge detector – it uses the weights and activations of the model to decide what to highlight (more on this nuance soon).
+Looking at the tables, you might notice that Grad-CAM often beats LaFAM on metrics like **Sparseness** or **Top-K Intersection**. But we should pause and ask: do these metrics measure what we *actually* want?
 
-No randomness: Unlike perturbation methods, there’s no stochastic masking or approximation. It’s a deterministic computation, which is nice for reproducibility and speed (just one backward pass).
+Most standard XAI metrics, including the Pointing Game, implicitly assume that there is **one** correct object in the image—the one matching the ground-truth label. If a picture contains a dog and a cat, but the label is "dog," a method that highlights both will be penalized by these metrics.
 
-I found that combining these worked in principle, but as with any tool, new challenges emerged. When we overlay the LRP-refined map on images, yes we see more detail – but we also see some artefacts and need to interpret carefully. Let’s discuss a couple of issues that popped up:
+LaFAM is, by design, class-agnostic. It highlights *everything* the network finds salient. As we saw in the qualitative examples, this often leads to LaFAM highlighting multiple valid objects in a scene. Paradoxically, this makes it "worse" according to standard metrics, even though it might be providing a more honest view of the model's internal representation.
 
-Checkerboard Artifacts: If you’ve worked with generative models or some upsampling methods, you might know the infamous “checkerboard pattern” that can appear due to how convolutions with strides work (Odena et al. 2016 discuss this in the context of deconv layers). In my LRP maps, I occasionally noticed a subtle checkerboard or grid-like pattern in the heatmap, especially for transformer-based models or CNNs with certain stride/pooling patterns. This isn’t a meaningful feature of the image – it’s an artifact of the network architecture. Essentially, when LRP propagates relevance through layers that downsample (like a stride-2 conv), the way relevance is split and interpolated can lead to blocky patterns. It’s been noted in literature that some attribution methods yield undesirable checkerboard artifacts precisely due to limited resolution features being projected onto higher-res input space
-arxiv.org
-frontiersin.org
-. In our case, since we propagated from a 7×7 feature map, one might suspect a 7×7 block grid. Using some LRP variants or smoothing can reduce this, but it’s a caution: not every pattern in an explanation is truly “looking at” the image – some come from the model’s layer structure.
+This suggests that while metrics are useful for comparison, they are not neutral arbiters of truth. They encode specific assumptions—sparsity, single-object focus—that may not align with the goals of unsupervised learning.
 
-Overemphasis of Strong Features: Another thing I observed (and which has been reported by others) is that LRP can sometimes overemphasize the most activated features at the expense of others
-sciencedirect.com
-. For instance, if in an image of a bird the network was most excited by the bird’s head, the LRP map might be blazing red on the head and barely highlight the wings or tail, even though those might also be part of the “bird” concept. This happens because LRP is basically allocating the final score in proportion to contribution – if one part of the image contributed 80% of the “neural activation” for whatever we’re explaining, it might get 80% of the heatmap intensity. In contrast, LaFAM’s raw averaging was giving us a more uniform highlight if multiple parts had high activations in different channels. So, ironically, by adding LRP we risk losing the multi-object, multi-concept visibility that LaFAM originally had. In one of my tests, an image had two animals; LaFAM showed both (one fainter than the other), but LRP ended up really highlighting the bigger animal almost exclusively – the smaller one, which activated the network less, got very little relevance. This isn’t a flaw per se (it correctly reflected the network cared more about the bigger animal), but if our goal was to see all concepts, we have to remember LRP is still biased by magnitude of activation. Some literature addresses this by modifications like contrastive relevance propagation (which tries to ensure different objects get their share)
-researchgate.net
-researchgate.net
-, but plain LRP will show you the dominant factors.
+## Limitations and Key Takeaways
 
-Despite these issues, LRP did address the key limitation of LaFAM: detail. Fine structures like object boundaries, textured regions (stripes on a zebra, text on a sign, etc.) became visible. In many cases, the high-res map was more interpretable to me than a big blob. However, this led me to a puzzling observation when I tried to evaluate these LRP-enhanced maps with the same metrics as before: the detailed maps often scored worse!
+LaFAM is not a silver bullet. It is designed specifically for CNN architectures where spatial information is preserved in feature maps; applying it to Vision Transformers (ViTs) would require a different approach (perhaps using attention heads). Furthermore, without the LRP extension, the resolution remains coarse, which might not be precise enough for tasks like medical segmentation where pixel-perfect boundaries matter.
 
-When More Detail Hurts the Scores: A Metric Reality Check
+However, for practitioners working with SSL foundation models, LaFAM offers a practical, plug-and-play tool. It provides an immediate sanity check: *Is my model looking at the object, or did it just memorize the background grass?*
 
-It turns out that our standard saliency evaluation metrics have a built-in bias towards smooth, low-resolution maps. This is a critical lesson I learned (and one that a student project in our group also encountered). The metrics like Pointing Game, IOU/Intersection, etc., were originally designed with methods like CAM/Grad-CAM in mind – methods that produce one big contiguous highlight on the target object. A high-res, highly detailed explanation can paradoxically be penalized because it doesn’t align with the simplistic notion of “one blob = object” that some metrics implicitly expect
-researchgate.net
-.
+**Key Takeaways:**
 
-Let's break down how each metric can be affected:
+*   **LaFAM is fast and label-free:** It turns CNN activation maps into saliency maps with a single forward pass, making it ideal for Self-Supervised Learning.
+*   **Beats the alternative:** It produces cleaner, less noisy maps than occlusion-based methods like RELAX, without the heavy computational cost.
+*   **Robust to errors:** In supervised settings, LaFAM remains stable even when the model predicts the wrong class, often highlighting the true object when Grad-CAM is misled.
+*   **Metrics are tricky:** Standard evaluation metrics penalize methods that highlight multiple objects, potentially undervaluing the rich, multi-faceted representations learned by SSL models.
 
-Pointing Game: This metric is happy as long as the single most salient point falls inside the ground truth region. A coarse heatmap that places one big peak in the middle of the object will likely win this. But a detailed map might have multiple peaks of equal or similar intensity along the object’s edges or distinctive parts. If the absolute maximum happens to be on, say, the edge of the object (or on a secondary object), you “lose” the pointing game for that image, even though the explanation did highlight the object, just not with one singular hotspot. In one experiment, I found an LRP map that outlined an object’s silhouette – the highest value was on a sharp corner of the object (technically just outside the annotated mask), so it failed the pointing game, whereas LaFAM’s chunky blob squarely covered the center of the object and passed. Score one for the blob, zero for the fine outline.
-
-Top-K Intersection / IOU: Similar story: imagine we take the top 20% most highlighted pixels from a detailed LRP map. They might form a thin outline around the object and some spots on texture. The ground truth mask, however, includes the entire object area (filled in). Our detailed outline covers only the border pixels, which is a small fraction of the full area – so the Intersection-over-Union with the mask is low. A blurred LaFAM heatmap that covers the whole object interior, on the other hand, overlaps significantly with the mask, yielding a higher IoU. Thus, a blurry map can get a better “localization” score than a sharp map that actually delineates the object boundaries! We see how the metric favors coverage over precision. A study on explanation methods noted that guided backpropagation (which like LRP gives high-res detail) had poor localization scores compared to Grad-CAM, precisely because it highlights fine-grained features rather than the whole region
-researchgate.net
-.
-
-Relevance Mass Accuracy: This metric (as defined in Quantus) checks if the majority of the explanation’s mass lies in the ground truth region. If an explanation is very focused on edges or small parts, a lot of its mass might lie on the edges of the object, which might be just outside the ground truth segmentation (depending on annotation). Also, if it highlights an unannotated but salient part (e.g., a shadow the model finds important or a background context that is not labeled as object), that counts against it. A coarse method that blankets the object has most of its mass safely inside the lines, so it scores well. In Karjauv’s results, Grad-CAM had higher Relevance Mass Accuracy than LaFAM for ImageNet in one case[0], because Grad-CAM was tightly focused on the main object (fewer false positive pixels). LaFAM, being broader, sometimes bleeds into background or secondary objects (false positives by that metric). If we bring in an even more detailed method like LRP, chances are we’ll have some pixels lit up on object edges or parts that don’t neatly overlap the mask, hurting this score further.
-
-Sparseness: This one explicitly rewards concentrating on as few pixels as possible. A super high-res method might actually score better here if it only highlights a thin outline (that’s very sparse). But if the method highlights a lot of tiny features all over the object (lots of high-frequency detail), it could also be seen as less sparse (more pixels overall above a threshold). It depends. In practice, guided backprop and LRP often have many scattered bright spots (think of edges on both sides of a shape, textures inside, etc.), which can reduce sparseness score compared to one single blob. So again, depending on implementation, an LRP map might appear “noisier” and hence less sparse than a smooth Grad-CAM heatmap.
-
-AUC (Area Under Curve): If this refers to the deletion curve (gradually removing most salient pixels and measuring drop in performance), a detailed method might remove some pixels that greatly affect the model and others that don’t, whereas a coarse method might remove a big chunk that immediately causes a drop. The AUC can vary. If AUC here is used in the context of segmentation (like plotting true positive rate vs false positive rate as threshold changes), then high-frequency maps might have a curve that rises slower than a big blob as you threshold. It’s a bit abstract, but the main point is high-res maps won’t automatically excel here either.
-
-The important takeaway is that quantitative metrics can be misleading when comparing explanations of different styles. In fact, during the aforementioned student project “Evaluating Self-Supervised XAI methods,” we initially saw that the LRP-based explanations scored lower on several metrics than LaFAM or Grad-CAM. A naive interpretation would be “oh, LRP is worse.” But looking at the actual images told a different story: the LRP maps were showing more (edges, multiple objects) while the metrics were built to reward concise localization. It was a classic apples vs oranges situation in evaluation. That project taught us to critically examine evaluation criteria. A metric might declare one explanation “better,” but you have to ask: better for what? If the goal is pure object localization, a big smooth blob can indeed be “better” in a numeric sense. If the goal is richer understanding, more detail can be more useful, even if it confuses the metric.
-
-In the literature, there’s acknowledgement of this trade-off. One review noted that guided backprop (fine-detail method) yields fine-grained details of features but “localisation ability is very poor compared to CAM/Grad-CAM”, whereas CAM highlights the region well
-researchgate.net
-. In other words, high-res doesn’t equal high localization performance
-researchgate.net
-. As a practitioner, one has to decide what they want from an explanation. In my case, when debugging a model, I often do want the fine details (Is it the edge of the object or some texture in the background that matters? Are there multiple things?). But if someone just wants to know which object in the image is being focused on, a coarse map might suffice and even be preferable.
-
-<details><summary>**A Closer Look: Saliency Map Metrics** (optional nerdy detour)</summary> Let’s briefly define the key metrics formally, to see why they behave this way:
-
-Pointing Game: For each image with at least one ground-truth object, find the pixel with the highest saliency value. If that pixel lies inside the ground truth mask of the object (or on a keypoint), score = 1, else 0. Overall metric is the percentage of images where score=1[0]. Bias: Only cares about the single top pixel. Multiple peaks or spread-out importance can hurt if the max isn’t where it “should” be.
-
-Top-$K$ Intersection: Take the set of top $K$% most salient pixels (or an absolute number $K$ pixels). Compute intersection = how many of those are in the ground truth region. Then typically either report the fraction of top-$K$ inside (Intersection over K) or an IoU with the ground truth region. LaFAM paper uses “Top-K Intersection” as a percentage[0], likely meaning out of the top K% salient region, what % overlaps the true region (higher is better). Bias: If your salient pixels are thin or on the border, you cover less of the mask interior -> lower overlap. If your saliency is a fat blob covering the object, you get a big overlap (even if you also included some irrelevant pixels inside the blob).
-
-Relevance Mass Accuracy (RMA): Usually defined as the fraction of the total saliency mass that lies within the ground truth region, when the saliency map is normalized to sum to 1. Think of it as: sum of saliency values inside object / sum of saliency values overall[0]. A perfect explanation that only highlights the object would have RMA = 1 (100%). If you highlighted some outside stuff, RMA drops. Bias: Highly sensitive to any spread of heat outside the target. A detailed map that highlights context (like a bounding box around the object) will have lower RMA than a method that zeroes out everything except the object center.
-
-Relevance Rank Accuracy (RRA): This is a bit esoteric, but it might be something like: if you rank pixels by saliency, how well does that ranking correlate with an “ideal” ranking where all object pixels come before all non-object pixels (or some fuzzy version of that)[0]. In Quantus, rank accuracy might measure if the highest-ranked pixels coincide with the object pixels in terms of order. Bias: It rewards explanations that strictly prioritize true object pixels over any others. Again, any highlighting of background will reduce this.
-
-Sparseness: One common definition uses a Gini index or $L^1$ vs $L^2$ norm ratio to measure how concentrated the saliency distribution is. Roughly, a map that has a few very hot pixels and the rest near zero is “sparse” (high score), whereas a map that has moderately high values spread over many pixels is “less sparse” (low score). In the LaFAM paper, higher sparseness is considered better (fewer pixels with high activation)[0]. Bias: It penalizes methods that highlight many pixels. So a method that draws thin lines around an object might still highlight many pixels (all along the edge) – that could be less sparse than a method that highlights one blob in the center and nothing else. So edge-oriented explanations might actually get a worse sparseness score than blob-oriented ones, even though edges are thin, they cover a longer perimeter.
-
-Given these, it’s easy to see why an LRP map (with edges, multiple peaks) might underperform a CAM map (single blob) on such metrics. These metrics assume the “ground truth” explanation is essentially the ground truth segmentation or bounding box of the object – a single contiguous region. They’re not well-suited to evaluate whether an explanation correctly identified which features of the object were important, or if it detected multiple objects etc.
-
-Researchers are actively looking into better metrics and benchmarks
-arxiv.org
-(for example, faithfulness metrics that check if removing highlighted pixels drops model confidence, or complexity metrics to penalize overly noisy explanations, etc.). As XAI practitioners, we have to use a healthy dose of qualitative judgment along with numbers. In our lab’s project, once we realized the bias, we incorporated both kinds of metrics and noted the context: coarse methods were “winning” localization metrics, while fine methods were “winning” some faithfulness tests. A balanced view considers both.
-
-</details>
-“Where” vs “What”: The Limits of Unsupervised Attribution
-
-By now, we have a good grasp of how to get where the model is looking without any labels: start with LaFAM for a quick, broad view, and if needed, refine it with methods like LRP for detail. These tools can be life-savers when debugging or interpreting deep models trained on unlabeled data. For example, I used them to inspect a SimCLR model and discovered it consistently highlighted text in images (e.g., if there was a sign in the photo, the model paid a lot of attention to it) – something that’s good to know if you’re expecting the model to focus on, say, animals instead. It turned out my SSL model had learned a “text detector” feature (which makes sense, as text is a recurring visual element). This is the kind of insight you can get: what parts of the image are lighting up the network’s neurons?
-
-However, an unsupervised saliency map alone has an inherent limitation: it doesn’t tell you what the highlighted region represents. It answers “where is something important?” but not “why is it important or what is it recognized as?” In a supervised context, a Grad-CAM highlights a region because of a specific class prediction – you have at least a hint (“this region was important for ‘dog’”). In LaFAM or LRP-for-SSL, we might see a region on, say, the water in a landscape image being highlighted. Is it because the model detects a reflection? Or is it focusing on the texture of waves? Or maybe it thinks that region indicates the presence of an object (boat?) even if none is explicitly labeled. We can’t tell from the saliency alone.
-
-To truly get at the “what”, we often need to bring in additional techniques, like concept attribution. Concept attribution methods (such as TCAV – Testing with Concept Activation Vectors, or Network Dissection, etc.) attempt to assign semantic meaning to internal features. For instance, Network Dissection would probe each feature map to see if it correlates with a human-defined concept like “text”, “water”, “cat face” by using a dataset of concept labels. If we knew which channel in our conv layer corresponds to “text”, then seeing a LaFAM highlight on a sign could be explained as “the model is activating its text-detector feature here.” In unsupervised models, this is tricky because features can be arbitrary. But interestingly, recent work is looking at automatically naming SSL model features by comparing them to a bank of known concept features, or using zero-shot labelers like CLIP to guess what a pattern is.
-
-For example, suppose LaFAM+LRP shows a blob on a tree in the image. We might feed that patch (or the pattern from the corresponding feature map) into a tool that says “this feature looks like ‘foliage texture’.” That would answer the “what”. Without that, we’re left guessing. It’s common to misinterpret saliency maps if you’re not careful: A classic misunderstanding is thinking “the model cares about edges, so it must be detecting edges.” But the truth might be that the model uses edges as a means to detect something else. The edge is where the feature activates, but the concept could be the boundary of an object.
-
-One particularly incorrect assumption I’ve heard is “LRP (or similar high-res methods) are basically just edge detectors.” This likely stems from the observation that methods like guided backpropagation and sometimes LRP highlight lots of edges in the image
-researchgate.net
-. In fact, a well-known result by Adebayo et al. showed that guided backprop can even highlight edges of objects in a completely untrained network, suggesting it wasn’t explaining the class at all but just doing partial image recovery (hence, effectively an edge detector)
-researchgate.net
-. However, conflating LRP with a generic edge detector is a mistake. LRP is not inherently an edge detector – it doesn’t have a built-in Sobel filter or something. It highlights edges only insofar as the model’s prediction relied on edge-like features. If the model’s neurons fire on a texture or color, LRP would highlight those pixels instead. The reason LRP and gradient methods often show edges is because CNNs themselves heavily use edges and gradients in images to make decisions; edges are informative features for objects, so of course explanations often highlight them. But LRP won’t highlight an edge that the model doesn’t care about. For instance, if there’s a perfect outline of an object in the background that the model completely ignores, a pure edge detector would light it up, but LRP would not (zero relevance) because that edge didn’t contribute to the output. So, while LRP maps look like crisp edge maps, they are model-dependent – think of it as model-weighted edges. Guided backprop, on the other hand, was shown to basically always highlight edges whether or not they’re relevant (hence it was dubbed “just an edge detector”)
-researchgate.net
-. LRP’s use of the actual weights and activations helps it avoid being completely class-agnostic like that, making it more faithful.
-
-All that said, even a perfect explanation of where a model is looking leaves us with the job of interpreting what the model might be thinking. That interpretation can be guided by our domain knowledge or by additional analysis. In my case with the SSL model, seeing saliency on text and knowing there was no explicit task of text recognition, I inferred the model likely had a feature for text just because text is a common distinctive visual element. This was later validated by checking that particular feature channel’s activation on images with text. In general, bridging the gap from “where” to “what” is an open challenge. Tools like CLIP interrogation (using a multimodal model to label image regions) or generating exemplar images via activation maximization (finding an image that maximally activates a neuron) are sometimes used. In a recent transformer explainability work, the authors combined LRP with concept generation to actually visualize what each neuron encodes
-arxiv.org
-arxiv.org
-– an exciting direction but beyond our scope here.
-
-To keep our expectations calibrated: unsupervised saliency methods like LaFAM (even with LRP) are best at showing spatial focus. They won’t directly tell us the label of that focus. If you need to know “what feature is this?”, you’ll have to do an extra step. This is important to remember to avoid misinterpretations. It’s easy, for example, to see a heatmap on the background and say “the model is paying attention to the background, it must be using context.” But perhaps the model recognizes something in the background as an object (like a bird sitting in a tree – maybe the tree pattern triggers a “branch” feature which the model has learned for context or for recognizing certain bird species that always sit on branches). The saliency alone won’t differentiate whether it’s using the branch because it loves branches in general or because branch is tied to a “bird on branch” concept. Additional concept analysis or experiments (like remove the branch and see if the bird is still recognized) can shed light on that.
-
-Conclusion (and what’s next)
-
-Our journey in this post took us from a problem (how do I explain a model with no labels?) to a solution (LaFAM’s label-free activation maps) and then beyond (addressing LaFAM’s low-res limitation with LRP for finer detail). We saw that LaFAM offers a simple, efficient way to get saliency in self-supervised models, essentially letting the network highlight whatever it found important in the image[0]. We then introduced LRP, which, when combined with LaFAM, can give more detailed explanations by tracing those activations back to the exact pixels
-researchgate.net
-. Along the way, we critically examined how we measure explanation quality: naive metrics might favor smoother, simpler maps and undervalue the richer information that detailed maps provide
-researchgate.net
-. We also discussed some pitfalls like checkerboard artifacts
-frontiersin.org
-and biases in LRP, and clarified why seeing edges in explanations doesn’t mean the explainer is “just doing edge detection”
-researchgate.net
-.
-
-For practitioners, the takeaway is to use these tools in combination: start simple (LaFAM) to get a quick read on where, and if needed, dive deeper (LRP or other backprop methods) to get the fine print. But always interpret with caution and in context. High-resolution doesn’t automatically mean “better” for localization, and broad highlights don’t automatically mean “worse” either – they each have use cases. When evaluating, consider multiple criteria (and maybe don’t rely solely on one set of metrics – look at the maps yourself!).
-
-On a personal note, applying these methods felt a bit like turning on a light inside the “black box” of my SSL model. It didn’t answer everything (I still may not know why exactly a certain region is important), but it sure helped guide my next questions and debugging steps. It’s a reminder that explainability is often an iterative, human-in-the-loop process: the tools show something, and it’s up to us to reason about it or design further tests.
-
-In the next part of this series, we’ll venture into another tricky area: Multiple Instance Learning (MIL), where only bag-level labels are given and we have to figure out which instances contribute to the prediction. Interpretability in MIL comes with its own set of challenges (since the model might hide its reasoning across many instances). We’ll see how some of the themes from this post – like needing unsupervised localization and dealing with weak signals – play out there. Stay tuned!
+By accepting that we don't always need a label to explain a model, we open the door to understanding the "general purpose" vision of foundation models—blurs, blobs, and all.
 
 ## References
 
