@@ -67,6 +67,9 @@ a {
     display: none;
 }
 
+.pause-icon {
+    display: block;
+}
 
 .paused .play-icon {
     display: block;

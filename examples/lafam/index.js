@@ -388,11 +388,11 @@ class ModelWorker {
 
           $this.video.srcObject = $this.localMediaStream;
 
-          $this.video.onloadedmetadata = async () => {
-            await $this.video.play();
-            $this._onPlay();
-            $this.mainSection.classList.remove("paused");
-          };
+          // $this.video.onloadedmetadata = async () => {
+          //   await $this.video.play();
+          //   $this._onPlay();
+          //   $this.mainSection.classList.remove("paused");
+          // };
         } catch (err) {
           console.error("Error switching camera:", err);
         }

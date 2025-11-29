@@ -1,4 +1,4 @@
-const CACHE_NAME = "cache-v2";
+const CACHE_NAME = "cache-v2.1";
 // const urlsToCache = [];
 
 // self.addEventListener("install", (event) => {
@@ -29,26 +29,20 @@ self.addEventListener('message', event => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (!event.request.url.startsWith("http")) {
-    return;
-  }
+  if (!event.request.url.startsWith("http")) return;
 
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      if (response) {
-        // Cache hit - return response
-        return response;
-      }
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
 
-      // Cache miss - fetch from network
       return fetch(event.request).then((response) => {
-        // Check if we received a valid response
         if (!response || response.status !== 200 || response.type !== "basic") {
           return response;
         }
 
         const responseClone = response.clone();
         const contentLength = response.headers.get('Content-Length');
+
         if (response.body && contentLength) {
           const total = parseInt(contentLength, 10);
           let loaded = 0;
@@ -58,33 +52,37 @@ self.addEventListener("fetch", (event) => {
             async start(controller) {
               while (true) {
                 const { done, value } = await reader.read();
-                if (done) {
-                  break;
-                }
+                if (done) break;
+                
                 loaded += value.byteLength;
-                // Report progress
-                const progress = Math.round((loaded / total) * 100);
+                
+                const rawPercentage = (loaded / total) * 100;
+                // dut to compression, the progress may exceed 100%
+                const progress = Math.min(100, Math.round(rawPercentage));
+                
                 const fileName = event.request.url.split('/').pop();
                 reportProgress(fileName, progress);
+                
                 controller.enqueue(value);
               }
               controller.close();
             }
           });
 
-          // Update the cache with the new response
+          const newHeaders = new Headers(response.headers);
+          newHeaders.delete('Content-Length');
+
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, new Response(stream, { headers: response.headers }));
+            cache.put(event.request, new Response(stream, { 
+              headers: newHeaders 
+            }));
           });
 
-          // Return the original response
           return responseClone;
         } else {
-          // Update the cache
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
           });
-          
           return response;
         }
       });
