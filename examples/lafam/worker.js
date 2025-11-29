@@ -10,17 +10,12 @@ const INPUT_HEIGHT = 224;
 
 let layer4;
 let fc;
-let fc_wo_pooling; // fc without average-pooling
 let results;
 let activations;
 let output_weights;
-let squareClassModel;
-
 
 onmessage = async (e) => {
   const { data } = e;
-  console.log('status', data.status);
-
   if (data.status === "predict") {
     const imgDataTensor = new ort.Tensor("float32", data.tensor, [
       1,
@@ -114,14 +109,6 @@ onmessage = async (e) => {
     executionProviders: ["wasm"],
   });
 
-  fc_wo_pooling = await ort.InferenceSession.create("resnet50_imagenet_fc_wo_averagepooling.onnx", {
-    executionProviders: ["wasm"],
-  });
-
-  squareClassModel = await ort.InferenceSession.create("resnet_masking_1x1_3x3.onnx", {
-    executionProviders: ["wasm"],
-  });
-
   output_weights = await fetch("resnet_output_weights.bin").then((r) =>
     r.arrayBuffer()
   );
@@ -132,8 +119,35 @@ onmessage = async (e) => {
 
 async function predict_per_square(tensor = null) {
   const imgDataTensor = new ort.Tensor("float32", tensor, [1, 3, INPUT_HEIGHT, INPUT_WIDTH,]);
-  const results = await squareClassModel.run({ l_x_: imgDataTensor });
-  return { logits: results.max_1.cpuData, classIds: results.max_1_1.cpuData };
+  let acts = await layer4.run({ l_x_: imgDataTensor })
+  acts = acts.resnet_layer4_1.cpuData;
+  acts = new ort.Tensor("float32", acts, [1, 2048, 7, 7]);
+
+  let logits = new Float32Array(7*7).fill(0)
+  let classIds = new Uint16Array(7*7).fill(0)
+
+  for (let i = 0; i < 7; i++) {
+    for (let j = 0; j < 7; j++) {
+      let a = new Float32Array(2048 * 7 * 7).fill(0);
+      for (let k = 0; k < 2048; k++) {
+        a[k * 7 * 7 + i * 7 + j] = acts.data[k * 7 * 7 + i * 7 + j];
+      }
+
+      let r = await fc.run({
+        l_activations_: new ort.Tensor("float32", a, [1, 2048, 7, 7]),
+      });
+
+      const logit = r.fc_1.cpuData;
+      const maxIdx = logit.indexOf(Math.max(...logit));
+      const maxLogit = logit[maxIdx];
+      logits[i * 7 + j] = maxLogit;
+      classIds[i * 7 + j] = maxIdx;
+    }
+  }
+    
+
+  return { logits: logits, classIds: classIds };
+  // return { logits: results.max_1.cpuData, classIds: results.max_1_1.cpuData };
 }
 
 function softmax(arr) {
