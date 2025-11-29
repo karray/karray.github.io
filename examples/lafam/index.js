@@ -318,7 +318,7 @@ class ModelWorker {
     }
 
     try {
-      this.localMediaStream = await navigator.mediaDevices.getUserMedia({});
+      this.localMediaStream = await navigator.mediaDevices.getUserMedia({video: true});
     } catch (error) {
       console.warn("Camera permission denied or device not found", error);
       debug_devices.textContent +=
