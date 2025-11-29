@@ -63,6 +63,36 @@ a {
     vertical-align: middle;
 }
 
+.play-icon {
+    display: none;
+}
+
+
+.paused .play-icon {
+    display: block;
+}
+
+.paused .pause-icon {
+    display: none;
+}
+
+#main-section:not(.ready) #upload-button,
+#main-section:not(.ready) .split-action,
+#main-section:not(.ready) #start-button,
+#main-section:not(.camera-available) #start-button,
+#main-section:not(.ready) #switch-camera-button,
+#main-section:not(.camera-available) #switch-camera-button {
+    background-color: var(--border-color);
+    /* Grey out */
+    color: var(--text-muted);
+    pointer-events: none;
+    /* PREVENTS CLICKING */
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+
 body.dark-mode .icon {
     filter: invert(1);
 }

@@ -31,11 +31,11 @@
             <!-- Controls -->
             <div class="card" id="control-panel">
                 <div class="button-group">
-                    <button id="start-button" class="btn" disabled title="Start/Pause Camera">
+                    <button id="start-button" class="btn" title="Start/Pause Camera">
                         <img src="play.svg" class="icon play-icon" />
                         <img src="pause.svg" class="icon pause-icon" style="display:none;" />
                     </button>
-                    <button id="switch-camera-button" class="btn" disabled title="Switch Camera">
+                    <button id="switch-camera-button" class="btn" title="Switch Camera">
                         <img src="switch-camera.svg" class="icon" />
                     </button>
                     <!-- Slim Split-Button for Upload & Presets -->
@@ -87,12 +87,12 @@
                     </button>
                 </div>
                 <div class="select-wrapper">
-                    <select id="palette-select" class="lafam-select">
-                    </select>
                     <select id="mode-select" class="lafam-select">
                         <option value="predict" selected>Classifier with LaFAM/GradCAM</option>
                         <option value="imagenet-classes">Multi-instance classification</option>
                         <option value="groupmap-bbs">Object detection</option>
+                    </select>
+                    <select id="palette-select" class="lafam-select">
                     </select>
                 </div>
                 <div id="slider-container">

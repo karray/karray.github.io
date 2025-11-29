@@ -28,7 +28,6 @@ let selectionEnabled = false;
 let theImage = null;
 let theSquareData = null;
 
-let isCameraAvailable = false;
 
 class ModelWorker {
   constructor(url) {
@@ -337,12 +336,10 @@ class ModelWorker {
     cameras = cameras.filter((device) => device.kind === "videoinput");
 
     if (cameras.length === 0) {
-      // startButton.textContent = "No camera";
       return;
     }
     console.log("Cameras found:", cameras);
-    this.startButton.disabled = false;
-    isCameraAvailable = true;
+    this.mainSection.classList.add("camera-available");
 
     const targetDeviceId = cameras[cameras.length - 1].deviceId;
 
@@ -363,20 +360,11 @@ class ModelWorker {
     }
 
     this.video.srcObject = this.localMediaStream;
-    // Handle autoplay promise to prevent "Uncaught (in promise) DOMException"
-    try {
-      await this.video.play();
-      this._onPlay(); // Trigger your custom play handler immediately
-    } catch (e) {
-      console.log("Autoplay blocked, waiting for user interaction");
-    }
 
-    // 6. MULTIPLE CAMERAS LOGIC
+
     if (cameras.length > 1) {
-      document.body.classList.add("multiple-cameras");
 
       this.switchCameraButton.onclick = async () => {
-        // Pause and stop old tracks
         $this.video.pause();
         if ($this.localMediaStream) {
           $this.localMediaStream.getTracks().forEach((track) => track.stop());
@@ -400,7 +388,6 @@ class ModelWorker {
 
           $this.video.srcObject = $this.localMediaStream;
 
-          // Wait for video to be ready before playing
           $this.video.onloadedmetadata = async () => {
             await $this.video.play();
             $this._onPlay();
@@ -412,7 +399,6 @@ class ModelWorker {
       };
     }
 
-    // Ensure _onPlay is called if not caught above
     this.video.addEventListener(
       "play",
       () => {
@@ -447,10 +433,7 @@ class ModelWorker {
   _onmessage(e) {
     const { data } = e;
     if (data.status === "ready") {
-      if (isCameraAvailable) {
-        this.startButton.disabled = false;
-        this.switchCameraButton.disabled = false;
-      }
+
       document.getElementById("loading-indicator").style.display = "none";
       this.mainSection.classList.add("ready");
     }
