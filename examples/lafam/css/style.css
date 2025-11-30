@@ -276,6 +276,24 @@ input:checked+.slider:before {
     filter: invert(1);
 }
 
+#loading-text {
+    margin-top: 10px;
+}
+
+.slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+    color: var(--text-muted);
+}
+
+.prediction-placeholder {
+    color: var(--text-muted);
+    justify-content: center;
+}
+
+
 #grid {
     display: none;
     z-index: 3;

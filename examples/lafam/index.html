@@ -16,8 +16,8 @@
         <div class="canvas-block" id="canvas-area">
             <div class="canvas-wrapper">
                 <div id="loading-indicator" class="loading">
-                    <img src="assets/images/loading.svg" />
-                    <div id="loading-text" style="margin-top:10px;">Initializing...</div>
+                    <img src="assets/images/loading.svg" alt="Loading animation" />
+                    <div id="loading-text">Initializing...</div>
                 </div>
                 <canvas id="img-canvas" width="1024" height="1024"></canvas>
                 <canvas id="heatmap-canvas" width="1024" height="1024"></canvas>
@@ -30,18 +30,21 @@
             <!-- Controls -->
             <div class="card" id="control-panel">
                 <div class="button-group">
-                    <button id="start-button" class="btn" title="Start/Pause Camera">
-                        <img src="assets/images/play.svg" class="icon play-icon" />
-                        <img src="assets/images/pause.svg" class="icon pause-icon" />
+                    <button id="start-button" class="btn" title="Start/Pause Camera"
+                        aria-label="Start or pause camera stream">
+                        <img src="assets/images/play.svg" class="icon play-icon" alt="Play icon" />
+                        <img src="assets/images/pause.svg" class="icon pause-icon" alt="Pause icon" />
                     </button>
-                    <button id="switch-camera-button" class="btn" title="Switch Camera">
-                        <img src="assets/images/switch-camera.svg" class="icon" />
+                    <button id="switch-camera-button" class="btn" title="Switch Camera"
+                        aria-label="Switch between available cameras">
+                        <img src="assets/images/switch-camera.svg" class="icon" alt="Switch camera icon" />
                     </button>
                     <!-- Slim Split-Button for Upload & Presets -->
                     <div class="btn upload-split-group" id="upload-group">
                         <!-- Left: Upload Trigger -->
-                        <div id="upload-button" class="split-action" title="Upload Image">
-                            <img src="assets/images/upload.svg" class="icon" />
+                        <div id="upload-button" class="split-action" title="Upload Image"
+                            aria-label="Upload an image from your device">
+                            <img src="assets/images/upload.svg" class="icon" alt="Upload icon" />
                         </div>
                         <input type="file" id="upload-input" accept="image/*" style="display: none;">
 
@@ -63,12 +66,9 @@
                             </select>
                         </div>
                     </div>
-                    <!-- <label class="theme-switch" for="checkbox">
-                        <input type="checkbox" id="checkbox" />
-                        <div class="slider"></div>
-                    </label> -->
 
-                    <button id="theme-toggle-button" class="btn" title="Toggle Theme">
+                    <button id="theme-toggle-button" class="btn" title="Toggle Theme"
+                        aria-label="Toggle between light and dark theme">
                         <!-- Moon Icon (Visible in Light Mode) -->
                         <svg class="icon moon-icon" viewBox="0 0 24 24">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -80,7 +80,8 @@
                         </svg>
                     </button>
 
-                    <button id="help-button" class="btn help" title="Start Tutorial">
+                    <button id="help-button" class="btn help" title="Start Tutorial"
+                        aria-label="Start interactive tutorial">
                         ?
                     </button>
                 </div>
@@ -94,8 +95,7 @@
                     </select>
                 </div>
                 <div id="slider-container">
-                    <div
-                        style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px; color: var(--text-muted);">
+                    <div class="slider-label">
                         <label for="heatmap-opacity">Heatmap Opacity</label>
                     </div>
                     <input type="range" id="heatmap-opacity" min="0.0" max="1.0" value="0.5" step="0.05">
@@ -106,7 +106,7 @@
             <div class="predictions-container card" id="predictions-panel">
                 <div class="prediction-title">
                     <div>Predictions</div>
-                    <button id="clear-selection" disabled title="Clear selection">
+                    <button id="clear-selection" disabled title="Clear selection" aria-label="Clear all selections">
                         <svg class="icon" viewBox="0 0 24 24">
                             <path
                                 d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -114,8 +114,7 @@
                     </button>
                 </div>
                 <div id="prediction-list">
-                    <div class="" style="color: var(--text-muted); justify-content: center;"><span>Ready to
-                            analyze</span></div>
+                    <div class="prediction-placeholder"><span>Ready to analyze</span></div>
                 </div>
             </div>
         </div>

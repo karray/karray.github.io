@@ -4,10 +4,8 @@ function findAreas(grid, skipNumbers = []) {
   const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
   const areas = [];
 
-  // Convert skipNumbers array to a Set for efficient lookups
   const skipSet = new Set(skipNumbers);
 
-  // Directions for neighboring cells: up, down, left, right
   const directions = [
     [-1, 0], [1, 0], [0, -1], [0, 1]
   ];
@@ -61,7 +59,6 @@ function findBoundingBoxes(areas) {
       maxCol = Math.max(maxCol, col);
     }
 
-    // Return the bounding box as [top-left, bottom-right]
     return {
       groupId: area.groupId,
       topLeft: [minRow, minCol],
@@ -80,10 +77,9 @@ function drawBoundingBox(box, canvasId, color = '#ff0000') {
   const ctx = canvas.getContext("2d");
   const minSide = Math.min(canvas.width, canvas.height);
 
-  const cellSize = minSide / 7; // Size of each grid cell in pixels
+  const cellSize = minSide / 7;
   const borderThickness = Math.round(Math.max(5, Math.min(11, cellSize / 16)));
 
-  // Set the stroke style
   ctx.strokeStyle = color;
   ctx.lineWidth = borderThickness;
 
@@ -93,7 +89,6 @@ function drawBoundingBox(box, canvasId, color = '#ff0000') {
   // give each box a slight offset such that the boxes' edges dont overlap 100%
   const offset = 0; // Math.floor(20 * Math.random()) - 10;
 
-  // Calculate rectangle dimensions, also make sure it stays in canvas bounds
   let x = Math.round(leftCol * cellSize) + offset;
   x = Math.max(x, borderThickness / 2);
   let y = Math.round(topRow * cellSize) + offset;
@@ -103,11 +98,9 @@ function drawBoundingBox(box, canvasId, color = '#ff0000') {
   let height = Math.round((bottomRow - topRow + 1) * cellSize) + offset;
   height = Math.min(height, minSide - y - borderThickness / 2);
 
-  // Draw the rectangle
   ctx.strokeRect(x, y, width, height);
 
-  // Draw group name
-  const groupName = grouper.getGroupName(box.groupId);
+  const groupName = AppState.grouper.getGroupName(box.groupId);
   const fontSize = Math.max(16, minSide / 25);
   const textX = x + borderThickness / 2 + 2;
   const textY = y + borderThickness / 2 + 2;
@@ -128,7 +121,6 @@ function to2DArray(array, rows, cols) {
 
   const result = [];
   for (let i = 0; i < rows; i++) {
-    // Slice a chunk of `cols` from the array for each row
     result.push(array.slice(i * cols, i * cols + cols));
   }
   return result;

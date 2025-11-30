@@ -19,14 +19,15 @@ const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 const TOP_N = 14;
 
-let include_groups = null;
-let exclude_groups = null;
-let grouper = null;
-
-let selectionEnabled = false;
-
-let theImage = null;
-let theSquareData = null;
+// Application state management
+const AppState = {
+  includeGroups: null,
+  excludeGroups: null,
+  grouper: null,
+  selectionEnabled: false,
+  currentImage: null,
+  squareData: null
+};
 
 
 class ModelWorker {
@@ -46,36 +47,34 @@ class ModelWorker {
     this.initEvents();
     this._clearGroupMapDisplay();
 
-    fetch("assets/data/imagenet_class_index.json")
-      .then((response) => response.json())
-      .then((data) => (this.imagenet_classes = data));
-
-    fetch("assets/data/palettes.json")
-      .then((response) => response.json())
-      .then((data) => {
-        $this.palettes = data;
-        $this.currentPalette = Object.keys(data)[0];
-        for (const palette in data) {
-          const option = document.createElement("option");
-          option.value = palette;
-          option.textContent = palette;
-          $this.paletteSelect.appendChild(option);
-        }
-      });
-
-    fetch("assets/data/exclude_groups.json")
-      .then((response) => response.json())
-      .then((data) => (exclude_groups = data));
-
-    fetch("assets/data/include_groups.json")
-      .then((response) => response.json())
-      .then((data) => (include_groups = data));
+    // Parallelize data fetches for faster startup
+    Promise.all([
+      fetch("assets/data/imagenet_class_index.json").then(r => r.json()),
+      fetch("assets/data/palettes.json").then(r => r.json()),
+      fetch("assets/data/exclude_groups.json").then(r => r.json()),
+      fetch("assets/data/include_groups.json").then(r => r.json())
+    ]).then(([imagenetClasses, palettes, excludeGroups, includeGroups]) => {
+      this.imagenet_classes = imagenetClasses;
+      this.palettes = palettes;
+      this.currentPalette = Object.keys(palettes)[0];
+      AppState.excludeGroups = excludeGroups;
+      AppState.includeGroups = includeGroups;
+      
+      // Initialize palette select options
+      for (const palette in palettes) {
+        const option = document.createElement("option");
+        option.value = palette;
+        option.textContent = palette;
+        this.paletteSelect.appendChild(option);
+      }
+    }).catch(error => {
+      console.error("Failed to load data files:", error);
+      addLogMsg("Error loading data files: " + error.message);
+    });
   }
 
   initElements() {
     this.paletteSelect = document.getElementById("palette-select");
-    // this.showLogits = document.getElementById("btn-show-logits");
-    // this.showBBoxes = document.getElementById("btn-show-bboxes");
     this.modeSelect = document.getElementById("mode-select");
     this.mainSection = document.getElementById("main-section");
     this.video = document.createElement("video");
@@ -105,7 +104,7 @@ class ModelWorker {
       $this._clearGroupMapDisplay();
       $this.video.pause();
       $this.mainSection.classList.add("paused");
-      theSquareData = null;
+      AppState.squareData = null;
       const status = this.modeSelect.value;
       $this.load_selected_image(status);
     });
@@ -119,7 +118,7 @@ class ModelWorker {
       $this._clearGroupMapDisplay();
       $this.video.pause();
       $this.mainSection.classList.add("paused");
-      theSquareData = null;
+      AppState.squareData = null;
       this.modeSelect.value = "predict";
 
       const file = e.target.files[0];
@@ -130,7 +129,7 @@ class ModelWorker {
         img.onload = () => {
           this.setSize(img.width, img.height);
           const imageData = this.getImage(img);
-          theImage = imageData;
+          AppState.currentImage = imageData;
 
           const status = this.modeSelect.value;
           this._postMessage(status, imageData);
@@ -145,7 +144,7 @@ class ModelWorker {
     });
 
     this.predictionList.addEventListener("click", (event) => {
-      if (!selectionEnabled) return;
+      if (!AppState.selectionEnabled) return;
       if (!this.video.paused) return;
       const div = event.target.closest(".prediction");
       if (!div) return; // Clicked outside a prediction div
@@ -194,13 +193,13 @@ class ModelWorker {
     };
 
     this.paletteSelect.onchange = function () {
-      if (!selectionEnabled) return;
+      if (!AppState.selectionEnabled) return;
       $this.currentPalette = this.value;
       $this.updateHeatmap($this.currentHeatmap);
     };
 
     this.startButton.addEventListener("click", (e) => {
-      theSquareData = null;
+      AppState.squareData = null;
       if ($this.video.paused) {
         this._clearSelections();
         $this.video.play();
@@ -217,7 +216,7 @@ class ModelWorker {
 
     // root event listener for cells (divs)
     this.heatmapGrid.addEventListener("click", (e) => {
-      if (!selectionEnabled) return;
+      if (!AppState.selectionEnabled) return;
 
       const div = e.target.closest("div");
       if (!div) return;
@@ -253,22 +252,27 @@ class ModelWorker {
       }
     });
 
-    selectionEnabled = false;
+    AppState.selectionEnabled = false;
+  }
+
+  _resizeCanvases(width, height) {
+    const minSide = Math.min(width, height);
+    
+    this.hidden_canvas.width = width;
+    this.hidden_canvas.height = height;
+    
+    this.img_canvas.width = minSide;
+    this.img_canvas.height = minSide;
+    
+    this.heatmap_canvas.width = minSide;
+    this.heatmap_canvas.height = minSide;
   }
 
   setSize(width, height) {
     this.width = width;
     this.height = height;
     this.min_side = Math.min(width, height);
-
-    this.hidden_canvas.width = width;
-    this.hidden_canvas.height = height;
-
-    this.img_canvas.width = this.min_side;
-    this.img_canvas.height = this.min_side;
-
-    this.heatmap_canvas.width = this.min_side;
-    this.heatmap_canvas.height = this.min_side;
+    this._resizeCanvases(width, height);
   }
 
   getImage(img) {
@@ -300,8 +304,8 @@ class ModelWorker {
               this.heatmap_canvas.height = this.min_side;
 
               let imgData = this.getImage(img);
-              theImage = imgData;
-              selectionEnabled = true;
+              AppState.currentImage = imgData;
+              AppState.selectionEnabled = true;
 
               this._postMessage(post_status, imgData);
             };
@@ -429,14 +433,23 @@ class ModelWorker {
     this.heatmap_canvas.height = this.min_side;
 
     this.toggleModeSelect(false);
-    theSquareData = null;
-    theImage = this.getImage(this.video);
+    AppState.squareData = null;
+    AppState.currentImage = this.getImage(this.video);
     const status = this.modeSelect.value;
-    this._postMessage(status, theImage);
+    this._postMessage(status, AppState.currentImage);
   }
 
   _onmessage(e) {
     const { data } = e;
+    
+    // Handle errors from worker
+    if (data.status === "error") {
+      document.getElementById("loading-indicator").style.display = "none";
+      addLogMsg("Worker Error: " + data.message);
+      alert("Failed to initialize: " + data.message);
+      return;
+    }
+    
     if (data.status === "ready") {
 
       document.getElementById("loading-indicator").style.display = "none";
@@ -456,14 +469,14 @@ class ModelWorker {
     }
 
     if (data.status === "square_results_for_groupmap") {
-      theSquareData = this.preprocessSquareResults(data.data);
+      AppState.squareData = this.preprocessSquareResults(data.data);
       this.updateGroupMap();
       this.updateGroupList();
       this._updateVideo();
     }
 
     if (data.status === "square_results_for_classmap") {
-      theSquareData = this.preprocessSquareResults(data.data);
+      AppState.squareData = this.preprocessSquareResults(data.data);
       this.updateClassMap();
       this.updateClassList();
       this._updateVideo();
@@ -516,9 +529,8 @@ class ModelWorker {
 
   processModeChange() {
     const value = this.modeSelect.value;
-    console.log("process mode change", value);
     if (value === "predict") {
-      this._postMessage("predict", theImage);
+      this._postMessage("predict", AppState.currentImage);
     } else if (value === "imagenet-classes") {
       this.showImagenetClasses();
     } else if (value === "groupmap-bbs") {
@@ -544,18 +556,18 @@ class ModelWorker {
 
   _updateVideo() {
     if (!this.video.paused) {
-      theImage = this.getImage(this.video);
+      AppState.currentImage = this.getImage(this.video);
       const status = this.modeSelect.value;
-      this._postMessage(status, theImage);
+      this._postMessage(status, AppState.currentImage);
     } else {
       this.toggleModeSelect(true);
     }
   }
 
   showGroupmap() {
-    if (theImage === null) return;
-    if (theSquareData === null) {
-      this._postMessage("groupmap-bbs", theImage);
+    if (AppState.currentImage === null) return;
+    if (AppState.squareData === null) {
+      this._postMessage("groupmap-bbs", AppState.currentImage);
     } else {
       this.updateGroupMap();
       this.updateGroupList();
@@ -565,12 +577,10 @@ class ModelWorker {
   }
 
   showImagenetClasses() {
-    if (theImage === null) return;
-    if (theSquareData === null) {
-      console.log("posting image data for classmap");
-      this._postMessage("imagenet-classes", theImage);
+    if (AppState.currentImage === null) return;
+    if (AppState.squareData === null) {
+      this._postMessage("imagenet-classes", AppState.currentImage);
     } else {
-      console.log("test");
       this.updateClassMap();
       this.updateClassList();
     }
@@ -588,7 +598,7 @@ class ModelWorker {
     toggleSelection(false);
 
     // show logits+classId in square
-    theSquareData.forEach((square, i) => {
+    AppState.squareData.forEach((square, i) => {
       const div = document.querySelector(`div[data-idx='${i}']`);
       if (div !== null) {
         const group = square.groupId;
@@ -601,15 +611,15 @@ class ModelWorker {
     });
 
     // calc and show groupmap
-    const groupIds = theSquareData
+    const groupIds = AppState.squareData
       .map((square) => square.classId)
-      .map((classId) => grouper.classToGroup(classId));
+      .map((classId) => AppState.grouper.classToGroup(classId));
     const heatmap = this.makeClassHeatmap(groupIds);
     this.setClassHeatmap(heatmap);
 
     // calc and show group bounding boxes
     const groupGrid2d = to2DArray(
-      theSquareData.map((square) => square.groupId),
+      AppState.squareData.map((square) => square.groupId),
       7,
       7
     );
@@ -620,10 +630,10 @@ class ModelWorker {
 
   updateGroupList() {
     // reuse prediction list div
-    if (theSquareData === null) return;
+    if (AppState.squareData === null) return;
     this._clearPredictionsList();
     let addedGroups = {};
-    theSquareData
+    AppState.squareData
       .toSorted((a, b) => a.groupId - b.groupId)
       .filter((square) => square.groupId >= 0)
       .forEach((square) => {
@@ -631,7 +641,7 @@ class ModelWorker {
           const div = document.createElement("div");
           div.style.padding = "10px";
           div.style.fontWeight = "bold";
-          div.innerText = `${square.groupId}: ${grouper.getGroupName(
+          div.innerText = `${square.groupId}: ${AppState.grouper.getGroupName(
             square.groupId
           )}`;
           this.predictionList.appendChild(div);
@@ -641,15 +651,15 @@ class ModelWorker {
   }
 
   preprocessSquareResults(data) {
-    if (!grouper) {
-      grouper = new ClassGrouper();
+    if (!AppState.grouper) {
+      AppState.grouper = new ClassGrouper();
     }
     let squareData = [];
     for (let i = 0; i < 49; i++) {
       squareData.push({
         logit: parseFloat(data.logits[i]),
         classId: parseInt(data.classIds[i]),
-        groupId: grouper.classToGroup(parseInt(data.classIds[i])),
+        groupId: AppState.grouper.classToGroup(parseInt(data.classIds[i])),
       });
     }
     return squareData;
@@ -794,7 +804,7 @@ class ModelWorker {
     toggleSelection(false);
 
     // show logits+classId in square
-    theSquareData.forEach((square, i) => {
+    AppState.squareData.forEach((square, i) => {
       const div = document.querySelector(`div[data-idx='${i}']`);
       if (div !== null) {
         const classId = square.classId;
@@ -807,16 +817,16 @@ class ModelWorker {
     });
 
     // calc and show group map
-    const classIds = theSquareData.map((square) => square.classId);
+    const classIds = AppState.squareData.map((square) => square.classId);
     const heatmap = this.makeClassHeatmap(classIds);
     this.setClassHeatmap(heatmap);
   }
 
   updateClassList() {
-    if (theSquareData === null) return;
+    if (AppState.squareData === null) return;
     this._clearPredictionsList();
     const seen = {};
-    theSquareData
+    AppState.squareData
       .map((square) => square.classId)
       .filter((classId, index, self) => {
         if (classId <= 0) return false;
@@ -836,16 +846,6 @@ class ModelWorker {
   }
 }
 
-// document.getElementById("grid").addEventListener("mousemove", (e) => {
-//   for (const date of document.querySelectorAll("#grid div")) {
-//     const rect = date.getBoundingClientRect(),
-//       x = e.clientX - rect.left,
-//       y = e.clientY - rect.top;
-
-//     date.style.setProperty("--mouse-x", `${x}px`);
-//     date.style.setProperty("--mouse-y", `${y}px`);
-//   }
-// });
 
 function toggleSelection(enabled) {
   for (let div of document.querySelectorAll("#grid div")) {
@@ -855,21 +855,17 @@ function toggleSelection(enabled) {
       div.classList.remove("grid-selection");
     }
   }
-  selectionEnabled = enabled;
+  AppState.selectionEnabled = enabled;
 }
 
 async function init() {
   if ("serviceWorker" in navigator) {
     try {
       await navigator.serviceWorker.register("service-worker.js");
-      console.log("Service Worker Registered");
     } catch (error) {
-      console.log("Service Worker Registration Failed");
+      console.error("Service Worker Registration Failed:", error);
     }
   }
-
-  include_groups = await fetch("assets/data/include_groups.json").then((res) => res.json());
-  exclude_groups = await fetch("assets/data/exclude_groups.json").then((res) => res.json());
 
   new ModelWorker("js/worker.js");
 }
@@ -1135,7 +1131,7 @@ class ImageProcessor {
     const yWeight = y * yRatio - yL;
     const idxDest = y * newWidth + x;
 
-    for (let channel = 0; channel < 3; channel++) {
+    for (let channel = 0; channel < this.channels.length; channel++) {
       const valTL = this.channels[channel][yL * this.width + xL];
       const valTR = this.channels[channel][yL * this.width + xH];
       const valBL = this.channels[channel][yH * this.width + xL];
@@ -1150,9 +1146,8 @@ class ImageProcessor {
 
 class ClassGrouper {
   constructor() {
-    // todo: needed here?
-    this.includeGroups = include_groups;
-    this.excludeGroups = exclude_groups;
+    this.includeGroups = AppState.includeGroups;
+    this.excludeGroups = AppState.excludeGroups;
     this.includedClasses = new Set(Object.values(this.includeGroups).flat());
     this.excludedClasses = new Set(Object.values(this.excludeGroups).flat());
 

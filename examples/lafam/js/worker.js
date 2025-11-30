@@ -1,4 +1,3 @@
-// imort onnxruntime-web by url into worker
 importScripts(
   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"
 );
@@ -101,20 +100,26 @@ onmessage = async (e) => {
 };
 
 (async () => {
-  layer4 = await ort.InferenceSession.create("../assets/models/resnet50_imagenet_layer4.onnx", {
-    executionProviders: ["wasm"],
-  });
+  try {
+    layer4 = await ort.InferenceSession.create("../assets/models/resnet50_imagenet_layer4.onnx", {
+      executionProviders: ["wasm"],
+    });
 
-  fc = await ort.InferenceSession.create("../assets/models/resnet50_imagenet_fc.onnx", {
-    executionProviders: ["wasm"],
-  });
+    fc = await ort.InferenceSession.create("../assets/models/resnet50_imagenet_fc.onnx", {
+      executionProviders: ["wasm"],
+    });
 
-  output_weights = await fetch("../assets/models/resnet_output_weights.bin").then((r) =>
-    r.arrayBuffer()
-  );
-  output_weights = new Float32Array(output_weights);
+    output_weights = await fetch("../assets/models/resnet_output_weights.bin").then((r) => r.arrayBuffer());
+    output_weights = new Float32Array(output_weights);
 
-  postMessage({ status: "ready" });
+    postMessage({ status: "ready" });
+  } catch (error) {
+    postMessage({ 
+      status: "error", 
+      message: "Failed to load ML models: " + error.message 
+    });
+    console.error("Model initialization error:", error);
+  }
 })();
 
 async function predict_per_square(tensor = null) {
@@ -147,22 +152,13 @@ async function predict_per_square(tensor = null) {
     
 
   return { logits: logits, classIds: classIds };
-  // return { logits: results.max_1.cpuData, classIds: results.max_1_1.cpuData };
 }
 
 function softmax(arr) {
-  return arr.map(function (value, index) {
-    return (
-      Math.exp(value) /
-      arr
-        .map(function (y) {
-          return Math.exp(y);
-        })
-        .reduce(function (a, b) {
-          return a + b;
-        })
-    );
-  });
+  const max = Math.max(...arr);
+  const exps = arr.map(x => Math.exp(x - max));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map(exp => exp / sum);
 }
 
 function averageHeatmap(arr, shape, weights = null, normalize = true) {

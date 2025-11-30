@@ -38,7 +38,7 @@ const totalEl = document.getElementById('tut-total');
 const steps = [
     { target: '#control-panel', title: "Control Center", desc: "Manage the camera, upload images, change mode, or adjust settings here. You can fine-tune the visualization mode and opacity." },
     { target: '#upload-group', title: "Upload & Presets", desc: "Upload your own image or choose from our preset scenarios" },
-    { target: '#mode-select', title: "Model Modes", desc: "Select different model modes: defalut ResNet with label-free/Grad-CAM heatmaps, Multi-instance classification, object detection" },
+    { target: '#mode-select', title: "Model Modes", desc: "Select different model modes: default ResNet with label-free/Grad-CAM heatmaps, Multi-instance classification, object detection" },
     { target: '#predictions-panel', title: "Predictions", desc: "The model's top guesses appear here. Click a prediction to highlight the area in the image responsible for that classification. You can clear selection by clicking again or clicking X-button." },
     { target: '#canvas-area', title: "Live Visualization", desc: "This canvas displays the model's salience map. Pause the stream to interact with the overlay Grid and explore specific regions. You can click on grid cells to show predictions for that region (multiple cells selection possible)." },
 ];
