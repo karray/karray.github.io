@@ -103,6 +103,8 @@ class ModelWorker {
     this.predefinedFiles.addEventListener("change", () => {
       $this._clearSelections();
       $this._clearGroupMapDisplay();
+      $this.video.pause();
+      $this.mainSection.classList.add("paused");
       theSquareData = null;
       const status = this.modeSelect.value;
       $this.load_selected_image(status);
@@ -115,6 +117,8 @@ class ModelWorker {
     this.uploadInput.addEventListener("change", (e) => {
       $this._clearSelections();
       $this._clearGroupMapDisplay();
+      $this.video.pause();
+      $this.mainSection.classList.add("paused");
       theSquareData = null;
       this.modeSelect.value = "predict";
 

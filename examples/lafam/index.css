@@ -252,6 +252,12 @@ input:checked+.slider:before {
     object-fit: contain;
 }
 
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 #loading-indicator {
     position: absolute;
     top: 50%;
@@ -262,7 +268,14 @@ input:checked+.slider:before {
     z-index: 10;
 }
 
-/* Grid Logic */
+
+#loading-indicator img {
+    width: 10vh;
+    height: 10vh;
+    animation: spin 1s steps(8, end) infinite !important;
+    filter: invert(1);
+}
+
 #grid {
     display: none;
     z-index: 3;

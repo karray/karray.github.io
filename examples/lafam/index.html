@@ -16,8 +16,7 @@
         <div class="canvas-block" id="canvas-area">
             <div class="canvas-wrapper">
                 <div id="loading-indicator" class="loading">
-                    <img src="loading.svg" class="icon"
-                        style="animation: spin 1s linear infinite; width: 10vh; height: 10vh;" />
+                    <img src="loading.svg" />
                     <div id="loading-text" style="margin-top:10px;">Initializing...</div>
                 </div>
                 <canvas id="img-canvas" width="1024" height="1024"></canvas>
@@ -69,8 +68,7 @@
                         <div class="slider"></div>
                     </label> -->
 
-                    <button id="theme-toggle-button" class="btn"
-                        title="Toggle Theme">
+                    <button id="theme-toggle-button" class="btn" title="Toggle Theme">
                         <!-- Moon Icon (Visible in Light Mode) -->
                         <svg class="icon moon-icon" viewBox="0 0 24 24">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -184,7 +182,7 @@
         }
 
         // Toggle Event
-        themeBtn.addEventListener('click', function() {
+        themeBtn.addEventListener('click', function () {
             if (document.body.classList.contains('dark-mode')) {
                 document.body.classList.remove('dark-mode');
                 localStorage.setItem('theme', 'light-mode');
@@ -347,9 +345,7 @@
         });
 
         window.addEventListener('load', () => {
-            const styleSheet = document.createElement("style");
-            styleSheet.innerText = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
-            document.head.appendChild(styleSheet);
+
             if (!localStorage.getItem('lafam_tutorial_shown')) setTimeout(startTutorial, 1000);
         });
     </script>
