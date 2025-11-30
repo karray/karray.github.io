@@ -101,15 +101,15 @@ onmessage = async (e) => {
 };
 
 (async () => {
-  layer4 = await ort.InferenceSession.create("resnet50_imagenet_layer4.onnx", {
+  layer4 = await ort.InferenceSession.create("../assets/models/resnet50_imagenet_layer4.onnx", {
     executionProviders: ["wasm"],
   });
 
-  fc = await ort.InferenceSession.create("resnet50_imagenet_fc.onnx", {
+  fc = await ort.InferenceSession.create("../assets/models/resnet50_imagenet_fc.onnx", {
     executionProviders: ["wasm"],
   });
 
-  output_weights = await fetch("resnet_output_weights.bin").then((r) =>
+  output_weights = await fetch("../assets/models/resnet_output_weights.bin").then((r) =>
     r.arrayBuffer()
   );
   output_weights = new Float32Array(output_weights);

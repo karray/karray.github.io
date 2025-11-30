@@ -46,11 +46,11 @@ class ModelWorker {
     this.initEvents();
     this._clearGroupMapDisplay();
 
-    fetch("./imagenet_class_index.json")
+    fetch("assets/data/imagenet_class_index.json")
       .then((response) => response.json())
       .then((data) => (this.imagenet_classes = data));
 
-    fetch("palettes.json")
+    fetch("assets/data/palettes.json")
       .then((response) => response.json())
       .then((data) => {
         $this.palettes = data;
@@ -63,11 +63,11 @@ class ModelWorker {
         }
       });
 
-    fetch("exclude_groups.json")
+    fetch("assets/data/exclude_groups.json")
       .then((response) => response.json())
       .then((data) => (exclude_groups = data));
 
-    fetch("include_groups.json")
+    fetch("assets/data/include_groups.json")
       .then((response) => response.json())
       .then((data) => (include_groups = data));
   }
@@ -279,7 +279,7 @@ class ModelWorker {
   load_selected_image(post_status = "predict") {
     const file = document.getElementById("predefined-files").value;
     if (file) {
-      fetch(file)
+      fetch("assets/images/" + file)
         .then((response) => response.blob())
         .then((blob) => {
           const reader = new FileReader();
@@ -868,10 +868,10 @@ async function init() {
     }
   }
 
-  include_groups = await fetch("include_groups.json").then((res) => res.json());
-  exclude_groups = await fetch("exclude_groups.json").then((res) => res.json());
+  include_groups = await fetch("assets/data/include_groups.json").then((res) => res.json());
+  exclude_groups = await fetch("assets/data/exclude_groups.json").then((res) => res.json());
 
-  new ModelWorker("worker.js");
+  new ModelWorker("js/worker.js");
 }
 
 function mapToHSL(x, hueBase = 0) {
