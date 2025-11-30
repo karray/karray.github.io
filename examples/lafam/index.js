@@ -349,11 +349,11 @@ class ModelWorker {
 
     const currentTrack = this.localMediaStream.getVideoTracks()[0];
     const currentStreamId = currentTrack.getSettings().deviceId;
+    this.currentCameraId = currentStreamId;
 
     if (currentStreamId !== targetDeviceId) {
       currentTrack.stop();
 
-      this.currentCameraId = targetDeviceId;
       this.localMediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           height: { ideal: 1024 },
