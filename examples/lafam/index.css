@@ -13,9 +13,9 @@ html {
     --card-bg: #ffffff;
     --text-main: #334155;
     --text-muted: #64748b;
-    --accent-color: #f8fafc;
+    --accent-color: #f1efff;
     /* Cyan-700 */
-    --accent-hover: #e1e1e1;
+    --accent-hover: #dbd5ff;
     --border-color: #cbd5e1;
     --overlay-dim: rgba(15, 23, 42, 0.75);
     /* Slate-900 with opacity */
@@ -297,8 +297,8 @@ input:checked+.slider:before {
 }
 
 .grid-selection.selected {
-    border: 2px solid var(--accent-color);
-    box-shadow: 0 0 20px var(--accent-color) inset;
+    border: 2px solid #fff;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5) inset;
 }
 
 /* --- CONTROLS --- */
@@ -511,6 +511,10 @@ input[type="range"] {
     justify-content: space-between;
 }
 
+.prediction.selected {
+    background-color: var(--accent-color);
+}
+
 #main-section.paused .prediction {
     cursor: pointer;
     border-color: var(--border-color);
@@ -518,7 +522,7 @@ input[type="range"] {
 
 #main-section.paused .prediction:hover {
     border-color: var(--accent-color);
-    background-color: var(--card-bg);
+    background-color: var(--accent-hover);
 }
 
 /* --- TEXT SECTIONS --- */
