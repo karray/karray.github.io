@@ -366,6 +366,7 @@ class ModelWorker {
 
       this.switchCameraButton.onclick = async () => {
         $this.video.pause();
+        $this.mainSection.classList.add("paused");
         if ($this.localMediaStream) {
           $this.localMediaStream.getTracks().forEach((track) => track.stop());
         }
@@ -388,11 +389,11 @@ class ModelWorker {
 
           $this.video.srcObject = $this.localMediaStream;
 
-          // $this.video.onloadedmetadata = async () => {
-          //   await $this.video.play();
-          //   $this._onPlay();
-          //   $this.mainSection.classList.remove("paused");
-          // };
+          $this.video.onloadedmetadata = async () => {
+            await $this.video.play();
+            $this._onPlay();
+            $this.mainSection.classList.remove("paused");
+          };
         } catch (err) {
           console.error("Error switching camera:", err);
         }
