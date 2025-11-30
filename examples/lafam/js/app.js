@@ -43,34 +43,64 @@ class ModelWorker {
     this.palettes;
     this.currentPalette;
 
+
     this.initElements();
     this.initEvents();
     this._clearGroupMapDisplay();
 
-    // Parallelize data fetches for faster startup
-    Promise.all([
-      fetch("assets/data/imagenet_class_index.json").then(r => r.json()),
-      fetch("assets/data/palettes.json").then(r => r.json()),
-      fetch("assets/data/exclude_groups.json").then(r => r.json()),
-      fetch("assets/data/include_groups.json").then(r => r.json())
-    ]).then(([imagenetClasses, palettes, excludeGroups, includeGroups]) => {
-      this.imagenet_classes = imagenetClasses;
-      this.palettes = palettes;
-      this.currentPalette = Object.keys(palettes)[0];
-      AppState.excludeGroups = excludeGroups;
-      AppState.includeGroups = includeGroups;
-      
-      // Initialize palette select options
-      for (const palette in palettes) {
-        const option = document.createElement("option");
-        option.value = palette;
-        option.textContent = palette;
-        this.paletteSelect.appendChild(option);
-      }
-    }).catch(error => {
-      console.error("Failed to load data files:", error);
-      addLogMsg("Error loading data files: " + error.message);
-    });
+    // Update loading text
+    const loadingText = document.getElementById("loading-text");
+    if (loadingText) {
+      loadingText.textContent = "Loading data files...";
+    }
+
+    // Parallelize data fetches for faster startup with progress tracking
+    const dataFiles = [
+      { name: "ImageNet classes", url: "assets/data/imagenet_class_index.json" },
+      { name: "Color palettes", url: "assets/data/palettes.json" },
+      { name: "Exclude groups", url: "assets/data/exclude_groups.json" },
+      { name: "Include groups", url: "assets/data/include_groups.json" }
+    ];
+
+    let loadedCount = 0;
+    const fetchWithProgress = (file) => {
+      return fetch(file.url)
+        .then(r => r.json())
+        .then(data => {
+          loadedCount++;
+          if (loadingText) {
+            loadingText.textContent = `Loaded ${file.name} (${loadedCount}/${dataFiles.length})`;
+          }
+          return data;
+        });
+    };
+
+    Promise.all(dataFiles.map(fetchWithProgress))
+      .then(([imagenetClasses, palettes, excludeGroups, includeGroups]) => {
+        this.imagenet_classes = imagenetClasses;
+        this.palettes = palettes;
+        this.currentPalette = Object.keys(palettes)[0];
+        AppState.excludeGroups = excludeGroups;
+        AppState.includeGroups = includeGroups;
+        
+        if (loadingText) {
+          loadingText.textContent = "Data loaded, initializing model...";
+        }
+        
+        // Initialize palette select options
+        for (const palette in palettes) {
+          const option = document.createElement("option");
+          option.value = palette;
+          option.textContent = palette;
+          this.paletteSelect.appendChild(option);
+        }
+      }).catch(error => {
+        console.error("Failed to load data files:", error);
+        addLogMsg("Error loading data files: " + error.message);
+        if (loadingText) {
+          loadingText.textContent = "Error loading data files!";
+        }
+      });
   }
 
   initElements() {
