@@ -44,33 +44,40 @@ class ModelWorker {
     this.currentPalette;
 
 
+
     this.initElements();
     this.initEvents();
     this._clearGroupMapDisplay();
 
     // Update loading text
     const loadingText = document.getElementById("loading-text");
-    if (loadingText) {
-      loadingText.textContent = "Loading data files...";
-    }
-
-    // Parallelize data fetches for faster startup with progress tracking
+    
+    // Parallelize data fetches with per-file progress tracking
     const dataFiles = [
-      { name: "ImageNet classes", url: "assets/data/imagenet_class_index.json" },
-      { name: "Color palettes", url: "assets/data/palettes.json" },
-      { name: "Exclude groups", url: "assets/data/exclude_groups.json" },
-      { name: "Include groups", url: "assets/data/include_groups.json" }
+      { name: "ImageNet classes", url: "assets/data/imagenet_class_index.json", loaded: false },
+      { name: "Color palettes", url: "assets/data/palettes.json", loaded: false },
+      { name: "Exclude groups", url: "assets/data/exclude_groups.json", loaded: false },
+      { name: "Include groups", url: "assets/data/include_groups.json", loaded: false }
     ];
 
-    let loadedCount = 0;
+    const updateLoadingDisplay = () => {
+      if (loadingText) {
+        const status = dataFiles.map(f => 
+          `${f.loaded ? '✓' : '○'} ${f.name}`
+        ).join('\n');
+        loadingText.innerHTML = status.replace(/\n/g, '<br>');
+      }
+    };
+
+    // Initial display
+    updateLoadingDisplay();
+
     const fetchWithProgress = (file) => {
       return fetch(file.url)
         .then(r => r.json())
         .then(data => {
-          loadedCount++;
-          if (loadingText) {
-            loadingText.textContent = `Loaded ${file.name} (${loadedCount}/${dataFiles.length})`;
-          }
+          file.loaded = true;
+          updateLoadingDisplay();
           return data;
         });
     };
@@ -84,7 +91,7 @@ class ModelWorker {
         AppState.includeGroups = includeGroups;
         
         if (loadingText) {
-          loadingText.textContent = "Data loaded, initializing model...";
+          loadingText.textContent = "Initializing model...";
         }
         
         // Initialize palette select options
