@@ -10,73 +10,11 @@ $brakepoint: 350px;
 @import 'buttons';
 @import 'about';
 @import 'comments';
-
-// .wrapper {
-//     min-width: 400px;
-// }
+@import 'full_width';
 
 body {
     min-width: 300px;
 }
-
-.dynamic-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    margin: 0;
-    z-index: 1;
-}
-
-.fixed-header {
-    position: fixed !important;
-    height: 5vmin !important;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-    min-height: 40px;
-    transition: all .3s;
-
-}
-
-.hidden-header{
-    top: -5vmax;
-    
-    .light {
-        display: none;
-    }
-}
-
-.full-width {
-    width: 99vw;
-    position: relative;
-    left: 50%;
-    right: 50%;
-    margin-left: -50vw;
-    margin-right: -50vw;
-    padding-top: 30px;
-    padding-bottom: 30px;
-    margin-bottom: 15px;
-
-    background-color: #159957;
-    background-image: linear-gradient(120deg, #155799, #159957);
-
-    .full-width-content {
-        padding: 20px;
-        color: rgba(255,255,255,0.7);
-        background-color: rgba(255,255,255,0.08);
-        border-color: rgba(255,255,255,0.2);
-        border-style: solid;
-        border-width: 1px;
-        border-radius: 0.3rem;
-    }
-}
-
-// @media (min-width:768px){
-//     .wrapper {
-//         width: 60%;
-//         font-size: 1.5vw;
-//         max-width: initial;
-//     }
-// }
 
 @keyframes fadein {
     from {
@@ -86,9 +24,6 @@ body {
     to {
         opacity: 1;
     }
-}
-
-@media (max-width:$brakepoint) {
 }
 
 .highlighter-rouge {
@@ -139,5 +74,3 @@ body {
             }
     }
 }
-
-.language-html{}

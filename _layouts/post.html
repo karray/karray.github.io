@@ -5,7 +5,7 @@
 
 <body itemscope itemtype="http://schema.org/BlogPosting">
 
-  <header id="post-header" class="post-title header-background dynamic-header" role="banner" style="display: flex;">
+  <header id="post-header" class="post-title header-background dynamic-header" role="banner">
 
     <div class="wrapper">
       <div id="me-block">
@@ -54,6 +54,7 @@
   {%- include footer.html -%}
 
   <script src="{{ '/assets/js/posts.js' | relative_url }}"></script>
+  {% if page.math %}
   <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
       jax: ["input/TeX", "output/HTML-CSS"],
@@ -63,7 +64,9 @@
       }
     });
   </script>
-  <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+  <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+    type="text/javascript"></script>
+  {% endif %}
 </body>
 
 </html>

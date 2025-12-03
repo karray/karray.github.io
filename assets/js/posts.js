@@ -1,48 +1,45 @@
-function getScroll() {
-    return getMinViewHeightWidth(window.pageYOffset || document.documentElement.scrollTop);
-}
+(function() {
+    const header = document.getElementById('post-header');
+    if (!header) return;
 
-function getMinViewHeightWidth(x){
-    return x/Math.min(window.innerHeight, window.innerWidth)*100;
-}
+    const HEADER_HEIGHT_VMIN = 60;
+    const UNIT = 'vmin';
+    const THRESHOLD = 15;
+    
+    let prevScroll = 0;
 
-let header = document.getElementById('post-header');
-const unit = 'vmin';
-
-const header_height = 60;
-
-let is_small_screen = window.matchMedia('(max-width: 350px)')
-let prevScroll = 0
-
-function update_elements(){
-    // if(is_small_screen.matches){
-    //     header.classList.add('fixed-header')
-    //     return
-    // }
-
-    let scroll = getScroll()
-    let new_height = header_height - scroll
-    header.style.height = new_height + unit
-
-    if(new_height<15) {
-        header.classList.add('fixed-header')
-        // hide the header if scrolling down
-        if(new_height < -15 && scroll > prevScroll) {
-            header.classList.add('hidden-header')
-        }
-        else {
-            header.classList.remove('hidden-header')
-        }
-        prevScroll = scroll
+    function getMinViewHeightWidth(x) {
+        return x / Math.min(window.innerHeight, window.innerWidth) * 100;
     }
-    else {
-        header.classList.remove('fixed-header')
+
+    function getScroll() {
+        return getMinViewHeightWidth(window.scrollY || document.documentElement.scrollTop);
     }
-}
 
-window.addEventListener('scroll', ()=>requestAnimationFrame(update_elements));
-window.addEventListener('resize', function(event) {
-    update_elements()
-}, true);
+    function updateElements() {
+        const scroll = getScroll();
+        const newHeight = HEADER_HEIGHT_VMIN - scroll;
+        
+        header.style.height = `${newHeight}${UNIT}`;
 
-update_elements()
+        if (newHeight < THRESHOLD) {
+            header.classList.add('fixed-header');
+            
+            // Hide the header if scrolling down and past the threshold
+            if (newHeight < -THRESHOLD && scroll > prevScroll) {
+                header.classList.add('hidden-header');
+            } else {
+                header.classList.remove('hidden-header');
+            }
+            prevScroll = scroll;
+        } else {
+            header.classList.remove('fixed-header');
+        }
+    }
+
+    window.addEventListener('scroll', () => requestAnimationFrame(updateElements));
+    window.addEventListener('resize', updateElements);
+    
+    // Initial call
+    updateElements();
+})();
