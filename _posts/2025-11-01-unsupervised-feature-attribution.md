@@ -40,7 +40,6 @@ Each convolutional layer takes an input and produces activation maps (also calle
 </p>
 </details>
 
-<!-- In other words, each channel in a conv layer can be seen as a spatial map of how strongly that feature is present across the image. For example, a deep CNN might have a channel that activates on “dog faces” and another on “fur texture,” each producing a 2D map of where that feature is present in the image.  -->
 
 But what if we don’t have a class? The answer is simple -- we don't need it. We can simply average all the activation maps at the last convolutional layer to get a generic saliency map. This label-free map doesn’t focus on any one class. It treats every learned feature as equally interesting, highlighting regions that strongly activate any of the high-level features in that layer. Essentially, it’s a visualization of “where the network is looking” in a class-agnostic sense.
 
@@ -49,7 +48,7 @@ LaFAM (Label-free Activation Map) [<a href="#karjauv2024lafam" data-ref="karjauv
 ### Qualitative Comparison
 
 <figure>
-<img src="/assets/img/lafam/pascal_voc_2012_results.svg" alt="LaFAM vs. Grad-CAM vs. RELAX" />
+<img src="/assets/img/posts/lafam/pascal_voc_2012_results.svg" alt="LaFAM vs. Grad-CAM vs. RELAX" />
   <figcaption>Comparison on PASCAL VOC 2012. LaFAM produces maps similar to Grad-CAM but remains robust when the model misclassifies (first row).</figcaption>
 </figure>
 
@@ -59,17 +58,17 @@ In the first row, the model actually mispredicted the ImageNet class, so Grad-CA
 
 The next figure demonstrates that LaFAM, being class-agnostic, highlights multiple objects in the image (e.g., both dogs), whereas Grad-CAM focuses on just one object tied to the predicted class. This multi-object sensitivity is a useful trait in many scenarios, as real-world images almost always contain several relevant items.
 
-![LaFAM for Multiple Objects](/assets/img/lafam/pascal_voc_2012_2_classes.svg){: .center-image }
+![LaFAM for Multiple Objects](/assets/img/posts/lafam/pascal_voc_2012_2_classes.svg){: .center-image }
 
 Let's look closer at the model misprediction cases. For Grad-CAM we visualize the saliency map for the (wrong) predicted class. As a result, Grad-CAM highlights irrelevant regions, while LaFAM attributes all learned features. This again underscores the advantage of being label-free: LaFAM reflects what the model finds salient overall, not just what it thinks is the “correct” class.
 
-![Grad-CAM for Missclussification Case](/assets/img/lafam/imgnet_missclf_short.svg){: .center-image }
+![Grad-CAM for Misclassification Case](/assets/img/posts/lafam/imgnet_missclf_short.svg){: .center-image }
 
 LaFAM clearly highlights true objects, suggesting that these objects strongly activate multiple channels in the final conv layer. However, the prediction is wrong. The reason could be that the last fully connected layer puts more weight on specific features that mislead the final decision, even though many other features correctly identify the object.
 
 ## What Do the Numbers Say?
 
-To move beyond visual inspection, Karjauv & Albayrak tested LaFAM on standard datasets (ImageNet-S and PASCAL VOC 2012) using segmentation masks as ground truth. The logic is simple: if the saliency map highlights the pixels that actually belong to the object, the attribution is accurate.
+The LaFAM paper [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv et al.</a>] systematically evaluates and compares averaged activation maps against RELAX (the prior SSL method) using SSL models (SimCLR and SwAV on ResNet50 backbones), and also compared it against Grad-CAM for a fully supervised ResNet50 classifier as a sanity check. The saliancy maps for ResNet50 have only 7x7 size and were upscaled to match the input image size using nearest-neighbor interpolation. Since we don't have class labels to evaluate “correctness” of an explanation, the evaluation was performed on datasets with segmentation masks (ImageNet-S and PASCAL VOC) and a suite of evaluation metrics from the Quantus XAI evaluation framework. Essentially, we treat it as a localization task, whith goal to assess how well the saliency maps align with the segmentaions masks.
 
 <table id="imagenet_results">
   <caption>Saliency maps performance comparison on ImageNet-S (higher values are better).</caption>
@@ -175,7 +174,6 @@ To move beyond visual inspection, Karjauv & Albayrak tested LaFAM on standard da
   </tbody>
 </table>
 
-Karjauv & Albayrak put LaFAM to the test on standard datasets to see how well these label-free maps coincide with actual objects in the images[0]. Since we don’t have class labels to evaluate “correctness” of an explanation, they leveraged datasets with segmentation masks (ImageNet-S and PASCAL VOC) and a suite of evaluation metrics from the Quantus XAI evaluation framework[0]. Essentially, they treated it as a localization task: if a saliency map highlights the region of the true object (per segmentation mask), it’s doing a good job. They compared LaFAM against RELAX (the prior SSL method) using SSL models (SimCLR and SwAV on ResNet50 backbones), and also compared LaFAM against Grad-CAM for a fully supervised ResNet50 classifier as a sanity check[0]. All saliency maps were upscaled to image size for fairness, and they computed metrics like:
 
 <details><summary>What are these metrics?</summary>
 
@@ -202,35 +200,31 @@ Karjauv & Albayrak put LaFAM to the test on standard datasets to see how well th
 
 ### Analyzing the Results
 
-The results tell us a story that goes deeper than just comparing two methods. The high performance of LaFAM confirms that CNNs inherently develop detectors for semantic objects, even without explicit supervision. Remember, LaFAM is simply averaging all activations in the final layer. The fact that this naive average aligns so perfectly with ground-truth objects implies that the most active features in the network are naturally the semantic objects. The network has learned to ignore the background noise on its own.
+The results tell a story that goes deeper than just comparing two methods. The high performance of averaged activation maps confirms that CNNs inherently develop detectors for semantic objects, even without explicit supervision. The fact that this naive average aligns so perfectly with ground-truth objects implies that the most active features in the network are naturally the semantic objects. The network has learned to ignore the background noise on its own.
 
-Beyond its application in SSL, LaFAM offers a unique lens for debugging supervised models by removing the "tunnel vision" inherent in class-specific methods. While tools like Grad-CAM essentially tell the model to ignore everything except the target class, LaFAM reveals the quality of the learned representation as a whole. This holistic view is critical for diagnostics: it allows us to distinguish between a model that is "blind" (failing to detect the object entirely) and one that is "confused" (seeing the object clearly but misclassifying it due to the final decision layer). By highlighting everything the generic feature extractor considers important—rather than just what supports a specific decision—we can more easily spot when a model is relying on background shortcuts or ignoring secondary objects in complex scenes.
+Beyond its application in SSL, LaFAM offers a unique lens for debugging supervised models by removing the "tunnel vision" inherent in class-specific methods. Whereas the main goals of CAM-based methods is to generate class-specific heatmaps, LaFAM reveals the quality of the learned representation as a whole. This holistic view is critical for diagnostics, as it allows us to distinguish between a model that is "blind" (failing to detect the object entirely) and one that is "confused" (seeing the object clearly but misclassifying it due to the final decision layer). By highlighting everything the generic feature extractor considers important, rather than just what supports a specific decision, we can more easily diagnose issues like dataset bias or spurious correlations.
 
-Besides the application in SSL, LaFAM can also be useful for debugging supervised models. CAM-based methods use the class label to filter the view—we essentially tell the model, ignoring everything else. But sometimes we want to verify the quality of the learned representation as a whole. We need to know everything the model considers important: If a supervised model is misclassifying an image, averaged convolution can reveal whether the model is focusing on the right object or getting distracted by irrelevant features. This can help diagnose issues like dataset bias or spurious correlations.
+The comparison with RELAX highlights this difference. RELAX struggles (low Sparseness) because it relies on perturbing the input to see what changes the embedding. LaFAM, by contrast, directly maps the presence of the learned features. The huge gap in performance suggests that the information was already there in the activation maps and we just needed to look at it directly rather than poking it with occlusion masks.
 
-The comparison with RELAX highlights this difference. RELAX struggles (low Sparseness) because it relies on perturbing the input to see what changes the embedding. LaFAM, by contrast, directly maps the presence of the learned features. The huge gap in performance suggests that the information was already there in the activation maps—we just needed to look at it directly rather than poking it with occlusion masks.
-
-In the Supervised setting, LaFAM is competitive with Grad-CAM, but with a key distinction. Grad-CAM wins on "Sparseness" because it artificially suppresses features belonging to other classes. LaFAM includes them. While this hurts the sparseness score, it arguably provides a more honest view of the model's state: if the model sees a Cat and a Dog, LaFAM shows you both.
+In the supervised setting, LaFAM is competitive with Grad-CAM, but with a key distinction. Grad-CAM wins on "Sparseness" because we use a single segmentaion mask for only the target class, whereas LaFAM reveals the presence of all the features and it is not a trivial task to eveluate all semantic parts. This hurts the sparseness score, but it arguably provides a more honest view of the model's state: if the model sees a Cat and a Dog, LaFAM shows you both.
 
 ## Extending LaFAM: The Quest for Resolution
 
-While LaFAM is fast and effective, it has one inherent limitation: resolution. It relies on the final convolutional layer, which in a ResNet50 is a coarse $7 \times 7$ grid. Upsampling this to the image size results in "blobby" heatmaps that show the general location of an object but miss the fine contours.
+While LaFAM is fast and effective, it has limited resolution. It relies on the final convolutional layer, which in a ResNet50 is a coarse $7 \times 7$ grid. Upsampling this to the image size results in "blobby" heatmaps that show the general location of an object but miss the fine contours.
 
-The paper suggests a potential path forward: combining LaFAM with Layer-wise Relevance Propagation (LRP).
+<figure>
+<img src="/assets/img/posts/lafam/LRP.png" alt="Layer-wise Relevance Propagation illustration" />
+  <figcaption>Layer-wise Relevance Propagation illustration. The left half shows the forward pass, the right half shows the backward pass (<a href="https://www.hhi.fraunhofer.de/en/departments/ai/technologies-and-solutions/layer-wise-relevance-propagation.html" target="_blank">source</a>).</figcaption>
+</figure>
 
-LRP is a technique that normally starts with a class score and propagates it backward through the network, distributing "relevance" to neurons that contributed to that score. In a label-free context, we don't have a class score. However, we can treat the LaFAM map itself as the starting signal. By redistributing the coarse activation values from the top layer back down to the pixel level using LRP rules, we might theoretically recover fine-grained details—like the sharp edges of a cat’s ear—that the coarse map smooths over.
+The solution is Layer-wise Relevance Propagation (LRP). LRP normally starts with a single class score and propagates it backward to find which pixels contributed to that specific decision, but it can also propagate relevance from any output (e.g., even from a neuron in an intermediate layer). SSL models are ususally considered as encoders that output embeddings. The idea is to use LRP to propagate relevance from the embedding to the input image by summing up the raw output. This highlights meaningful pixels because LRP sends relevance only along connections that actually contributed during the forward pass, so neurons and pixels that were effectively inactive act as dead ends and receive little or no relevance.
 
-While this extension is still exploratory, it represents an exciting direction. It would bridge the gap between the semantic richness of deep layers and the spatial precision of shallow layers, all without needing a single label.
 
-## Are Our Evaluation Metrics Actually Fair?
+### What About Vision Transformers?
 
-Looking at the tables, you might notice that Grad-CAM often beats LaFAM on metrics like **Sparseness** or **Top-K Intersection**. But we should pause and ask: do these metrics measure what we *actually* want?
 
-Most standard XAI metrics, including the Pointing Game, implicitly assume that there is **one** correct object in the image—the one matching the ground-truth label. If a picture contains a dog and a cat, but the label is "dog," a method that highlights both will be penalized by these metrics.
+## Do the metrics reflect the true value of the method?
 
-LaFAM is, by design, class-agnostic. It highlights *everything* the network finds salient. As we saw in the qualitative examples, this often leads to LaFAM highlighting multiple valid objects in a scene. Paradoxically, this makes it "worse" according to standard metrics, even though it might be providing a more honest view of the model's internal representation.
-
-This suggests that while metrics are useful for comparison, they are not neutral arbiters of truth. They encode specific assumptions—sparsity, single-object focus—that may not align with the goals of unsupervised learning.
 
 ## Limitations and Key Takeaways
 
