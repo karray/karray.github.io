@@ -1,61 +1,48 @@
-function getScroll() {
-    return getMinViewHeightWidth(window.pageYOffset || document.documentElement.scrollTop);
-}
+/**
+ * Home Page - HeaderController with home-specific callbacks
+ */
+(function() {
+  'use strict';
 
-function getMinViewHeightWidth(x){
-    return x/Math.min(window.innerHeight, window.innerWidth)*100;
-}
+  const header = document.getElementById('about');
+  if (!header) return;
 
-let about = document.getElementById('about');
-let me_img = document.getElementById('me');
-let desc = document.getElementById('description');
-let dummy_desc = document.getElementById('dummy-description');
-let info = document.getElementById('my-infobox');
-const unit = 'vmin'
+  // DOM elements for home-specific behavior
+  const desc = document.getElementById('description');
+  const dummyDesc = document.getElementById('dummy-description');
+  const info = document.getElementById('my-infobox');
 
-const about_height = 60;
-let desc_height = getMinViewHeightWidth(desc.offsetHeight)
+  // Cache description height for scrolled state detection
+  let descHeightVmin = HeaderController.pxToVmin(desc?.offsetHeight || 0);
 
-let is_small_screen = window.matchMedia('(max-width: 350px)')
+  // Initialize HeaderController
+  HeaderController.init({
+    headerSelector: '#about',
+    onStateChange: handleStateChange,
+    onHeightChange: handleHeightChange
+  });
 
-function update_elements(){
-    // if(is_small_screen.matches){
-    //     about.classList.add('fixed-header')
-    //     return
-    // }
+  function handleStateChange(state) {
+    // Toggle button styling based on collapsed state
+    header.classList.toggle('buttons', !state.isCollapsed);
+  }
 
-    let scroll = getScroll()
-    let new_height = about_height - scroll
-    about.style.height = new_height + unit
-    if(desc_height > new_height){
-        if(!info.classList.contains('scrolled')){
-            dummy_desc.style.width = desc.offsetWidth+'px';
-            desc.style.width = desc.offsetWidth+'px';
-        }
-        info.classList.add('scrolled')
+  function handleHeightChange(heightVmin) {
+    // Handle description fixed positioning when scrolling
+    if (descHeightVmin > heightVmin) {
+      if (!info?.classList.contains('scrolled')) {
+        if (dummyDesc) dummyDesc.style.width = desc.offsetWidth + 'px';
+        if (desc) desc.style.width = desc.offsetWidth + 'px';
+      }
+      info?.classList.add('scrolled');
+    } else {
+      info?.classList.remove('scrolled');
+      if (desc) desc.style.width = 'auto';
     }
-    else{
-        info.classList.remove('scrolled')
-        desc.style.width = 'auto';
-    }
+  }
 
-    if(new_height<15) {
-        about.classList.add('fixed-header')
-        about.classList.remove('buttons')
-    }
-    else {
-        about.classList.remove('fixed-header')
-        about.classList.add('buttons')
-    }
-}
-
-window.addEventListener('scroll', ()=>requestAnimationFrame(update_elements));
-window.addEventListener('resize', function(event) {
-    desc_height = getMinViewHeightWidth(desc.offsetHeight)
-    update_elements()
-}, true);
-
-// ['#FFC0CB', '#DB7093', '#E6E6FA', '#D8BFD8', '#DDA0DD', '#BA55D3', '#7B68EE', '#663399', '#FFA07A', '#FA8072', '#FF8C00',
-// '#FF6347', '#90EE90', '#3CB371', '#228B22', '	#9ACD32', '#66CDAA', '#20B2AA', '#008080', '#00CED1', '#6495ED']
-
-update_elements()
+  // Handle resize - update cached description height
+  window.addEventListener('resize', () => {
+    descHeightVmin = HeaderController.pxToVmin(desc?.offsetHeight || 0);
+  }, { passive: true });
+})();

@@ -53,7 +53,9 @@
 
   {%- include footer.html -%}
 
+  <script src="{{ '/assets/js/header-controller.js' | relative_url }}"></script>
   <script src="{{ '/assets/js/posts.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/code-blocks.js' | relative_url }}"></script>
   {% if page.math %}
   <script type="text/x-mathjax-config">
     MathJax.Hub.Config({

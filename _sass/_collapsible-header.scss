@@ -1,0 +1,282 @@
+// ==========================================================================
+// Collapsible Header - Unified Styles
+// ==========================================================================
+// This file consolidates all header collapse/expand behavior styles.
+// Variants: home, post
+
+// --------------------------------------------------------------------------
+// CSS Custom Properties (easy theming)
+// --------------------------------------------------------------------------
+:root {
+  --header-bg-gradient-start: #155799;
+  --header-bg-gradient-end: #159957;
+  --header-bg-angle: 120deg;
+  --header-full-height: 60vmin;
+  --header-collapsed-height: 50px;
+  --header-transition-speed: 0.1s;
+  --header-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+// --------------------------------------------------------------------------
+// Dynamic Header (shared behavior - scrolls with content initially)
+// --------------------------------------------------------------------------
+.dynamic-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  z-index: 100;
+  height: var(--header-full-height);
+  overflow: hidden;
+  background-color: #159957;
+  background-image: linear-gradient(
+    var(--header-bg-angle),
+    var(--header-bg-gradient-start),
+    var(--header-bg-gradient-end)
+  );
+  color: #fff;
+  transition: height var(--header-transition-speed) ease-out;
+}
+
+// --------------------------------------------------------------------------
+// Collapsed/Fixed State (becomes sticky at top)
+// --------------------------------------------------------------------------
+.fixed-header {
+  height: var(--header-collapsed-height) !important;
+  min-height: 40px;
+  box-shadow: var(--header-shadow);
+  transition: 
+    height var(--header-transition-speed) ease-out,
+    top 0.2s ease-out,
+    box-shadow 0.2s ease;
+  
+  // Hide falling light animations when collapsed
+  .light {
+    display: none;
+  }
+}
+
+// --------------------------------------------------------------------------
+// Hidden State (scroll down hides, scroll up reveals)
+// --------------------------------------------------------------------------
+.hidden-header {
+  top: calc(-1 * var(--header-collapsed-height) - 10px);
+}
+
+// --------------------------------------------------------------------------
+// Content offset (pushes content below fixed header)
+// --------------------------------------------------------------------------
+.dynamic-content {
+  margin-top: var(--header-full-height);
+}
+
+// --------------------------------------------------------------------------
+// HOME VARIANT - Specific styles
+// --------------------------------------------------------------------------
+// About card layout
+.about-card {
+  color: white;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+// Profile image container
+.me-wrapper {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 30px;
+  min-height: 30px;
+  transition: width 0.2s ease, height 0.2s ease;
+
+  #me {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 50%;
+    min-width: 30px;
+    min-height: 30px;
+  }
+}
+
+// Name and description
+.my-name::before {
+  font-size: max(3.5vmax, 20px);
+  white-space: nowrap;
+  content: "Aray Karjauv";
+}
+
+#my-infobox {
+  flex-grow: 1;
+}
+
+#description {
+  padding-left: 15px;
+  padding-bottom: 15px;
+
+  a {
+    text-decoration: none;
+  }
+
+  a:visited {
+    color: #fff;
+  }
+}
+
+#dummy-description {
+  display: none;
+}
+
+// Scrolled state (description fixed at bottom)
+.scrolled {
+  #dummy-description {
+    display: block;
+    visibility: hidden;
+  }
+  
+  #description {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+  }
+}
+
+// Home header in collapsed state
+#about.fixed-header {
+  .me-wrapper {
+    width: 4vmin;
+    height: 4vmin;
+
+    #me {
+      position: static;
+    }
+  }
+
+  .about-card {
+    align-items: center;
+  }
+  
+  #dummy-description {
+    display: none;
+  }
+  
+  #description {
+    position: static;
+    display: flex;
+    align-items: center;
+    padding-bottom: 0;
+    height: 100%;
+    width: auto !important;
+
+    .about-me {
+      display: none;
+    }
+
+    .my-name {
+      margin-top: 0;
+      flex-grow: 1;
+      transition: flex-grow 0.4s ease-in-out;
+      animation: fadein 1s;
+
+      &::before {
+        content: "Aray's Blog";
+        font-size: max(2.5vmin, 20px);
+      }
+    }
+  }
+}
+
+// --------------------------------------------------------------------------
+// POST VARIANT - Specific styles
+// --------------------------------------------------------------------------
+#post-header {
+  display: flex;
+
+  .wrapper {
+    #me-block {
+      display: none;
+      height: 100%;
+      padding-right: 5px;
+      font-weight: 100;
+      font-size: max(2.5vmin, 20px);
+
+      a {
+        height: 100%;
+        text-decoration: none;
+        padding-right: 15px;
+
+        img {
+          border-radius: 50%;
+          max-width: 100%;
+          max-height: 100%;
+          box-sizing: border-box;
+          padding: 5px 0;
+          width: 0;
+          height: 0;
+        }
+      }
+    }
+  }
+}
+
+// Post header in collapsed state
+#post-header.fixed-header {
+  .wrapper {
+    height: 100%;
+    display: flex;
+    align-items: center;
+
+    .post-title {
+      font-size: max(2.5vmin, 20px);
+      margin-bottom: 5px;
+      text-align: left;
+      transition: all 0.2s;
+      white-space: nowrap;
+      font-weight: 100;
+    }
+
+    #me-block {
+      display: block;
+
+      a img {
+        width: initial;
+        height: initial;
+        animation: fadein 0.5s;
+      }
+    }
+  }
+}
+
+// --------------------------------------------------------------------------
+// Falling Light Animations (shared background effect)
+// --------------------------------------------------------------------------
+.light {
+  position: absolute;
+  width: 0px;
+  background-color: white;
+  box-shadow: #e9f1f1 0px 0px 20px 2px;
+  opacity: 0;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  margin: auto;
+}
+
+.x1 { animation: falling 4s infinite linear; transform: scale(1.0); }
+.x2 { animation: falling 7s infinite linear; transform: scale(1.6); left: 15%; }
+.x3 { animation: falling 2.5s infinite linear; transform: scale(.5); left: -15%; }
+.x4 { animation: falling 4.5s infinite linear; transform: scale(1.2); left: -34%; }
+.x5 { animation: falling 8s infinite linear; transform: scale(2.2); left: -57%; }
+.x6 { animation: falling 3s infinite linear; transform: scale(.8); left: -81%; }
+.x7 { animation: falling 5.3s infinite linear; transform: scale(3.2); left: 37%; }
+.x8 { animation: falling 4.7s infinite linear; transform: scale(1.7); left: 62%; }
+.x9 { animation: falling 4.1s infinite linear; transform: scale(0.9); left: 85%; }
+
+@keyframes falling {
+  0% { top: -100vh; opacity: 0; }
+  25% { opacity: 1; }
+  50% { top: 0vh; opacity: .8; }
+  75% { opacity: 1; }
+  100% { top: 100vh; opacity: 0; }
+}

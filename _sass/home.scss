@@ -6,84 +6,7 @@
   font-size: max(1.8vmax, 15px);
 }
 
-.dynamic-content {
-  margin-top: 60vmin;
-}
-
-.about-card {
-  color: white;
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
-
-.fixed {
-  position: fixed;
-  left: 50%;
-  width: 30%;
-  padding-bottom: 15px;
-}
-
-#dummy-description {
-  display: none;
-}
-.scrolled {
-  #dummy-description {
-    display: block;
-    visibility: hidden;
-  }
-  #description {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-  }
-}
-
-.hidden {
-  display: none;
-}
-
-.me-wrapper {
-  // width: 50%;
-  display: flex;
-  align-items: center;
-  height: 100%;
-  min-width: 30px;
-  min-height: 30px;
-
-  #me {
-    max-width: 100%;
-    max-height: 100%;
-    border-radius: 50%;
-    min-width: 30px;
-    min-height: 30px;
-  }
-}
-
-.my-name::before {
-  font-size: max(3.5vmax, 20px);
-  white-space: nowrap;
-  content: "Aray Karjauv";
-}
-
-#my-infobox {
-  flex-grow: 1;
-  // width: 50%;
-}
-
-#description {
-  padding-left: 15px;
-  padding-bottom: 15px;
-
-  a {
-    text-decoration: none;
-  }
-
-  a:visited {
-    color: #fff;
-  }
-}
-
+// Link styles
 .about-me-link {
   display: inline-block;
   font-weight: 400;
@@ -96,7 +19,6 @@
   -moz-user-select: none;
   user-select: none;
   background-color: transparent;
-  //   border: 1px solid transparent;
   padding: 0.375rem 0.75rem;
   font-size: 1rem;
   border-radius: 0.25rem;
@@ -105,7 +27,6 @@
 }
 
 .buttons .about-me-link {
-  //   box-shadow: inset 0 0 20px rgba(255, 255, 255, 0);
   outline: 1px solid;
   outline-color: rgba(255, 255, 255, 0.5);
   outline-offset: 0px;
@@ -113,8 +34,6 @@
   transition: all 600ms cubic-bezier(0.19, 1, 0.22, 1);
 
   &:hover {
-    // box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.5),
-    //   0 0 20px rgba(255, 255, 255, 0.2);
     background-color: #6ea4ab;
     border-color: #6ea4ab;
     outline-color: rgba(255, 255, 255, 0);
@@ -123,94 +42,13 @@
   }
 }
 
-@media (max-width: $brakepoint) {
-  //     #about {
-  //         position: static;
-  //     }
-
-  //     .home-content {
-  //         margin-top: 0;
-  //     }
-
-  //     .about-card {
-  //         flex-direction: column;
-  //         height: 100%;
-  //         justify-content: space-between;
-  //         padding: 15px;
-  //     }
-
-  //     .fixed,
-  //     .scrolled {
-  //         position: static;
-  //     }
-
-  //     .me-wrapper {
-  //         width: 100%;
-  //         height: auto;
-  //         padding-top: 15px;
-
-  //         #me {
-  //             position: static;
-  //             width: 100%;
-  //         }
-  //     }
-
-  //     .my-name::before {
-  //         margin: 0;
-  //         font-size: 14vw;
-  //         white-space: nowrap;
-  //     }
-
-  //     #description {
-  //         .about-me {
-  //             font-size: 3.5vw;
-  //         }
-
-  //         a {
-  //             font-size: 3.5vw;
-  //         }
-  //     }
+.hidden {
+  display: none;
 }
 
-.fixed-header {
-  .me-wrapper {
-    width: 4vmin;
-    height: 4vmin;
-
-    #me {
-      position: static;
-    }
-  }
-
-  .about-card {
-    align-items: center;
-  }
-  #dummy-description {
-    display: none;
-  }
-  #description {
-    position: static;
-    display: flex;
-    align-items: center;
-    padding-bottom: 0;
-    height: 100%;
-    width: auto !important;
-
-    .about-me {
-      display: none;
-      // font-size: 2vw;
-    }
-
-    .my-name {
-      margin-top: 0;
-      flex-grow: 1;
-      transition: flex-grow 0.4s ease-in-out;
-      animation: fadein 1s;
-
-      &::before {
-        content: "Aray's Blog";
-        font-size: max(2.5vmin, 20px);
-      }
-    }
-  }
+.fixed {
+  position: fixed;
+  left: 50%;
+  width: 30%;
+  padding-bottom: 15px;
 }
