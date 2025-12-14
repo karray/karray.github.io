@@ -5,7 +5,8 @@
 
 <body itemscope itemtype="http://schema.org/BlogPosting">
 
-  <header id="post-header" class="post-title header-background dynamic-header" role="banner">
+  <header id="post-header" class="post-title header-background dynamic-header" role="banner" data-collapsible-header
+    data-hide-on-scroll="true">
 
     <div class="wrapper">
       <div id="me-block">
@@ -54,7 +55,6 @@
   {%- include footer.html -%}
 
   <script src="{{ '/assets/js/header-controller.js' | relative_url }}"></script>
-  <script src="{{ '/assets/js/posts.js' | relative_url }}"></script>
   <script src="{{ '/assets/js/code-blocks.js' | relative_url }}"></script>
   {% if page.math %}
   <script type="text/x-mathjax-config">

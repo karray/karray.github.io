@@ -4,7 +4,7 @@
 {%- include head.html -%}
 
 <body>
-  <div id="about" class="header-background dynamic-header buttons">
+  <div id="about" class="header-background dynamic-header" data-collapsible-header>
     <div class="wrapper about-card">
       <div class="me-wrapper">
         <img src="{{'/assets/img/me.jpg' | relative_url}}" alt="Aray Karjauv" id='me' />
@@ -68,7 +68,7 @@
   </main>
   <!-- {%- include footer.html -%} -->
   <script src="{{ '/assets/js/header-controller.js' | relative_url }}"></script>
-  <script src="{{ '/assets/js/home.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/home-extras.js' | relative_url }}"></script>
 </body>
 
 </html>
