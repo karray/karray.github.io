@@ -163,13 +163,13 @@ class ModelWorker {
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
           this.setSize(img.width, img.height);
-          const imageData = this.getImage(img);
-          AppState.currentImage = imageData;
+          const bitmap = await createImageBitmap(img);
+          AppState.currentImage = bitmap;
 
           const status = this.modeSelect.value;
-          this._postMessage(status, imageData);
+          this._postMessage(status, bitmap);
         };
         img.src = e.target.result;
       };
@@ -235,7 +235,7 @@ class ModelWorker {
       $this.updateHeatmap($this.currentHeatmap);
     };
 
-    this.startButton.addEventListener("click", (e) => {
+    this.startButton.addEventListener("click", async (e) => {
       AppState.squareData = null;
       if ($this.video.paused) {
         this._clearSelections();
@@ -244,6 +244,7 @@ class ModelWorker {
       } else {
         $this.video.pause();
         $this.mainSection.classList.add("paused");
+        AppState.currentImage = await createImageBitmap($this.video);
       }
     });
 
@@ -326,7 +327,7 @@ class ModelWorker {
           const reader = new FileReader();
           reader.onload = (e) => {
             const img = new Image();
-            img.onload = () => {
+            img.onload = async () => {
               this.width = img.width;
               this.height = img.height;
               this.min_side = Math.min(img.width, img.height);
@@ -340,11 +341,11 @@ class ModelWorker {
               this.heatmap_canvas.width = this.min_side;
               this.heatmap_canvas.height = this.min_side;
 
-              let imgData = this.getImage(img);
-              AppState.currentImage = imgData;
+              const bitmap = await createImageBitmap(img);
+              AppState.currentImage = bitmap;
               AppState.selectionEnabled = true;
 
-              this._postMessage(post_status, imgData);
+              this._postMessage(post_status, bitmap);
             };
             img.src = e.target.result;
           };
@@ -471,7 +472,7 @@ class ModelWorker {
 
     this.toggleModeSelect(false);
     AppState.squareData = null;
-    AppState.currentImage = this.getImage(this.video);
+    AppState.currentImage = this.video; // Use video element as source
     const status = this.modeSelect.value;
     this._postMessage(status, AppState.currentImage);
   }
@@ -539,29 +540,30 @@ class ModelWorker {
     this.clearSelection.disabled = true;
   }
 
-  _postMessage(status, imgData) {
+  async _postMessage(status, imageSource) {
     this.toggleModeSelect(false);
-    const croppedFrame = ImageProcessor.fromImageData(imgData).squareCrop();
+    
+    let width, height;
+    if (imageSource instanceof HTMLVideoElement) {
+        width = imageSource.videoWidth;
+        height = imageSource.videoHeight;
+    } else {
+        width = imageSource.width;
+        height = imageSource.height;
+    }
+    
+    const minSide = Math.min(width, height);
+    const sx = Math.floor((width - minSide) / 2);
+    const sy = Math.floor((height - minSide) / 2);
 
-    this.ctx_img.putImageData(
-      new ImageData(
-        ImageProcessor.toImageData(croppedFrame),
-        this.min_side,
-        this.min_side
-      ),
-      0,
-      0
-    );
+    const bitmap = await createImageBitmap(imageSource, sx, sy, minSide, minSide);
 
-    const transformed_img = croppedFrame
-      .resize(INPUT_WIDTH, INPUT_HEIGHT, "bilinear")
-      .normalize(MEAN, STD);
-    const tensor = ImageProcessor.toTensor(transformed_img);
+    this.ctx_img.drawImage(bitmap, 0, 0, this.min_side, this.min_side);
 
     this.worker.postMessage({
       status: status,
-      tensor: tensor,
-    });
+      imageBitmap: bitmap,
+    }, [bitmap]);
   }
 
   processModeChange() {
@@ -593,9 +595,12 @@ class ModelWorker {
 
   _updateVideo() {
     if (!this.video.paused) {
-      AppState.currentImage = this.getImage(this.video);
+      // AppState.currentImage = this.getImage(this.video);
       const status = this.modeSelect.value;
-      this._postMessage(status, AppState.currentImage);
+      // Pass the video element directly. AppState.currentImage stays as 'this.video' (ref) or is ignored during playback?
+      // Since _onPlay sets AppState.currentImage = this.video, we can pass that or just this.video.
+      // But _postMessage now expects a source.
+      this._postMessage(status, this.video);
     } else {
       this.toggleModeSelect(true);
     }
