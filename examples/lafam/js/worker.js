@@ -247,43 +247,49 @@ const model = new LaFAMModel();
 model.init().then((msg) => postMessage(msg));
 
 // Message Handler
+const handlers = {
+  predict: async (data, tensor) => {
+    const res = await model.runPredict(tensor);
+    postMessage(res);
+  },
+  "groupmap-bbs": async (data, tensor) => {
+    const squaresData = await model.predictPerSquare(tensor);
+    postMessage({
+      status: "square_results_for_groupmap",
+      data: squaresData,
+    });
+  },
+  "imagenet-classes": async (data, tensor) => {
+    const squaresData = await model.predictPerSquare(tensor);
+    postMessage({
+      status: "square_results_for_classmap",
+      data: squaresData,
+    });
+  },
+  heatmap_by_class: async (data) => {
+    const res = model.calculateHeatmapByClass(data.classIdxs);
+    postMessage(res);
+  },
+  class_by_heatmap: async (data) => {
+    const res = await model.calculateClassByHeatmap(data.classIdxs);
+    postMessage(res);
+  },
+};
+
 onmessage = async (e) => {
   const { data } = e;
-  
+
   try {
-      if (data.status === "predict" || data.status === "groupmap-bbs" || data.status === "imagenet-classes") {
-          let tensor = data.tensor;
-          if (data.imageBitmap) {
-             tensor = model.preprocessImage(data.imageBitmap);
-          }
-          
-          if (data.status === "predict") {
-              const res = await model.runPredict(tensor);
-              postMessage(res);
-          } else if (data.status === "groupmap-bbs") {
-              const squaresData = await model.predictPerSquare(tensor);
-              postMessage({
-                  status: "square_results_for_groupmap",
-                  data: squaresData,
-              });
-          } else if (data.status === "imagenet-classes") {
-              const squaresData = await model.predictPerSquare(tensor);
-              postMessage({
-                  status: "square_results_for_classmap",
-                  data: squaresData,
-              });
-          }
-      } 
-      else if (data.status === "heatmap_by_class") {
-          const res = model.calculateHeatmapByClass(data.classIdxs);
-          postMessage(res);
-      } 
-      else if (data.status === "class_by_heatmap") {
-          const res = await model.calculateClassByHeatmap(data.classIdxs);
-          postMessage(res);
+    const handler = handlers[data.status];
+    if (handler) {
+      let tensor = data.tensor;
+      if (data.imageBitmap) {
+        tensor = model.preprocessImage(data.imageBitmap);
       }
-  } catch(err) {
-      console.error("Worker error handling message:", err);
-      postMessage({status: "error", message: err.toString()});
+      await handler(data, tensor);
+    }
+  } catch (err) {
+    console.error("Worker error handling message:", err);
+    postMessage({ status: "error", message: err.toString() });
   }
 };
