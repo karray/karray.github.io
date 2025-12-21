@@ -138,24 +138,20 @@ class ModelWorker {
 
     this.video.onloadedmetadata = async () => {
       this.setSize(this.video.videoWidth, this.video.videoHeight);
-      // if video file
-      if (this.video.src) {
+      
+      if (this.video.srcObject) {
+        try {
+          await this.video.play();
+          AppState.currentImage = await this._getFrame();
+          this.video.pause();
+        } catch (err) {
+          addLogMsg("Failed to get camera preview frame: " + err);
+          console.warn("Failed to get camera preview frame: " + err);
+        }
+      } else {
         AppState.currentImage = await this._getFrame();
       }
-      else {
-        let track = $this.localMediaStream.getVideoTracks()[0];
-        addLogMsg("track: " + track);
-        const ic = new ImageCapture(track);
-        addLogMsg("ic: " + ic);
-        let frame = await ic.grabFrame();
-        addLogMsg("frame: " + frame);
-        if (!frame) {
-          addLogMsg("Failed to grab camera frame");
-        } else {
-          const square = await createImageBitmap(frame, $this.sx, $this.sy, $this.min_side, $this.min_side);
-          AppState.currentImage = square;
-        }
-      }
+      
       $this._postMessage();
     };
 
@@ -365,8 +361,18 @@ class ModelWorker {
 
   async _handleUploadedBlob(file, post_status) {
     this.video.pause();
-    this.video.srcObject = null;
-    this.video.src = "";
+    
+    // Stop camera tracks if switching away from camera
+    if (this.video.srcObject) {
+      this.video.srcObject.getTracks().forEach(t => t.stop());
+      this.video.srcObject = null;
+    }
+    
+    // Clear video file source
+    if (this.video.src) {
+      this.video.removeAttribute('src');
+      this.video.load();
+    }
 
     if (file.type.startsWith("image/")) {
       const bitmap = await createImageBitmap(file);
@@ -398,6 +404,7 @@ class ModelWorker {
 
     try {
       this.localMediaStream = await navigator.mediaDevices.getUserMedia({video: true});
+      window._lafamMediaStream = this.localMediaStream;
     } catch (error) {
       console.warn("Camera permission denied or device not found", error);
       debug_devices.textContent +=
@@ -435,6 +442,7 @@ class ModelWorker {
           height: { ideal: 1024 },
         },
       });
+      window._lafamMediaStream = this.localMediaStream;
     } else {
       this.currentCameraId = currentStreamId;
     }
@@ -464,6 +472,7 @@ class ModelWorker {
               height: { ideal: 1024 },
             },
           });
+          window._lafamMediaStream = $this.localMediaStream;
 
           $this.video.srcObject = $this.localMediaStream;
           $this.video.play();
@@ -476,45 +485,24 @@ class ModelWorker {
       };
     }
 
-    this.video.addEventListener(
-      "play",
-      async () => {
-        AppState.currentImage = await this._getFrame();
-        this._postMessage(this.modeSelect.value, AppState.currentImage);
-      },
-      0
-    );
+    this.video.addEventListener("play", async () => {
+      AppState.currentImage = await this._getFrame();
+      this._postMessage(this.modeSelect.value, AppState.currentImage);
+    });
   }
 
   async _getFrame() {
-    const stream = this.video.srcObject;
-    const track =
-      stream && typeof stream.getVideoTracks === "function"
-        ? stream.getVideoTracks()[0]
-        : null;
-
-    let bitmap;
-    if (track) {
-      bitmap = await createImageBitmap(this.video, this.sx, this.sy, this.min_side, this.min_side);
-    } else {
-      try {
-        if (typeof this.video.requestVideoFrameCallback === "function") {
-          await new Promise((resolve) => this.video.requestVideoFrameCallback(() => resolve()));
-        } else {
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-      } catch (err) {
-        console.warn("Could not seek/decode first frame:", err);
+    if (!this.video.srcObject) {
+      if (typeof this.video.requestVideoFrameCallback === "function") {
+        await new Promise((resolve) => this.video.requestVideoFrameCallback(resolve));
       }
-
-      const ctx = this.hidden_canvas.getContext("2d");
-      ctx.drawImage(this.video, this.sx, this.sy, this.min_side, this.min_side);
-
-      bitmap = await createImageBitmap(this.hidden_canvas);
     }
-
-    // this.ctx_img.drawImage(bitmap, 0, 0, this.min_side, this.min_side);
-    return bitmap;
+    
+    return await createImageBitmap(
+      this.video,
+      this.sx, this.sy,
+      this.min_side, this.min_side
+    );
   }
 
   _onmessage(e) {
@@ -1305,8 +1293,8 @@ if ("serviceWorker" in navigator) {
 
 // release camera on page unload
 window.addEventListener("beforeunload", () => {
-  if (window.localMediaStream) {
-    window.localMediaStream.getTracks().forEach((track) => track.stop());
+  if (window._lafamMediaStream) {
+    window._lafamMediaStream.getTracks().forEach((track) => track.stop());
   }
 });
 
