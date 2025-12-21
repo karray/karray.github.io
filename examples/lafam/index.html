@@ -42,11 +42,11 @@
                     <!-- Slim Split-Button for Upload & Presets -->
                     <div class="btn upload-split-group" id="upload-group">
                         <!-- Left: Upload Trigger -->
-                        <div id="upload-button" class="split-action" title="Upload Image"
-                            aria-label="Upload an image from your device">
+                        <div id="upload-button" class="split-action" title="Upload Image or Video"
+                            aria-label="Upload an image or video from your device">
                             <img src="assets/images/upload.svg" class="icon" alt="Upload icon" />
                         </div>
-                        <input type="file" id="upload-input" accept="image/*" style="display: none;">
+                        <input type="file" id="upload-input" accept="image/*,video/*" style="display: none;">
 
                         <!-- Divider -->
                         <div class="split-divider"></div>
@@ -60,9 +60,10 @@
                             <!-- Invisible Select sitting on top -->
                             <select id="predefined-files" class="invisible-select lafam-select">
                                 <option value="" disabled selected hidden></option> <!-- Empty Selection -->
-                                <option value="dog_and_cat.jpg">Dog & Cat</option>
-                                <option value="self-driving.png">Self-driving car</option>
-                                <option value="misc.png">Misc</option>
+                                <option value="images/dog_and_cat.jpg">🖼️ Dog & Cat</option>
+                                <option value="images/self-driving.png">🖼️ Self-driving car</option>
+                                <option value="images/misc.png">🖼️ Misc</option>
+                                <option value="videos/dog_on_a_beach.mp4">🎥 Dog on a beach</option>
                             </select>
                         </div>
                     </div>

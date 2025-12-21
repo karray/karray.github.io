@@ -82,7 +82,7 @@ a {
 #main-section:not(.ready) #upload-button,
 #main-section:not(.ready) .split-action,
 #main-section:not(.ready) #start-button,
-#main-section:not(.camera-available) #start-button,
+/* #main-section:not(.camera-available) #start-button, */
 #main-section:not(.ready) #switch-camera-button,
 #main-section:not(.camera-available) #switch-camera-button {
     background-color: var(--border-color);

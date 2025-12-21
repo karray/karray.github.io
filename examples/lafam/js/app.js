@@ -136,6 +136,29 @@ class ModelWorker {
   initEvents() {
     const $this = this;
 
+    this.video.onloadedmetadata = async () => {
+      this.setSize(this.video.videoWidth, this.video.videoHeight);
+      // if video file
+      if (this.video.src) {
+        AppState.currentImage = await this._getFrame();
+      }
+      else {
+        let track = $this.localMediaStream.getVideoTracks()[0];
+        addLogMsg("track: " + track);
+        const ic = new ImageCapture(track);
+        addLogMsg("ic: " + ic);
+        let frame = await ic.grabFrame();
+        addLogMsg("frame: " + frame);
+        if (!frame) {
+          addLogMsg("Failed to grab camera frame");
+        } else {
+          const square = await createImageBitmap(frame, $this.sx, $this.sy, $this.min_side, $this.min_side);
+          AppState.currentImage = square;
+        }
+      }
+      $this._postMessage();
+    };
+
     this.predefinedFiles.addEventListener("change", () => {
       $this._clearSelections();
       $this._clearGroupMapDisplay();
@@ -150,33 +173,20 @@ class ModelWorker {
       this.uploadInput.click();
     });
 
-    this.uploadInput.addEventListener("change", (e) => {
+    this.uploadInput.addEventListener("change", async (e) => {      
       $this._clearSelections();
       $this._clearGroupMapDisplay();
       $this.video.pause();
       $this.mainSection.classList.add("paused");
       AppState.squareData = null;
-      this.modeSelect.value = "predict";
 
-      const file = e.target.files[0];
-      console.log("upload file", file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = async () => {
-          this.setSize(img.width, img.height);
-          const bitmap = await createImageBitmap(img);
-          AppState.currentImage = bitmap;
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
 
-          const status = this.modeSelect.value;
-          this._postMessage(status, bitmap);
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
+      this._handleUploadedBlob(file, this.modeSelect.value);
 
-      if (this.uploadInput.files.length > 0) {
-        this.predefinedFiles.value = "";
+      if ($this.uploadInput.files.length > 0) {
+        $this.predefinedFiles.value = "";
       }
     });
 
@@ -235,16 +245,38 @@ class ModelWorker {
       $this.updateHeatmap($this.currentHeatmap);
     };
 
-    this.startButton.addEventListener("click", async (e) => {
+    this.startButton.addEventListener("click", async () => {
       AppState.squareData = null;
-      if ($this.video.paused) {
+
+      const hasStream = !!this.video.srcObject;
+      const hasFileSrc = !!this.video.currentSrc; // populated after src is set and load starts
+
+      if (!hasStream && !hasFileSrc) {
+        console.warn("Cannot play: video has no srcObject and no src/currentSrc.");
+        return;
+      }
+
+      if (this.video.paused || this.video.ended) {
         this._clearSelections();
-        $this.video.play();
-        $this.mainSection.classList.remove("paused");
+        this.mainSection.classList.remove("paused");
+
+        try {
+          await this.video.play();
+          this._updateVideo();
+        } catch (err) {
+          console.warn("video.play() failed:", err);
+
+          // Camera specific check: tracks might be ended
+          if (this.video.srcObject && typeof this.video.srcObject.getVideoTracks === "function") {
+            console.log(
+              "track states:",
+              this.video.srcObject.getVideoTracks().map(t => ({ readyState: t.readyState, enabled: t.enabled, muted: t.muted }))
+            );
+          }
+        }
       } else {
-        $this.video.pause();
-        $this.mainSection.classList.add("paused");
-        AppState.currentImage = await createImageBitmap($this.video);
+        this.video.pause();
+        this.mainSection.classList.add("paused");
       }
     });
 
@@ -294,63 +326,65 @@ class ModelWorker {
   }
 
   _resizeCanvases(width, height) {
-    const minSide = Math.min(width, height);
-    
     this.hidden_canvas.width = width;
     this.hidden_canvas.height = height;
-    
-    this.img_canvas.width = minSide;
-    this.img_canvas.height = minSide;
-    
-    this.heatmap_canvas.width = minSide;
-    this.heatmap_canvas.height = minSide;
+
+    this.img_canvas.width = this.min_side;
+    this.img_canvas.height = this.min_side;
+
+    this.heatmap_canvas.width = this.min_side;
+    this.heatmap_canvas.height = this.min_side;
   }
 
   setSize(width, height) {
     this.width = width;
     this.height = height;
     this.min_side = Math.min(width, height);
+    this.sx = Math.floor((width - this.min_side) / 2);
+    this.sy = Math.floor((height - this.min_side) / 2);
+
     this._resizeCanvases(width, height);
   }
 
   getImage(img) {
+    console.log("Getting image", img);
+    console.log("Canvas size", this.width, this.height);
     this.ctx_hidden.drawImage(img, 0, 0);
     return this.ctx_hidden.getImageData(0, 0, this.width, this.height);
   }
 
-  load_selected_image(post_status = "predict") {
+  load_selected_image(post_status) {
     const file = document.getElementById("predefined-files").value;
-    if (file) {
-      fetch("assets/images/" + file)
-        .then((response) => response.blob())
-        .then((blob) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const img = new Image();
-            img.onload = async () => {
-              this.width = img.width;
-              this.height = img.height;
-              this.min_side = Math.min(img.width, img.height);
+    if (!file) return;
 
-              this.hidden_canvas.width = this.width;
-              this.hidden_canvas.height = this.height;
+    fetch("assets/" + file)
+      .then((response) => response.blob())
+      .then((blob) => this._handleUploadedBlob(blob, post_status))
+      .catch((err) => console.warn("Failed to load asset:", err));
+  }
 
-              this.img_canvas.width = this.min_side;
-              this.img_canvas.height = this.min_side;
+  async _handleUploadedBlob(file, post_status) {
+    this.video.pause();
+    this.video.srcObject = null;
+    this.video.src = "";
 
-              this.heatmap_canvas.width = this.min_side;
-              this.heatmap_canvas.height = this.min_side;
+    if (file.type.startsWith("image/")) {
+      const bitmap = await createImageBitmap(file);
+      this.setSize(bitmap.width, bitmap.height);
+      AppState.currentImage = bitmap;
 
-              const bitmap = await createImageBitmap(img);
-              AppState.currentImage = bitmap;
-              AppState.selectionEnabled = true;
+      this._postMessage(post_status, bitmap);
+    } else if (file.type.startsWith("video/")) {
+      this.video.preload = "metadata";
+      this.video.muted = true;
+      this.video.playsInline = true;
+      const url = URL.createObjectURL(file);
+      this.video.src = url;
+      this.video.load();
 
-              this._postMessage(post_status, bitmap);
-            };
-            img.src = e.target.result;
-          };
-          reader.readAsDataURL(blob);
-        });
+    } else {
+      console.warn("Unsupported file type:", file.type);
+      return;
     }
   }
 
@@ -407,12 +441,10 @@ class ModelWorker {
 
     this.video.srcObject = this.localMediaStream;
 
-
     if (cameras.length > 1) {
 
       this.switchCameraButton.onclick = async () => {
         $this.video.pause();
-        $this.mainSection.classList.add("paused");
         if ($this.localMediaStream) {
           $this.localMediaStream.getTracks().forEach((track) => track.stop());
         }
@@ -434,12 +466,10 @@ class ModelWorker {
           });
 
           $this.video.srcObject = $this.localMediaStream;
+          $this.video.play();
+          $this.mainSection.classList.remove("paused");
+          $this.toggleModeSelect(false);
 
-          $this.video.onloadedmetadata = async () => {
-            await $this.video.play();
-            $this._onPlay();
-            $this.mainSection.classList.remove("paused");
-          };
         } catch (err) {
           console.error("Error switching camera:", err);
         }
@@ -448,33 +478,43 @@ class ModelWorker {
 
     this.video.addEventListener(
       "play",
-      () => {
-        this._onPlay();
+      async () => {
+        AppState.currentImage = await this._getFrame();
+        this._postMessage(this.modeSelect.value, AppState.currentImage);
       },
       0
     );
   }
 
-  _onPlay() {
-    const settings = this.localMediaStream.getVideoTracks()[0].getSettings();
-    this.width = settings.width;
-    this.height = settings.height;
-    this.min_side = Math.min(this.width, this.height);
+  async _getFrame() {
+    const stream = this.video.srcObject;
+    const track =
+      stream && typeof stream.getVideoTracks === "function"
+        ? stream.getVideoTracks()[0]
+        : null;
 
-    this.hidden_canvas.width = this.width;
-    this.hidden_canvas.height = this.height;
+    let bitmap;
+    if (track) {
+      bitmap = await createImageBitmap(this.video, this.sx, this.sy, this.min_side, this.min_side);
+    } else {
+      try {
+        if (typeof this.video.requestVideoFrameCallback === "function") {
+          await new Promise((resolve) => this.video.requestVideoFrameCallback(() => resolve()));
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      } catch (err) {
+        console.warn("Could not seek/decode first frame:", err);
+      }
 
-    this.img_canvas.width = this.min_side;
-    this.img_canvas.height = this.min_side;
+      const ctx = this.hidden_canvas.getContext("2d");
+      ctx.drawImage(this.video, this.sx, this.sy, this.min_side, this.min_side);
 
-    this.heatmap_canvas.width = this.min_side;
-    this.heatmap_canvas.height = this.min_side;
+      bitmap = await createImageBitmap(this.hidden_canvas);
+    }
 
-    this.toggleModeSelect(false);
-    AppState.squareData = null;
-    AppState.currentImage = this.video; // Use video element as source
-    const status = this.modeSelect.value;
-    this._postMessage(status, AppState.currentImage);
+    // this.ctx_img.drawImage(bitmap, 0, 0, this.min_side, this.min_side);
+    return bitmap;
   }
 
   _onmessage(e) {
@@ -495,8 +535,8 @@ class ModelWorker {
     }
     if (data.status === "results") {
       this.results = data;
-      this.updateResults(data.heatmap, data.predictions, data.logits);
       this._updateVideo();
+      this.updateResults(data.heatmap, data.predictions, data.logits);
     }
     if (data.status === "weighted_heatmap") {
       this.updateHeatmap(data.heatmap);
@@ -540,36 +580,19 @@ class ModelWorker {
     this.clearSelection.disabled = true;
   }
 
-  async _postMessage(status, imageSource) {
+  async _postMessage() {
     this.toggleModeSelect(false);
     
-    let width, height;
-    if (imageSource instanceof HTMLVideoElement) {
-        width = imageSource.videoWidth;
-        height = imageSource.videoHeight;
-    } else {
-        width = imageSource.width;
-        height = imageSource.height;
-    }
-    
-    const minSide = Math.min(width, height);
-    const sx = Math.floor((width - minSide) / 2);
-    const sy = Math.floor((height - minSide) / 2);
-
-    const bitmap = await createImageBitmap(imageSource, sx, sy, minSide, minSide);
-
-    this.ctx_img.drawImage(bitmap, 0, 0, this.min_side, this.min_side);
-
     this.worker.postMessage({
-      status: status,
-      imageBitmap: bitmap,
-    }, [bitmap]);
+      status: this.modeSelect.value,
+      imageBitmap: AppState.currentImage,
+    });
   }
 
   processModeChange() {
     const value = this.modeSelect.value;
     if (value === "predict") {
-      this._postMessage("predict", AppState.currentImage);
+      this._postMessage();
     } else if (value === "imagenet-classes") {
       this.showImagenetClasses();
     } else if (value === "groupmap-bbs") {
@@ -588,19 +611,16 @@ class ModelWorker {
     this.togglePaletteSelect(true);
     toggleSelection(true);
 
+    this.ctx_img.drawImage(AppState.currentImage, 0, 0, AppState.currentImage.width, AppState.currentImage.height);
     this.updateHeatmap(heatmap);
     let top_n_idx = argmax_top_n(logits, TOP_N, 1.7);
     this._updatePredictionList(top_n_idx, predictions, logits);
   }
 
-  _updateVideo() {
+  async _updateVideo() {
     if (!this.video.paused) {
-      // AppState.currentImage = this.getImage(this.video);
-      const status = this.modeSelect.value;
-      // Pass the video element directly. AppState.currentImage stays as 'this.video' (ref) or is ignored during playback?
-      // Since _onPlay sets AppState.currentImage = this.video, we can pass that or just this.video.
-      // But _postMessage now expects a source.
-      this._postMessage(status, this.video);
+      AppState.currentImage = await this._getFrame();
+      this._postMessage();
     } else {
       this.toggleModeSelect(true);
     }
@@ -609,7 +629,7 @@ class ModelWorker {
   showGroupmap() {
     if (AppState.currentImage === null) return;
     if (AppState.squareData === null) {
-      this._postMessage("groupmap-bbs", AppState.currentImage);
+      this._postMessage();
     } else {
       this.updateGroupMap();
       this.updateGroupList();
@@ -621,7 +641,7 @@ class ModelWorker {
   showImagenetClasses() {
     if (AppState.currentImage === null) return;
     if (AppState.squareData === null) {
-      this._postMessage("imagenet-classes", AppState.currentImage);
+      this._postMessage();
     } else {
       this.updateClassMap();
       this.updateClassList();
