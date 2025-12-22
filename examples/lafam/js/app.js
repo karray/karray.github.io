@@ -26,7 +26,8 @@ const AppState = {
   grouper: null,
   selectionEnabled: false,
   currentImage: null,
-  squareData: null
+  squareData: null,
+  isWorkerReady: false,
 };
 
 
@@ -137,22 +138,26 @@ class ModelWorker {
     const $this = this;
 
     this.video.onloadedmetadata = async () => {
-      this.setSize(this.video.videoWidth, this.video.videoHeight);
-      
-      if (this.video.srcObject) {
+      $this.setSize($this.video.videoWidth, $this.video.videoHeight);
+      $this.startButton.disabled = false;
+
+      if ($this.video.srcObject) {
         try {
-          await this.video.play();
-          AppState.currentImage = await this._getFrame();
-          this.video.pause();
+          await $this.video.play();
+          AppState.currentImage = await $this._getFrame();
+          if($this.mainSection.classList.contains("paused")){
+            $this.video.pause();
+          }
         } catch (err) {
           addLogMsg("Failed to get camera preview frame: " + err);
           console.warn("Failed to get camera preview frame: " + err);
         }
       } else {
-        AppState.currentImage = await this._getFrame();
+        AppState.currentImage = await $this._getFrame();
       }
-      
-      $this._postMessage();
+      if(AppState.isWorkerReady){
+        $this._postMessage();
+      }
     };
 
     this.predefinedFiles.addEventListener("change", () => {
@@ -262,7 +267,6 @@ class ModelWorker {
         } catch (err) {
           console.warn("video.play() failed:", err);
 
-          // Camera specific check: tracks might be ended
           if (this.video.srcObject && typeof this.video.srcObject.getVideoTracks === "function") {
             console.log(
               "track states:",
@@ -361,14 +365,13 @@ class ModelWorker {
 
   async _handleUploadedBlob(file, post_status) {
     this.video.pause();
-    
-    // Stop camera tracks if switching away from camera
+    this.startButton.disabled = true;   
+
     if (this.video.srcObject) {
       this.video.srcObject.getTracks().forEach(t => t.stop());
       this.video.srcObject = null;
     }
     
-    // Clear video file source
     if (this.video.src) {
       this.video.removeAttribute('src');
       this.video.load();
@@ -449,46 +452,51 @@ class ModelWorker {
 
     this.video.srcObject = this.localMediaStream;
 
-    if (cameras.length > 1) {
+    this.switchCameraButton.onclick = async () => {
+      $this.video.pause();
+      $this.mainSection.classList.add("paused");
+      $this.startButton.disabled = true;
+      
+      if (!$this.video.srcObject && $this.video.currentSrc) {
+        $this.video.removeAttribute('src');
+        $this.video.load();
+      }
+      
+      if ($this.localMediaStream) {
+        $this.localMediaStream.getTracks().forEach((track) => track.stop());
+      }
 
-      this.switchCameraButton.onclick = async () => {
-        $this.video.pause();
-        if ($this.localMediaStream) {
-          $this.localMediaStream.getTracks().forEach((track) => track.stop());
-        }
+      const nextCamera = cameras.find(
+        (camera) => camera.deviceId !== $this.currentCameraId
+      );
 
-        const nextCamera = cameras.find(
-          (camera) => camera.deviceId !== $this.currentCameraId
-        );
+      if (nextCamera) {
+        $this.currentCameraId = nextCamera.deviceId;
+      }
 
-        if (nextCamera) {
-          $this.currentCameraId = nextCamera.deviceId;
-        }
+      try {
+        $this.localMediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: { exact: $this.currentCameraId },
+            height: { ideal: 1024 },
+          },
+        });
+        window._lafamMediaStream = $this.localMediaStream;
 
-        try {
-          $this.localMediaStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              deviceId: { exact: $this.currentCameraId },
-              height: { ideal: 1024 },
-            },
-          });
-          window._lafamMediaStream = $this.localMediaStream;
+        $this.mainSection.classList.remove("paused");
+        $this.video.srcObject = $this.localMediaStream;
+        $this.toggleModeSelect(false);
 
-          $this.video.srcObject = $this.localMediaStream;
-          $this.video.play();
-          $this.mainSection.classList.remove("paused");
-          $this.toggleModeSelect(false);
+      } catch (err) {
+        console.error("Error switching camera:", err);
+        addLogMsg("Error switching camera: " + err);
+      }
+    };
 
-        } catch (err) {
-          console.error("Error switching camera:", err);
-        }
-      };
-    }
-
-    this.video.addEventListener("play", async () => {
-      AppState.currentImage = await this._getFrame();
-      this._postMessage(this.modeSelect.value, AppState.currentImage);
-    });
+    // this.video.addEventListener("play", async () => {
+    //   AppState.currentImage = await this._getFrame();
+    //   this._postMessage(this.modeSelect.value, AppState.currentImage);
+    // });
   }
 
   async _getFrame() {
@@ -517,9 +525,12 @@ class ModelWorker {
     }
     
     if (data.status === "ready") {
-
+      AppState.isWorkerReady = true;
       document.getElementById("loading-indicator").style.display = "none";
       this.mainSection.classList.add("ready");
+      if(AppState.currentImage){
+        this._postMessage();
+      }
     }
     if (data.status === "results") {
       this.results = data;
