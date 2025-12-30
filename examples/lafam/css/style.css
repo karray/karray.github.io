@@ -728,6 +728,7 @@ textarea {
         width: 100%;
     }
 
+
     #tutorial-card {
         position: fixed !important;
         bottom: 20px !important;
@@ -735,4 +736,19 @@ textarea {
         top: auto !important;
         width: calc(100% - 40px) !important;
     }
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+.control-divider {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 15px 0;
+}
+
+.full-width {
+    width: 100%;
 }

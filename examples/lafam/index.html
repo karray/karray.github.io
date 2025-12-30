@@ -89,8 +89,9 @@
                 <div class="select-wrapper">
                     <select id="mode-select" class="lafam-select">
                         <option value="predict" selected>Classifier with LaFAM/GradCAM</option>
-                        <option value="imagenet-classes">Multi-instance classification</option>
-                        <option value="groupmap-bbs">Object detection</option>
+                        <option value="imagenet_classes">Multi-instance classification</option>
+                        <option value="groupmap_bbs">Object detection</option>
+                        <option value="object_tracking">Object tracking</option>
                     </select>
                     <select id="palette-select" class="lafam-select">
                     </select>
@@ -100,6 +101,54 @@
                         <label for="heatmap-opacity">Heatmap Opacity</label>
                     </div>
                     <input type="range" id="heatmap-opacity" min="0.0" max="1.0" value="0.5" step="0.05">
+                </div>
+
+                <!-- Object Tracking Controls -->
+                <div id="tracking-controls" class="hidden">
+                    <div class="control-group">
+                        <button id="add-object-btn" class="btn primary full-width">
+                            + Add Object
+                        </button>
+                    </div>
+                    
+                    <div id="tracking-objects-list">
+                        <!-- Object items will be added here dynamically -->
+                    </div>
+
+                    <div class="control-divider"></div>
+
+                    <div class="control-group">
+                        <label for="tracking-resolution">Resolution</label>
+                        <select id="tracking-resolution" class="lafam-select small">
+                            <option value="224" selected>224x224 (High)</option>
+                            <option value="112">112x112 (Mid)</option>
+                            <option value="56">56x56 (Low)</option>
+                        </select>
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <label for="tracking-threshold">Similarity Threshold</label>
+                            <span id="tracking-threshold-val">0.50</span>
+                        </div>
+                        <input type="range" id="tracking-threshold" min="0.0" max="1.0" value="0.5" step="0.05">
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <label for="tracking-ema">Smoothing (EMA)</label>
+                            <span id="tracking-ema-val">0.75</span>
+                        </div>
+                        <input type="range" id="tracking-ema" min="0.0" max="1.0" value="0.75" step="0.05">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <label for="tracking-overlay-alpha">Overlay Alpha</label>
+                            <span id="tracking-overlay-alpha-val">0.50</span>
+                        </div>
+                        <input type="range" id="tracking-overlay-alpha" min="0.0" max="1.0" value="0.5" step="0.05">
+                    </div>
                 </div>
             </div>
 

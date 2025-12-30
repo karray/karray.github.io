@@ -28,6 +28,14 @@ const AppState = {
   currentImage: null,
   squareData: null,
   isWorkerReady: false,
+  trackingObjects: [],
+  activeTrackingObjectId: null,
+  trackingSettings: {
+    threshold: 0.5,
+    ema: 0.75,
+    overlayAlpha: 0.5,
+    resolution: 224
+  }
 };
 
 
@@ -132,6 +140,18 @@ class ModelWorker {
     this.uploadInput = document.getElementById("upload-input");
     this.heatmapGrid = document.getElementById("grid");
     this.clearSelection = document.getElementById("clear-selection");
+
+    // Object Tracking Elements
+    this.trackingControls = document.getElementById("tracking-controls");
+    this.addObjectBtn = document.getElementById("add-object-btn");
+    this.trackingObjectsList = document.getElementById("tracking-objects-list");
+    this.trackingResolution = document.getElementById("tracking-resolution");
+    this.trackingThreshold = document.getElementById("tracking-threshold");
+    this.trackingThresholdVal = document.getElementById("tracking-threshold-val");
+    this.trackingEma = document.getElementById("tracking-ema");
+    this.trackingEmaVal = document.getElementById("tracking-ema-val");
+    this.trackingOverlayAlpha = document.getElementById("tracking-overlay-alpha");
+    this.trackingOverlayAlphaVal = document.getElementById("tracking-overlay-alpha-val");
   }
 
   initEvents() {
@@ -284,6 +304,30 @@ class ModelWorker {
       this.processModeChange();
     });
 
+    // Tracking UI Events
+    this.addObjectBtn.addEventListener("click", () => {
+        this.addTrackingObject();
+    });
+
+    this.trackingResolution.addEventListener("change", (e) => {
+        AppState.trackingSettings.resolution = parseInt(e.target.value);
+    });
+
+    this.trackingThreshold.addEventListener("input", (e) => {
+        AppState.trackingSettings.threshold = parseFloat(e.target.value);
+        this.trackingThresholdVal.innerText = parseFloat(e.target.value).toFixed(2);
+    });
+
+    this.trackingEma.addEventListener("input", (e) => {
+        AppState.trackingSettings.ema = parseFloat(e.target.value);
+        this.trackingEmaVal.innerText = parseFloat(e.target.value).toFixed(2);
+    });
+
+    this.trackingOverlayAlpha.addEventListener("input", (e) => {
+        AppState.trackingSettings.overlayAlpha = parseFloat(e.target.value);
+        this.trackingOverlayAlphaVal.innerText = parseFloat(e.target.value).toFixed(2);
+    });
+
     // root event listener for cells (divs)
     this.heatmapGrid.addEventListener("click", (e) => {
       if (!AppState.selectionEnabled) return;
@@ -291,35 +335,79 @@ class ModelWorker {
       const div = e.target.closest("div");
       if (!div) return;
 
-      this._clearPredictionSelections();
-      let classIdxs = [];
-      if (!div.classList.contains("selected")) {
-        classIdxs.push(parseInt(div.getAttribute("data-idx")));
-        div.classList.add("selected");
-      } else {
-        div.classList.remove("selected");
-      }
+      if (this.modeSelect.value === "object_tracking") {
+          // Object Tracking Mode
+          if (AppState.activeTrackingObjectId === null) return;
+          
+          let obj = AppState.trackingObjects.find(o => o.id === AppState.activeTrackingObjectId);
+          if (!obj) return;
 
-      for (const el of document.querySelectorAll("#grid div.selected")) {
-        if (el !== div) {
-          classIdxs.push(parseInt(el.getAttribute("data-idx")));
+          const idx = parseInt(div.getAttribute("data-idx"));
+          const cellIndex = obj.cells.indexOf(idx);
+          
+          if (cellIndex === -1) {
+              obj.cells.push(idx);
+              div.classList.add("selected");
+              div.style.borderColor = obj.color;
+              div.style.boxShadow = `0 0 20px ${obj.color} inset`;
+          } else {
+              obj.cells.splice(cellIndex, 1);
+              div.classList.remove("selected");
+              div.style.borderColor = "";
+              div.style.boxShadow = "";
+          }
+
+          // Request new embedding if cells exist
+          if (obj.cells.length > 0) {
+              this.worker.postMessage({
+                  status: "calc_embedding",
+                  id: obj.id,
+                  cells: obj.cells,
+                  imageBitmap: AppState.currentImage // Needs current image for ref aggregation
+              });
+              
+              // Also show heatmap for feedback (like classification mode)
+              this.worker.postMessage({
+                  status: "class_by_heatmap",
+                  classIdxs: obj.cells,
+              });
+          } else {
+              // Clear predictions/heatmap if no cells
+              this.updateResults(this.results.heatmap, this.results.predictions, this.results.logits);
+          }
+
+      } else {
+          // Standard Modes
+            this._clearPredictionSelections();
+            let classIdxs = [];
+            if (!div.classList.contains("selected")) {
+                classIdxs.push(parseInt(div.getAttribute("data-idx")));
+                div.classList.add("selected");
+            } else {
+                div.classList.remove("selected");
+            }
+
+            for (const el of document.querySelectorAll("#grid div.selected")) {
+                if (el !== div) {
+                classIdxs.push(parseInt(el.getAttribute("data-idx")));
+                }
+            }
+
+            if (classIdxs.length > 0) {
+                this.clearSelection.disabled = false;
+                $this.worker.postMessage({
+                status: "class_by_heatmap",
+                classIdxs: classIdxs,
+                });
+            } else {
+                this.clearSelection.disabled = true;
+                this.updateResults(
+                this.results.heatmap,
+                this.results.predictions,
+                this.results.logits
+                );
+            }
         }
-      }
-
-      if (classIdxs.length > 0) {
-        this.clearSelection.disabled = false;
-        $this.worker.postMessage({
-          status: "class_by_heatmap",
-          classIdxs: classIdxs,
-        });
-      } else {
-        this.clearSelection.disabled = true;
-        this.updateResults(
-          this.results.heatmap,
-          this.results.predictions,
-          this.results.logits
-        );
-      }
     });
 
     AppState.selectionEnabled = false;
@@ -347,8 +435,6 @@ class ModelWorker {
   }
 
   getImage(img) {
-    console.log("Getting image", img);
-    console.log("Canvas size", this.width, this.height);
     this.ctx_hidden.drawImage(img, 0, 0);
     return this.ctx_hidden.getImageData(0, 0, this.width, this.height);
   }
@@ -515,7 +601,6 @@ class ModelWorker {
 
   _onmessage(e) {
     const { data } = e;
-    
     // Handle errors from worker
     if (data.status === "error") {
       document.getElementById("loading-indicator").style.display = "none";
@@ -558,6 +643,24 @@ class ModelWorker {
       this.updateClassList();
       this._updateVideo();
     }
+
+    if (data.status === "embedding_result") {
+        const obj = AppState.trackingObjects.find(o => o.id === data.id);
+        if (obj) {
+            obj.refEmb = data.refEmb;
+            // Convert predictionIdx to class name
+            const classInfo = this.imagenet_classes[data.predictionIdx];
+            obj.name = `[${data.predictionIdx}] ${classInfo}`;
+            this.renderTrackingObjectsList();
+        }
+    }
+
+    if (data.status === "tracking_results") {
+      this.heatmap_canvas.classList.add("hidden");
+      this.drawTrackingResults(data.objects);
+      this._updateVideo();
+      // this.ctx_img.drawImage(AppState.currentImage, 0, 0, AppState.currentImage.width, AppState.currentImage.height);
+    }
   }
 
   _clearPredictionSelections() {
@@ -567,9 +670,11 @@ class ModelWorker {
   }
 
   _clearHeatmapSelections() {
-    // remove all selected classes
+    // remove all selected classes and inline styles
     for (const el of document.querySelectorAll("#grid div.selected")) {
       el.classList.remove("selected");
+      el.style.borderColor = "";
+      el.style.boxShadow = "";
     }
   }
 
@@ -582,23 +687,37 @@ class ModelWorker {
   async _postMessage() {
     this.toggleModeSelect(false);
     
+    const activeObjects = AppState.trackingObjects.filter(o => o.cells.length > 0 && o.visible && o.refEmb);
     this.worker.postMessage({
-      status: this.modeSelect.value,
-      imageBitmap: AppState.currentImage,
-    });
+                status: this.modeSelect.value,
+                imageBitmap: AppState.currentImage,
+                objects: activeObjects.map(o => ({
+                    id: o.id,
+                    refEmb: o.refEmb,
+                    prevX: o.prevX || -1, // undefined becomes -1
+                    prevY: o.prevY || -1
+                })),
+                settings: AppState.trackingSettings
+            });
   }
 
   processModeChange() {
     const value = this.modeSelect.value;
+    this.heatmap_canvas.classList.remove("hidden");
+    this.trackingControls.classList.add("hidden");
+
+    this._clearSelections();
     if (value === "predict") {
-      this._postMessage();
-    } else if (value === "imagenet-classes") {
+    } else if (value === "imagenet_classes") {
       this.showImagenetClasses();
-    } else if (value === "groupmap-bbs") {
+    } else if (value === "groupmap_bbs") {
       this.showGroupmap();
+    } else if (value === "object_tracking") {
+        this.showObjectTracking();
     } else {
       console.error("Invalid mode-select value: ", value);
     }
+    this._postMessage();
   }
 
   updateResults(heatmap, predictions, logits) {
@@ -619,16 +738,17 @@ class ModelWorker {
   async _updateVideo() {
     if (!this.video.paused) {
       AppState.currentImage = await this._getFrame();
-      this._postMessage();
+      await this._postMessage();
+      this.ctx_img.drawImage(AppState.currentImage, 0, 0, AppState.currentImage.width, AppState.currentImage.height);
     } else {
       this.toggleModeSelect(true);
     }
   }
 
   showGroupmap() {
-    if (AppState.currentImage === null) return;
+    // if (AppState.currentImage === null) return;
     if (AppState.squareData === null) {
-      this._postMessage();
+      // this._postMessage();
     } else {
       this.updateGroupMap();
       this.updateGroupList();
@@ -638,9 +758,9 @@ class ModelWorker {
   }
 
   showImagenetClasses() {
-    if (AppState.currentImage === null) return;
+    // if (AppState.currentImage === null) return;
     if (AppState.squareData === null) {
-      this._postMessage();
+      // this._postMessage();
     } else {
       this.updateClassMap();
       this.updateClassList();
@@ -855,7 +975,6 @@ class ModelWorker {
   }
 
   updateClassMap() {
-    console.log("update class map");
     this._clearSelections();
     this._clearGroupMapDisplay();
     this._clearHeatmap();
@@ -904,6 +1023,206 @@ class ModelWorker {
         div.innerText = `${classId}: ${this.imagenet_classes[classId]}`;
         this.predictionList.appendChild(div);
       });
+  }
+
+  showObjectTracking() {
+    // Show tracking controls
+    this.trackingControls.classList.remove("hidden");
+    
+    // Hide standard prediction list/sliders if desired, or repurpose them
+    // For now we keep them but maybe standard predictions are less relevant unless looking at a paused frame
+    
+    // Clear other views
+    this._clearGroupMapDisplay();
+    this._clearBoundingBoxes();
+    
+    // Enable selection (for defining objects)
+    AppState.selectionEnabled = true;
+    toggleSelection(true);
+
+    if (AppState.currentImage === null) {
+        //  this._postMessage();
+         return; 
+    }
+    
+    // Redraw grid for active object
+    if (this.video.paused) {
+        this._clearSelections();
+        // Highlight active object cells
+        const obj = AppState.trackingObjects.find(o => o.id === AppState.activeTrackingObjectId);
+        if (obj) {
+            for(let idx of obj.cells) {
+                const div = document.querySelector(`div[data-idx='${idx}']`);
+                if(div) {
+                    div.classList.add("selected");
+                    div.style.borderColor = obj.color;
+                    div.style.boxShadow = `0 0 20px ${obj.color} inset`;
+                }
+            }
+             // Trigger prediction view for these cells
+             if (obj.cells.length > 0) {
+                 this.worker.postMessage({
+                    status: "class_by_heatmap",
+                    classIdxs: obj.cells,
+                 });
+             }
+        }
+    }
+    
+    this._updateVideo();
+  }
+
+  addTrackingObject() {
+      const id = Date.now();
+      const colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF"];
+      const color = colors[AppState.trackingObjects.length % colors.length];
+      
+      const newObj = {
+          id: id,
+          name: `Object ${AppState.trackingObjects.length + 1}`,
+          color: color,
+          cells: [],
+          refEmb: null,
+          visible: true,
+          prevX: null,
+          prevY: null
+      };
+      
+      AppState.trackingObjects.push(newObj);
+      this.selectTrackingObject(id);
+      this.renderTrackingObjectsList();
+  }
+
+  removeTrackingObject(id) {
+      AppState.trackingObjects = AppState.trackingObjects.filter(o => o.id !== id);
+      if (AppState.activeTrackingObjectId === id) {
+          AppState.activeTrackingObjectId = AppState.trackingObjects.length > 0 ? AppState.trackingObjects[0].id : null;
+      }
+      this.renderTrackingObjectsList();
+      if(AppState.activeTrackingObjectId) this.selectTrackingObject(AppState.activeTrackingObjectId);
+  }
+
+  selectTrackingObject(id) {
+      AppState.activeTrackingObjectId = id;
+      this.renderTrackingObjectsList();
+      
+      // Refresh grid selection if paused
+      if (this.video.paused) {
+          this._clearSelections();
+          const obj = AppState.trackingObjects.find(o => o.id === id);
+          if (obj) {
+              for(let idx of obj.cells) {
+                  const div = document.querySelector(`div[data-idx='${idx}']`);
+                  if(div) {
+                      div.classList.add("selected");
+                      div.style.borderColor = obj.color;
+                      div.style.boxShadow = `0 0 20px ${obj.color} inset`;
+                  }
+              }
+               // Trigger prediction view for these cells
+             if (obj.cells.length > 0) {
+                 this.worker.postMessage({
+                    status: "class_by_heatmap",
+                    classIdxs: obj.cells,
+                 });
+             } else {
+                 this.updateResults(
+                    this.results.heatmap, // Use last available heatmap? Or clear
+                    this.results.predictions,
+                    this.results.logits
+                 );
+             }
+          }
+      }
+  }
+
+  renderTrackingObjectsList() {
+      this.trackingObjectsList.innerHTML = "";
+      
+      AppState.trackingObjects.forEach(obj => {
+          const div = document.createElement("div");
+          div.className = "prediction"; // reuse class for styling
+          if (obj.id === AppState.activeTrackingObjectId) {
+              div.classList.add("selected");
+          }
+          
+          div.style.borderLeft = `5px solid ${obj.color}`;
+          
+          const info = document.createElement("span");
+          info.innerText = obj.name;
+          info.style.flex = "1";
+          info.onclick = () => this.selectTrackingObject(obj.id);
+          
+          const removeBtn = document.createElement("button");
+          removeBtn.innerHTML = "X"; // or icon
+          removeBtn.style.background = "none";
+          removeBtn.style.border = "none";
+          removeBtn.style.cursor = "pointer";
+          removeBtn.style.color = "var(--text-muted)";
+          removeBtn.onclick = (e) => {
+              e.stopPropagation();
+              this.removeTrackingObject(obj.id);
+          };
+
+          div.appendChild(info);
+          div.appendChild(removeBtn);
+          
+          this.trackingObjectsList.appendChild(div);
+      });
+  }
+
+  drawTrackingResults(results) {
+        // Draw standard video output first (clears previous frame)
+        // If we want to keep the heatmap from tracking, we'd need to blend it.
+        // For now, let's just draw the tracked cross on the bounding box canvas
+        this._clearBoundingBoxes();
+        
+        const ctx = this.bb_canvas.getContext("2d");
+        const scale = this.min_side; // Since coordinates are normalized to [0,1] or 224 based on worker?
+        // Worker returns pixel coordinates in input space (224x224) or relative?
+        // Let's assume Worker returns normalized [0..1] to be resolution independent?
+        // OR Worker knows input size 224. 
+        // Plan says: "Upsample... Return list of { id, x, y }" where x,y are in 224 space or original?
+        // Worker.js has INPUT_WIDTH = 224.
+        
+        // Let's assume x,y are in [0, 224]. We scale to min_side.
+        const r = this.min_side / 224;
+
+        // Optionally clear heatmap or specific overlay
+        // Implementation Plan says: "Overlay Alpha"
+        if (AppState.trackingSettings.overlayAlpha < 1.0) {
+              // ...
+        }
+
+        results.forEach(res => {
+            const obj = AppState.trackingObjects.find(o => o.id === res.id);
+            if (!obj) return;
+            
+            // Update prev pos
+            obj.prevX = res.x;
+            obj.prevY = res.y;
+            
+            if (res.x < 0 || res.y < 0) return; // Not found / below threshold
+
+            const x = res.x * r;
+            const y = res.y * r;
+            const CrossSize = this.min_side * 0.05;
+
+            ctx.beginPath();
+            ctx.strokeStyle = obj.color;
+            ctx.lineWidth = 3;
+            // Draw cross
+            ctx.moveTo(x - CrossSize, y);
+            ctx.lineTo(x + CrossSize, y);
+            ctx.moveTo(x, y - CrossSize);
+            ctx.lineTo(x, y + CrossSize);
+            ctx.stroke();
+            
+            // Draw Label
+            ctx.font = "16px sans-serif";
+            ctx.fillStyle = obj.color;
+            ctx.fillText(obj.name, x + 5, y - 5);
+        });
   }
 }
 

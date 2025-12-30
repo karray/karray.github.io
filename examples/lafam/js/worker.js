@@ -178,6 +178,245 @@ class LaFAMModel {
     };
   }
 
+  async calculateEmbedding(data) {
+      const { cells } = data;
+      const dims = 2048;
+      const refEmb = new Float32Array(dims).fill(0);
+      
+      if (cells.length === 0) return null; // Should not happen
+      
+      for (let k = 0; k < dims; k++) {
+          let sum = 0;
+          for (const cellIdx of cells) {
+              sum += this.activations[k * 49 + cellIdx];
+          }
+          refEmb[k] = sum / cells.length;
+      }
+      
+      let norm = 0;
+      for(let k=0; k<dims; k++) norm += refEmb[k] * refEmb[k];
+      norm = Math.sqrt(norm);
+      if(norm > 1e-6) {
+          for(let k=0; k<dims; k++) refEmb[k] /= norm;
+      }
+
+      // Get prediction label for this embedding (run FC)
+      // We construct a 7x7 map where ALL cells have this embedding, just to run through FC easily?
+      // Or just reuse evaluate_fc logic. 
+      // Actually FC expects [1, 2048, 7, 7]. 
+      // We can create a dummy 7x7 filled with this embedding.
+      this.activationsBuffer.fill(0);
+      for(let k=0; k<dims; k++) {
+         const val = refEmb[k];
+         // Fill center pixel? Or all? 
+         // Global average pooling in ResNet means position doesn't matter for classification if we fill all?
+         // ResNet50 usually does GAP before FC. 
+         // Looking at architecture: output of layer4 is 7x7. Then GAP -> 2048. Then FC.
+         // WAIT. If I have `resnet50_imagenet_fc.onnx`, it probably takes [1, 2048, 7, 7].
+         // Does it do GAP inside? 
+         // If `predictPerSquare` runs FC on 7x7 spatial, it implies FC is fully convolutional or applied per spatial location?
+         // `predictPerSquare` loops 7x7 and constructs a buffer with ONE spatial location filled?
+         // See `predictPerSquare`:
+         // `this.activationsBuffer[idx] = actsData[idx]` (copies one column)
+         // So it creates a volume where mostly zeros, but ONE column is active.
+         // And runs FC.
+         // So if we want "classification of the object", we should probably do the same or average.
+         // Let's just do what `calculateClassByHeatmap` does: fill buffer with masked activations.
+         // `calculateClassByHeatmap` fills buffer with `acts` at `classIdxs`.
+         // This is effectively "masking" the object. 
+         // `logits` returned by that function is the classification of the masked region.
+         // So we can just call `calculateClassByHeatmap` logic here or reuse it.
+      }
+      
+      // Actually, let's just get the top prediction from `calculateClassByHeatmap` since `app.js` calls it anyway!
+      // `app.js` calls `class_by_heatmap` right after requesting embedding.
+      // So `embedding_result` doesn't strictly need the name.
+      // BUT `app.js` uses `data.predictionLabel` from `embedding_result` to name the object.
+      // So we DO need it.
+      
+      // Let's implement a quick prediction lookup using the refEmb.
+      // We can use the weights `this.output_weights`? No that's for heatmap.
+      // We need to run FC.
+      
+      // Construct input for FC: spread refEmb across 7x7? Or just one pixel?
+      // If we fill ONE pixel (e.g. center), and the model expects 7x7, 
+      // the GAP will divide by 49?
+      // Let's assume standard ResNet GAP = sum / 49.
+      // If we have 1 pixel active with value V: GAP = V / 49.
+      // If we want the vector to be V, we should probably fill ALL pixels with V.
+      // Then GAP = sum(V)/49 = 49*V/49 = V.
+      // So let's fill the whole buffer with refEmb.
+      
+      for(let k=0; k<dims; k++) {
+          const val = refEmb[k];
+          for(let s=0; s<49; s++) {
+              this.activationsBuffer[k*49 + s] = val;
+          }
+      }
+      
+      // Run FC
+      let res = await this.fc.run({
+        l_activations_: new ort.Tensor("float32", this.activationsBuffer, [1, 2048, 7, 7]),
+      });
+      const logits = res.fc_1.cpuData;
+      const maxIdx = logits.indexOf(Math.max(...logits));
+      
+      // We need class names. `app.js` has them. Worker doesn't have names loaded?
+      // `app.js` loads `imagenet_class_index.json`. 
+      // Worker just returns label INDEX or Name?
+      // Worker output `predictionLabel`... 
+      // Worker doesn't have class list.
+      // `app.js` has `this.imagenet_classes`.
+      // So Worker should return `predictionIdx`. App converts to name.
+      
+      return {
+          status: "embedding_result",
+          id: data.id,
+          refEmb: refEmb,
+          predictionIdx: maxIdx
+      };
+  }
+
+  async trackObjects(data, tensor) {
+      // tensor is already preprocessed and input to layer4
+      // Run Inference
+      // Note: We might be running this on every frame.
+      
+      if (!this.layer4) return;
+      
+      const imgDataTensor = new ort.Tensor("float32", tensor, [1, 3, INPUT_HEIGHT, INPUT_WIDTH]);
+      let acts = await this.layer4.run({ l_x_: imgDataTensor });
+      const actData = acts.resnet_layer4_1.cpuData; // (1, 2048, 7, 7)
+      
+      const { objects, settings } = data; // objects: [{id, refEmb, prevX, prevY}], settings: {threshold, ema, resolution}
+      const results = [];
+      const dims = 2048;
+      
+      const targetH = settings.resolution;
+      const targetW = settings.resolution;
+      
+      // We need to upscale 7x7 similarity map to target resolution
+      // Precompute 224-grid coordinates if not exists?
+      // Actually we just compute weighted COM on the upscaled map.
+      
+      // For each object
+      for (const obj of objects) {
+          // 1. Compute Similarity (7x7)
+          // Dot product: actData(2048, 49) . refEmb(2048) -> sim(49)
+          // actData is NC HW: [2048, 49] linearized.
+          
+          if (!obj.refEmb) continue;
+          
+          const simMap = new Float32Array(49);
+          
+          for (let s = 0; s < 49; s++) {
+              let dot = 0;
+              for (let k = 0; k < dims; k++) {
+                  dot += actData[k * 49 + s] * obj.refEmb[k];
+              }
+              simMap[s] = dot;
+          }
+          
+          // 2. Upsample simMap (7x7) to (Target x Target)
+          // We can use a simple bilinear upsampler
+          const upscaled = this.upsampleBilinear(simMap, 7, 7, targetW, targetH);
+          
+          // 3. Threshold & Weighted COM
+          let wSum = 0;
+          let xSum = 0;
+          let ySum = 0;
+          const thresh = settings.threshold;
+          
+          for (let y = 0; y < targetH; y++) {
+              for (let x = 0; x < targetW; x++) {
+                  let val = upscaled[y * targetW + x];
+                  if (val >= thresh) {
+                      // val = val; 
+                  } else {
+                      val = 0; // Hard threshold
+                  }
+                  
+                  if (val > 0) {
+                      wSum += val;
+                      xSum += val * x;
+                      ySum += val * y;
+                  }
+              }
+          }
+          
+          let resultX = -1;
+          let resultY = -1;
+          
+          if (wSum > 0) {
+              // Normalized coords in target resolution
+              let cx = xSum / wSum;
+              let cy = ySum / wSum;
+              
+              // Map to input resolution (224x224)
+              // If target is 224, it's 1:1.
+              // If target is 112, mult by 2.
+              const scale = 224 / targetW;
+              cx *= scale;
+              cy *= scale;
+              
+              // 4. Smoothing
+              if (obj.prevX >= 0 && obj.prevY >= 0 && settings.ema > 0) {
+                  const alpha = settings.ema;
+                  cx = alpha * obj.prevX + (1 - alpha) * cx;
+                  cy = alpha * obj.prevY + (1 - alpha) * cy;
+              }
+              
+              resultX = cx;
+              resultY = cy;
+          }
+          
+          results.push({ id: obj.id, x: resultX, y: resultY });
+      }
+      
+      return {
+          status: "tracking_results",
+          objects: results
+      };
+  }
+
+  upsampleBilinear(src, srcW, srcH, dstW, dstH) {
+      const dst = new Float32Array(dstW * dstH);
+      for (let y = 0; y < dstH; y++) {
+          for (let x = 0; x < dstW; x++) {
+               // Map dst(x,y) to src space
+               // Align centers? 
+               // Standard: srcX = x * (srcW / dstW)
+               const gx = (x + 0.5) * (srcW / dstW) - 0.5;
+               const gy = (y + 0.5) * (srcH / dstH) - 0.5;
+               
+               const gxi = Math.floor(gx);
+               const gyi = Math.floor(gy);
+               
+               // Clamping
+               const x0 = Math.max(0, Math.min(srcW - 1, gxi));
+               const y0 = Math.max(0, Math.min(srcH - 1, gyi));
+               const x1 = Math.max(0, Math.min(srcW - 1, x0 + 1));
+               const y1 = Math.max(0, Math.min(srcH - 1, y0 + 1));
+               
+               const wx = gx - x0;
+               const wy = gy - y0;
+               
+               // Gather 4 samples
+               const v00 = src[y0 * srcW + x0];
+               const v10 = src[y0 * srcW + x1];
+               const v01 = src[y1 * srcW + x0];
+               const v11 = src[y1 * srcW + x1];
+               
+               // Interpolate
+               const val = (1 - wy) * ((1 - wx) * v00 + wx * v10) +
+                           (wy) * ((1 - wx) * v01 + wx * v11);
+                           
+               dst[y * dstW + x] = val;
+          }
+      }
+      return dst;
+  }
+
   // Utilities
   softmax(arr) {
     const max = Math.max(...arr);
@@ -252,14 +491,14 @@ const handlers = {
     const res = await model.runPredict(tensor);
     postMessage(res);
   },
-  "groupmap-bbs": async (data, tensor) => {
+  groupmap_bbs: async (data, tensor) => {
     const squaresData = await model.predictPerSquare(tensor);
     postMessage({
       status: "square_results_for_groupmap",
       data: squaresData,
     });
   },
-  "imagenet-classes": async (data, tensor) => {
+  imagenet_classes: async (data, tensor) => {
     const squaresData = await model.predictPerSquare(tensor);
     postMessage({
       status: "square_results_for_classmap",
@@ -274,10 +513,22 @@ const handlers = {
     const res = await model.calculateClassByHeatmap(data.classIdxs);
     postMessage(res);
   },
+  calc_embedding: async (data) => {
+      const res = await model.calculateEmbedding(data);
+      postMessage(res);
+  },
+  object_tracking: async (data, tensor) => {
+    if(!data.objects || data.objects.length === 0) {
+      postMessage(await model.runPredict(tensor));
+    } else {
+      postMessage(await model.trackObjects(data, tensor));
+    }
+  },
 };
 
 onmessage = async (e) => {
   const { data } = e;
+  console.log(data);
 
   try {
     const handler = handlers[data.status];
