@@ -729,7 +729,7 @@ class ModelWorker {
     this.togglePaletteSelect(true);
     toggleSelection(true);
 
-    this.ctx_img.drawImage(AppState.currentImage, 0, 0, AppState.currentImage.width, AppState.currentImage.height);
+    this.ctx_img.drawImage(AppState.currentImage, 0, 0, this.min_side, this.min_side);
     this.updateHeatmap(heatmap);
     let top_n_idx = argmax_top_n(logits, TOP_N, 1.7);
     this._updatePredictionList(top_n_idx, predictions, logits);

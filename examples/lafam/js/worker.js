@@ -528,7 +528,6 @@ const handlers = {
 
 onmessage = async (e) => {
   const { data } = e;
-  console.log(data);
 
   try {
     const handler = handlers[data.status];
