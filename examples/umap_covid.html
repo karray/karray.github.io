@@ -172,12 +172,22 @@
           }
         }
 
+        function updateToolbarDefaults(docs) {
+          const wheelZoom = findModels(docs, "WheelZoomTool")[0];
+          if (!wheelZoom) return;
+          for (const toolbar of findModels(docs, "Toolbar")) {
+            toolbar.attributes = toolbar.attributes || {};
+            toolbar.attributes.active_scroll = {id: wheelZoom.id};
+          }
+        }
+
         function applyColumns(docs, columns) {
           const sources = findModels(docs, "ColumnDataSource");
           if (sources.length === 0) throw new Error("Template has no ColumnDataSource.");
           sources[0].attributes.data = toBokehMap(columns);
           updateLabelColors(docs, columns);
           updateHoverTooltips(docs);
+          updateToolbarDefaults(docs);
         }
 
         function escapeHtml(value) {
@@ -232,7 +242,7 @@
             return `
               <div style="margin-top:10px;">
                 <div style="font:600 13px/1.3 system-ui, sans-serif; margin-bottom:6px;">Selected previews (${indices.length})</div>
-                <div style="display:flex; flex-wrap:wrap; gap:8px; max-height:250px; overflow:auto; padding-right:4px;">${shown.map(function(i) { return previewThumb(i, active); }).join("")}</div>
+                <div data-selected-preview-list="true" style="display:flex; flex-wrap:wrap; gap:8px; max-height:250px; overflow:auto; padding-right:4px;">${shown.map(function(i) { return previewThumb(i, active); }).join("")}</div>
                 ${more ? `<div style="margin-top:6px; color:#666; font:12px/1.3 system-ui, sans-serif;">Showing first ${shown.length}; ${more} more selected.</div>` : ""}
               </div>`;
           }
@@ -264,7 +274,62 @@
               </div>`;
           }
 
-          function renderSelection(selected) {
+          function restoreScrollState(state) {
+            if (!state) return;
+
+            function restore() {
+              for (const item of state.ancestors) {
+                item.element.scrollTop = item.top;
+                item.element.scrollLeft = item.left;
+              }
+
+              const root = state.listRoot && state.listRoot.querySelector ? state.listRoot : document;
+              const list = root.querySelector("[data-selected-preview-list]");
+              if (list) {
+                list.scrollTop = state.listTop;
+                list.scrollLeft = state.listLeft;
+              }
+            }
+
+            requestAnimationFrame(function() {
+              restore();
+              requestAnimationFrame(restore);
+            });
+            setTimeout(restore, 0);
+          }
+
+          function captureScrollState(button) {
+            const list = button.closest("[data-selected-preview-list]");
+            const ancestors = [];
+
+            function nextAncestor(element) {
+              if (element.parentElement) return element.parentElement;
+              const root = element.getRootNode && element.getRootNode();
+              return root && root.host ? root.host : null;
+            }
+
+            let node = nextAncestor(button);
+
+            while (node) {
+              if (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth) {
+                ancestors.push({
+                  element: node,
+                  top: node.scrollTop,
+                  left: node.scrollLeft
+                });
+              }
+              node = nextAncestor(node);
+            }
+
+            return {
+              listRoot: list ? list.getRootNode() : null,
+              listTop: list ? list.scrollTop : 0,
+              listLeft: list ? list.scrollLeft : 0,
+              ancestors: ancestors
+            };
+          }
+
+          function renderSelection(selected, scrollState) {
             if (selected.length === 0) {
               activeIndex = null;
               info.text = "<i>Click or drag-select points to see details here</i>";
@@ -272,6 +337,7 @@
             }
             if (!selected.some(function(i) { return Number(i) === Number(activeIndex); })) activeIndex = Number(selected[0]);
             info.text = overview(activeIndex) + details(activeIndex) + previewGrid(selected, activeIndex);
+            restoreScrollState(scrollState);
           }
 
           function updateIfChanged() {
@@ -299,8 +365,9 @@
             const selected = Array.from(source.selected.indices || []);
             const nextIndex = Number(button.dataset.patchIndex);
             if (!Number.isInteger(nextIndex)) return;
+            const scrollState = captureScrollState(button);
             activeIndex = nextIndex;
-            renderSelection(selected);
+            renderSelection(selected, scrollState);
           }, true);
 
           updateIfChanged();
