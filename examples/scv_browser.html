@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>UMAP of COVID-19 data spatial embeddings</title>
+    <title>Latent representation browser</title>
     <style>
       html, body {
         box-sizing: border-box;
@@ -55,6 +55,38 @@
         border: 1px solid #444;
         background: #f7f7f7;
       }
+
+      .data-source-controls {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+        color: #222;
+        font: 13px/1.4 system-ui, sans-serif;
+      }
+
+      .data-source-controls label {
+        font-weight: 600;
+      }
+
+      .data-source-controls select {
+        max-width: min(420px, 100%);
+        padding: 4px 28px 4px 8px;
+        font: inherit;
+      }
+
+      .data-source-share {
+        color: #666;
+        overflow-wrap: anywhere;
+      }
+
+      .data-source-share:hover {
+        text-decoration: underline;
+      }
     </style>
     <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.6.0.min.js"></script>
@@ -63,6 +95,11 @@
     </script>
   </head>
   <body>
+    <div class="data-source-controls" id="data-source-controls">
+      <label for="data-source-select">Data source</label>
+      <select id="data-source-select" autocomplete="off"></select>
+      <a class="data-source-share" id="data-source-share"></a>
+    </div>
     <div id="c457899a-5f41-402e-93bd-74dd9efba537" data-source="umap_covid.json" style="display: contents;"></div>
     <script type="application/json" id="bokeh-template-json">
       {"05a22395-ce6f-48eb-a51c-2cd965daa729":{"version":"3.6.0","title":"Bokeh Application","roots":[{"type":"object","name":"Row","id":"p1045","attributes":{"sizing_mode":"stretch_both","children":[{"type":"object","name":"Div","id":"p1042","attributes":{"width":320,"height":760,"text":"\u003ci\u003eClick or drag-select points to see details here\u003c/i\u003e"}},{"type":"object","name":"Figure","id":"p1004","attributes":{"min_width":1024,"min_height":768,"sizing_mode":"stretch_both","x_range":{"type":"object","name":"DataRange1d","id":"p1005"},"y_range":{"type":"object","name":"DataRange1d","id":"p1006"},"x_scale":{"type":"object","name":"LinearScale","id":"p1014"},"y_scale":{"type":"object","name":"LinearScale","id":"p1015"},"title":{"type":"object","name":"Title","id":"p1007","attributes":{"text":"UMAP Spatial Vectors"}},"renderers":[{"type":"object","name":"GlyphRenderer","id":"p1037","attributes":{"data_source":{"type":"object","name":"ColumnDataSource","id":"p1001","attributes":{"selected":{"type":"object","name":"Selection","id":"p1002","attributes":{"indices":[],"line_indices":[]}},"selection_policy":{"type":"object","name":"UnionRenderers","id":"p1003"},"data":{"type":"map","entries":[["x",[]],["y",[]],["img_url",[]],["cx",[]],["cy",[]],["cell",[]],["orig_w",[]],["orig_h",[]],["row",[]],["col",[]],["idx",[]],["label",[]]]}}},"view":{"type":"object","name":"CDSView","id":"p1038","attributes":{"filter":{"type":"object","name":"AllIndices","id":"p1039"}}},"glyph":{"type":"object","name":"Scatter","id":"p1034","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"type":"object","name":"CategoricalColorMapper","id":"p1030","attributes":{"palette":["#1f77b4","#ff7f0e","#2ca02c"],"factors":["0","1"]}}},"line_alpha":{"type":"value","value":0.6},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.6},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.6}}},"nonselection_glyph":{"type":"object","name":"Scatter","id":"p1035","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.1},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.1},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.1}}},"muted_glyph":{"type":"object","name":"Scatter","id":"p1036","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.2},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.2},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.2}}}}}],"toolbar":{"type":"object","name":"Toolbar","id":"p1013","attributes":{"tools":[{"type":"object","name":"PanTool","id":"p1026"},{"type":"object","name":"WheelZoomTool","id":"p1027","attributes":{"renderers":"auto"}},{"type":"object","name":"BoxSelectTool","id":"p1046","attributes":{"renderers":"auto","overlay":{"type":"object","name":"BoxAnnotation","id":"p1049","attributes":{"bottom":{"type":"number","value":"nan"},"editable":true,"fill_alpha":0.5,"fill_color":"lightgrey","handles":{"type":"object","name":"BoxInteractionHandles","id":"p1050","attributes":{"all":{"type":"object","name":"AreaVisuals","id":"p1051","attributes":{"fill_color":"white","hover_fill_color":"lightgray"}}}},"left":{"type":"number","value":"nan"},"level":"overlay","line_alpha":1,"line_color":"black","line_dash":[4,4],"line_width":2,"right":{"type":"number","value":"nan"},"syncable":false,"top":{"type":"number","value":"nan"},"visible":false}}}},{"type":"object","name":"ResetTool","id":"p1028"},{"type":"object","name":"HoverTool","id":"p1029","attributes":{"renderers":"auto","tooltips":"\n\u0026lt;div style=\"padding:5px;, margin-bottom:5px; border:1px solid #444;\"\u0026gt;\n  \u0026lt;div\u0026gt;@idx\u0026lt;/div\u0026gt;\n  \u0026lt;div style=\"\n      overflow: hidden;\n      width: 100px;\n      height: 100px;\n      border: 1px solid #444;\n  \"\u0026gt;\n      \u0026lt;img src=\"@img_url\"\n          style=\"\n            position: relative;\n            /* shift and scale the full image */\n            left: calc(-@{cx}px * 100 / @{cell});\n            top:  calc(-@{cy}px * 100 / @{cell});\n            width:  calc(@{orig_w}px * 100 / @{cell});\n            height: calc(@{orig_h}px * 100 / @{cell});\n          \"\n      /\u0026gt;\n  \u0026lt;/div\u0026gt;\n  \u0026lt;div\u0026gt;Label: @label\u0026lt;/div\u0026gt;\n\u0026lt;/div\u0026gt;\n  "}},{"type":"object","name":"TapTool","id":"p1044","attributes":{"renderers":"auto"}}]}},"left":[{"type":"object","name":"LinearAxis","id":"p1021","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1022","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1023"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1024"}}}],"below":[{"type":"object","name":"LinearAxis","id":"p1016","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1017","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1018"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1019"}}}],"center":[{"type":"object","name":"Grid","id":"p1020","attributes":{"axis":{"id":"p1016"}}},{"type":"object","name":"Grid","id":"p1025","attributes":{"dimension":1,"axis":{"id":"p1021"}}},{"type":"object","name":"Legend","id":"p1040","attributes":{"items":[{"type":"object","name":"LegendItem","id":"p1041","attributes":{"label":{"type":"field","field":"label"},"renderers":[{"id":"p1037"}]}}]}}]}}]}}]}}
@@ -72,6 +109,11 @@
         const CONTAINER_ID = "c457899a-5f41-402e-93bd-74dd9efba537";
         const TEMPLATE_JSON_ID = "bokeh-template-json";
         const DEFAULT_DATA_URL = "umap_covid.json";
+        const DATA_OPTION_PARAM = "option";
+        const DATA_URL_PARAM = "data";
+        const DATA_OPTIONS = [
+          {id: "covid", label: "COVID-19 spatial embeddings", url: "umap_covid.json"}
+        ];
         const PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
         const HOVER_CARD_WIDTH = 108;
         const HOVER_CARD_GAP = 8;
@@ -114,10 +156,89 @@
           return matches;
         }
 
-        function getDataUrl() {
-          const params = new URLSearchParams(window.location.search);
+        function findDataOption(id) {
+          return DATA_OPTIONS.find(function(option) {
+            return option.id === id;
+          });
+        }
+
+        function getFallbackDataUrl() {
           const target = document.getElementById(CONTAINER_ID);
-          return params.get("data") || (target && target.dataset.source) || DEFAULT_DATA_URL;
+          return (target && target.dataset.source) || DEFAULT_DATA_URL;
+        }
+
+        function getDataSource() {
+          const params = new URLSearchParams(window.location.search);
+          const optionId = params.get(DATA_OPTION_PARAM);
+          const option = findDataOption(optionId);
+
+          if (option) return Object.assign({predefined: true}, option);
+          if (optionId) console.warn("Unknown data option:", optionId);
+
+          const customUrl = params.get(DATA_URL_PARAM);
+          if (customUrl) {
+            return {id: "__custom__", label: "Custom data URL", url: customUrl, predefined: false};
+          }
+
+          const fallbackUrl = getFallbackDataUrl();
+          const fallbackOption = DATA_OPTIONS.find(function(item) {
+            return item.url === fallbackUrl;
+          });
+          if (fallbackOption) return Object.assign({predefined: true}, fallbackOption);
+          return {id: "__default__", label: "Default data", url: fallbackUrl, predefined: false};
+        }
+
+        function optionShareQuery(option) {
+          return "?" + DATA_OPTION_PARAM + "=" + encodeURIComponent(option.id);
+        }
+
+        function optionShareUrl(option) {
+          const url = new URL(window.location.href);
+          url.searchParams.set(DATA_OPTION_PARAM, option.id);
+          url.searchParams.delete(DATA_URL_PARAM);
+          return url;
+        }
+
+        function installDataSourceSelector(dataSource) {
+          const select = document.getElementById("data-source-select");
+          const share = document.getElementById("data-source-share");
+          if (!select) return;
+
+          select.textContent = "";
+          for (const option of DATA_OPTIONS) {
+            const item = document.createElement("option");
+            item.value = option.id;
+            item.textContent = option.label;
+            select.appendChild(item);
+          }
+
+          if (dataSource.predefined) {
+            select.value = dataSource.id;
+          } else {
+            const customOption = document.createElement("option");
+            customOption.value = dataSource.id;
+            customOption.textContent = dataSource.label + " (" + dataSource.url + ")";
+            select.appendChild(customOption);
+            select.value = dataSource.id;
+          }
+
+          if (share) {
+            if (dataSource.predefined) {
+              const shareUrl = optionShareUrl(dataSource);
+              share.href = shareUrl.toString();
+              share.textContent = "Share link: " + optionShareQuery(dataSource);
+            } else {
+              share.removeAttribute("href");
+              share.textContent = "Loaded from ?data=" + dataSource.url;
+            }
+          }
+
+          select.onchange = function() {
+            const option = findDataOption(select.value);
+            if (!option) return;
+
+            window.location.assign(optionShareUrl(option).toString());
+          };
         }
 
         function buildRenderItems(docs) {
@@ -484,24 +605,25 @@
           });
         }
 
-        function showError(error, dataUrl) {
+        function showError(error, dataSource) {
           console.error("Bokeh embed failed:", error);
           const target = document.getElementById(CONTAINER_ID);
           if (!target) return;
           target.style.display = "block";
           target.style.padding = "16px";
           target.style.font = "14px/1.4 system-ui, sans-serif";
-          target.textContent = "Could not load column data from " + dataUrl + ". Serve this HTML over HTTP and pass another column JSON with ?data=path/to/data.json.";
+          target.textContent = "Could not load column data from " + dataSource.url + ". Serve this HTML over HTTP, choose another predefined source, or pass another column JSON with ?data=path/to/data.json.";
         }
 
         async function embedDocument(root) {
-          const dataUrl = getDataUrl();
+          const dataSource = getDataSource();
+          installDataSourceSelector(dataSource);
           try {
             const [bokeh, response] = await Promise.all([
               waitForBokeh(root),
-              fetch(dataUrl, {cache: "no-cache"})
+              fetch(dataSource.url, {cache: "no-cache"})
             ]);
-            if (!response.ok) throw new Error("HTTP " + response.status + " while loading " + dataUrl);
+            if (!response.ok) throw new Error("HTTP " + response.status + " while loading " + dataSource.url);
 
             const columns = normalizeColumns(await response.json());
             const docs = JSON.parse(document.getElementById(TEMPLATE_JSON_ID).textContent);
@@ -510,7 +632,7 @@
             installSelectionPreview();
             installHoverTooltipLayout();
           } catch (error) {
-            showError(error, dataUrl);
+            showError(error, dataSource);
           }
         }
 
