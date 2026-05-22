@@ -87,6 +87,27 @@
       .data-source-share:hover {
         text-decoration: underline;
       }
+
+      .cluster-hover-card {
+        box-sizing: border-box;
+        max-width: 280px;
+        padding: 8px 10px;
+        border: 1px solid #777;
+        border-radius: 4px;
+        background: #fff;
+        color: #222;
+        font: 13px/1.35 system-ui, sans-serif;
+      }
+
+      .cluster-hover-title {
+        margin-bottom: 4px;
+        font-weight: 700;
+      }
+
+      .cluster-hover-description {
+        color: #444;
+        overflow-wrap: anywhere;
+      }
     </style>
     <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.6.0.min.js"></script>
@@ -114,11 +135,24 @@
         const DATA_OPTIONS = [
           {id: "covid", label: "COVID-19 spatial embeddings", url: "umap_covid.json"}
         ];
+        const CLUSTER_SOURCE_ID = "annotation_cluster_source";
+        const CLUSTER_RENDERER_ID = "annotation_cluster_renderer";
+        const CLUSTER_LEADER_RENDERER_ID = "annotation_cluster_leader_renderer";
+        const CLUSTER_LABEL_RENDERER_ID = "annotation_cluster_label_renderer";
+        const CLUSTER_HOVER_ID = "annotation_cluster_hover";
         const PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
         const HOVER_CARD_WIDTH = 108;
         const HOVER_CARD_GAP = 8;
         const HOVER_MAX_COLUMNS = 4;
         const HOVER_PREVIEW_SIZE = 96;
+        const EMPTY_SELECTION_TEXT = "<i>Click or drag-select points to see details and cluster coordinates here</i>";
+        const CLUSTER_TOOLTIPS = `
+          <div class="cluster-hover-card" style="box-sizing:border-box; max-width:280px; padding:8px 10px; border:1px solid #777; border-radius:4px; background:#fff; color:#222; font:13px/1.35 system-ui, sans-serif;">
+            <div class="cluster-hover-title" style="margin-bottom:4px; font-weight:700;">@label</div>
+            <div class="cluster-hover-description" style="color:#444; overflow-wrap:anywhere;">@description</div>
+            <div style="margin-top:6px; color:#777; font-size:12px;">@id</div>
+          </div>
+        `;
         const HOVER_TOOLTIPS = `
           <div class="patch-hover-card" style="box-sizing:border-box; width:${HOVER_CARD_WIDTH}px; padding:5px; border:1px solid #444; background:#fff; color:#222; font:12px/1.25 system-ui, sans-serif;">
             <div class="patch-hover-id" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">#@idx</div>
@@ -260,7 +294,9 @@
           const lengths = entries.map(function(entry) { return entry[1].length; });
           const minLength = Math.min.apply(null, lengths);
           const maxLength = Math.max.apply(null, lengths);
-          const normalized = Object.assign({}, columns);
+          const normalized = {};
+
+          for (const entry of entries) normalized[entry[0]] = entry[1];
 
           if (minLength !== maxLength) {
             console.warn("Data columns have different lengths; truncating to", minLength);
@@ -276,6 +312,234 @@
           return {type: "map", entries: Object.entries(columns)};
         }
 
+        function normalizeAnnotations(value) {
+          if (!value || typeof value !== "object" || Array.isArray(value)) return {clusters: []};
+          const clusters = Array.isArray(value.clusters) ? value.clusters : [];
+          return {
+            clusters: clusters.map(normalizeClusterAnnotation).filter(Boolean)
+          };
+        }
+
+        function normalizeClusterAnnotation(cluster, index) {
+          if (!cluster || typeof cluster !== "object") return null;
+          const polygon = cluster.polygon && typeof cluster.polygon === "object" ? cluster.polygon : cluster;
+          if (!Array.isArray(polygon.xs) || !Array.isArray(polygon.ys)) return null;
+
+          const length = Math.min(polygon.xs.length, polygon.ys.length);
+          if (length === 0) return null;
+
+          const xs = polygon.xs.slice(0, length).map(Number);
+          const ys = polygon.ys.slice(0, length).map(Number);
+          if (!xs.every(Number.isFinite) || !ys.every(Number.isFinite)) return null;
+
+          const id = cluster.id != null ? String(cluster.id) : "cluster_" + (index + 1);
+          const polygonPadding = Number.isFinite(Number(cluster.polygon_padding)) ? Number(cluster.polygon_padding) : defaultPolygonPadding(xs, ys);
+          const padded = paddedPolygon(xs, ys, polygonPadding);
+          const rounded = roundedPolygon(padded.xs, padded.ys, cluster.polygon_corner_radius);
+          const labelPosition = cluster.label_position && typeof cluster.label_position === "object" ? cluster.label_position : null;
+          const labelSide = normalizeLabelSide(cluster.label_side || (labelPosition && labelPosition.side) || (typeof cluster.label_position === "string" ? cluster.label_position : null));
+          const labelSettings = labelPositionForSide(rounded.xs, rounded.ys, labelSide, cluster.label_gap);
+          const autoLabelPosition = {x: labelSettings.x, y: labelSettings.y};
+          const labelX = labelPosition && Number.isFinite(Number(labelPosition.x)) ? Number(labelPosition.x) : autoLabelPosition.x;
+          const labelY = labelPosition && Number.isFinite(Number(labelPosition.y)) ? Number(labelPosition.y) : autoLabelPosition.y;
+          const anchor = nearestPolygonPoint(rounded.xs, rounded.ys, labelX, labelY);
+
+          return {
+            id: id,
+            label: cluster.label != null ? String(cluster.label) : id,
+            description: cluster.description != null ? String(cluster.description) : "",
+            xs: xs,
+            ys: ys,
+            display_xs: rounded.xs,
+            display_ys: rounded.ys,
+            anchor_x: anchor.x,
+            anchor_y: anchor.y,
+            label_x: labelX,
+            label_y: labelY,
+            label_align: labelSettings.align,
+            label_x_offset: labelSettings.x_offset,
+            fill_color: cluster.fill_color || "#d62728",
+            fill_alpha: Number.isFinite(Number(cluster.fill_alpha)) ? Number(cluster.fill_alpha) : 0,
+            line_color: cluster.line_color || cluster.fill_color || "#d62728",
+            line_alpha: Number.isFinite(Number(cluster.line_alpha)) ? Number(cluster.line_alpha) : 0.5,
+            leader_line_alpha: Number.isFinite(Number(cluster.leader_line_alpha)) ? Number(cluster.leader_line_alpha) : 0.3,
+            line_width: Number.isFinite(Number(cluster.line_width)) ? Number(cluster.line_width) : 3,
+            label_text_color: cluster.label_text_color || cluster.line_color || cluster.fill_color || "#d62728"
+          };
+        }
+
+        function defaultPolygonPadding(xs, ys) {
+          const bounds = clusterBounds(xs, ys);
+          const width = Math.max(bounds.x1 - bounds.x0, 0.01);
+          const height = Math.max(bounds.y1 - bounds.y0, 0.01);
+          return Math.max(Math.min(width, height) * 0.18, 0.08);
+        }
+
+        function paddedPolygon(xs, ys, padding) {
+          const centroid = xs.reduce(function(total, x) { return total + x; }, 0) / xs.length;
+          const middle = ys.reduce(function(total, y) { return total + y; }, 0) / ys.length;
+          const displayXs = [];
+          const displayYs = [];
+
+          for (let i = 0; i < xs.length; i++) {
+            const dx = xs[i] - centroid;
+            const dy = ys[i] - middle;
+            const distance = Math.max(Math.hypot(dx, dy), 1e-6);
+            displayXs.push(xs[i] + dx / distance * padding);
+            displayYs.push(ys[i] + dy / distance * padding);
+          }
+
+          return {xs: displayXs, ys: displayYs};
+        }
+
+        function roundedPolygon(xs, ys, configuredRadius) {
+          const radius = Number.isFinite(Number(configuredRadius)) ? Number(configuredRadius) : defaultPolygonCornerRadius(xs, ys);
+          if (xs.length < 3 || radius <= 0) return {xs: xs.slice(), ys: ys.slice()};
+
+          const roundedXs = [];
+          const roundedYs = [];
+          const steps = 6;
+
+          for (let i = 0; i < xs.length; i++) {
+            const previous = (i - 1 + xs.length) % xs.length;
+            const next = (i + 1) % xs.length;
+            const x = xs[i];
+            const y = ys[i];
+            const prevDx = xs[previous] - x;
+            const prevDy = ys[previous] - y;
+            const nextDx = xs[next] - x;
+            const nextDy = ys[next] - y;
+            const prevLength = Math.max(Math.hypot(prevDx, prevDy), 1e-6);
+            const nextLength = Math.max(Math.hypot(nextDx, nextDy), 1e-6);
+            const cut = Math.min(radius, prevLength * 0.45, nextLength * 0.45);
+            const startX = x + prevDx / prevLength * cut;
+            const startY = y + prevDy / prevLength * cut;
+            const endX = x + nextDx / nextLength * cut;
+            const endY = y + nextDy / nextLength * cut;
+
+            for (let step = 0; step <= steps; step++) {
+              const t = step / steps;
+              const inverse = 1 - t;
+              roundedXs.push(inverse * inverse * startX + 2 * inverse * t * x + t * t * endX);
+              roundedYs.push(inverse * inverse * startY + 2 * inverse * t * y + t * t * endY);
+            }
+          }
+
+          return {xs: roundedXs, ys: roundedYs};
+        }
+
+        function defaultPolygonCornerRadius(xs, ys) {
+          let minEdge = Infinity;
+          for (let i = 0; i < xs.length; i++) {
+            const next = (i + 1) % xs.length;
+            minEdge = Math.min(minEdge, Math.hypot(xs[next] - xs[i], ys[next] - ys[i]));
+          }
+          const bounds = clusterBounds(xs, ys);
+          const minDimension = Math.max(Math.min(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0), 0.01);
+          return Math.min(minEdge * 0.35, minDimension * 0.2);
+        }
+
+        function normalizeLabelSide(value) {
+          const side = String(value || "top_right").toLowerCase().replace(/[\s-]+/g, "_");
+          return ["top_left", "top_right", "bottom_left", "bottom_right"].includes(side) ? side : "top_right";
+        }
+
+        function clusterBounds(xs, ys) {
+          return {
+            x0: Math.min.apply(null, xs),
+            y0: Math.min.apply(null, ys),
+            x1: Math.max.apply(null, xs),
+            y1: Math.max.apply(null, ys)
+          };
+        }
+
+        function labelPositionForSide(xs, ys, side, configuredGap) {
+          const bounds = clusterBounds(xs, ys);
+          const width = Math.max(bounds.x1 - bounds.x0, 0.01);
+          const height = Math.max(bounds.y1 - bounds.y0, 0.01);
+          const gap = Number.isFinite(Number(configuredGap)) ? Number(configuredGap) : Math.max(Math.min(width, height) * 0.35, 0.18);
+          const left = side.endsWith("_left");
+          const top = side.startsWith("top_");
+
+          return {
+            x: left ? bounds.x0 - gap : bounds.x1 + gap,
+            y: top ? bounds.y1 + gap : bounds.y0 - gap,
+            align: left ? "right" : "left",
+            x_offset: left ? -6 : 6
+          };
+        }
+
+        function nearestPolygonPoint(xs, ys, x, y) {
+          let best = {x: xs[0], y: ys[0], distance: Infinity};
+          for (let i = 0; i < xs.length; i++) {
+            const dx = xs[i] - x;
+            const dy = ys[i] - y;
+            const distance = dx * dx + dy * dy;
+            if (distance < best.distance) best = {x: xs[i], y: ys[i], distance: distance};
+          }
+          return best;
+        }
+
+        function annotationClusterColumns(clusters) {
+          const columns = {
+            id: [],
+            label: [],
+            description: [],
+            xs: [],
+            ys: [],
+            display_xs: [],
+            display_ys: [],
+            anchor_x: [],
+            anchor_y: [],
+            label_x: [],
+            label_y: [],
+            label_align: [],
+            label_x_offset: [],
+            fill_color: [],
+            fill_alpha: [],
+            line_color: [],
+            line_alpha: [],
+            leader_line_alpha: [],
+            line_width: [],
+            label_text_color: []
+          };
+
+          for (const cluster of clusters) {
+            columns.id.push(cluster.id);
+            columns.label.push(cluster.label);
+            columns.description.push(cluster.description);
+            columns.xs.push(cluster.xs);
+            columns.ys.push(cluster.ys);
+            columns.display_xs.push(cluster.display_xs);
+            columns.display_ys.push(cluster.display_ys);
+            columns.anchor_x.push(cluster.anchor_x);
+            columns.anchor_y.push(cluster.anchor_y);
+            columns.label_x.push(cluster.label_x);
+            columns.label_y.push(cluster.label_y);
+            columns.label_align.push(cluster.label_align);
+            columns.label_x_offset.push(cluster.label_x_offset);
+            columns.fill_color.push(cluster.fill_color);
+            columns.fill_alpha.push(cluster.fill_alpha);
+            columns.line_color.push(cluster.line_color);
+            columns.line_alpha.push(cluster.line_alpha);
+            columns.leader_line_alpha.push(cluster.leader_line_alpha);
+            columns.line_width.push(cluster.line_width);
+            columns.label_text_color.push(cluster.label_text_color);
+          }
+
+          return columns;
+        }
+
+        function glyphName(renderer) {
+          return renderer && renderer.attributes && renderer.attributes.glyph && renderer.attributes.glyph.name;
+        }
+
+        function findGlyphRenderer(docs, name) {
+          return findModels(docs, "GlyphRenderer").find(function(renderer) {
+            return glyphName(renderer) === name;
+          });
+        }
+
         function updateLabelColors(docs, columns) {
           if (!Array.isArray(columns.label)) return;
           const factors = Array.from(new Set(columns.label));
@@ -287,9 +551,12 @@
         }
 
         function updateHoverTooltips(docs) {
+          const scatterRenderer = findGlyphRenderer(docs, "Scatter");
           for (const hoverTool of findModels(docs, "HoverTool")) {
             hoverTool.attributes = hoverTool.attributes || {};
+            if (hoverTool.attributes.name === "cluster-hover") continue;
             hoverTool.attributes.tooltips = HOVER_TOOLTIPS;
+            if (scatterRenderer) hoverTool.attributes.renderers = [{id: scatterRenderer.id}];
           }
         }
 
@@ -302,11 +569,156 @@
           }
         }
 
-        function applyColumns(docs, columns) {
+        function addClusterAnnotations(docs, annotations) {
+          const clusters = annotations && annotations.clusters ? annotations.clusters : [];
+          if (clusters.length === 0) return;
+
+          const figure = findModels(docs, "Figure")[0];
+          if (!figure || !figure.attributes) return;
+
+          const source = {
+            type: "object",
+            name: "ColumnDataSource",
+            id: CLUSTER_SOURCE_ID,
+            attributes: {
+              selected: {type: "object", name: "Selection", id: "annotation_cluster_selection", attributes: {indices: [], line_indices: []}},
+              selection_policy: {type: "object", name: "UnionRenderers", id: "annotation_cluster_selection_policy"},
+              data: toBokehMap(annotationClusterColumns(clusters))
+            }
+          };
+
+          const polygonRenderer = {
+            type: "object",
+            name: "GlyphRenderer",
+            id: CLUSTER_RENDERER_ID,
+            attributes: {
+              data_source: source,
+              view: {
+                type: "object",
+                name: "CDSView",
+                id: "annotation_cluster_view",
+                attributes: {
+                  filter: {type: "object", name: "AllIndices", id: "annotation_cluster_filter"}
+                }
+              },
+              glyph: {
+                type: "object",
+                name: "Patches",
+                id: "annotation_cluster_patches",
+                attributes: {
+                  xs: {type: "field", field: "display_xs"},
+                  ys: {type: "field", field: "display_ys"},
+                  fill_alpha: {type: "value", value: 0},
+                  line_color: {type: "field", field: "line_color"},
+                  line_alpha: {type: "field", field: "line_alpha"},
+                  line_width: {type: "field", field: "line_width"},
+                  line_dash: [6, 4]
+                }
+              }
+            }
+          };
+
+          const leaderRenderer = {
+            type: "object",
+            name: "GlyphRenderer",
+            id: CLUSTER_LEADER_RENDERER_ID,
+            attributes: {
+              data_source: source,
+              view: {
+                type: "object",
+                name: "CDSView",
+                id: "annotation_cluster_leader_view",
+                attributes: {
+                  filter: {type: "object", name: "AllIndices", id: "annotation_cluster_leader_filter"}
+                }
+              },
+              glyph: {
+                type: "object",
+                name: "Segment",
+                id: "annotation_cluster_leader_segment",
+                attributes: {
+                  x0: {type: "field", field: "anchor_x"},
+                  y0: {type: "field", field: "anchor_y"},
+                  x1: {type: "field", field: "label_x"},
+                  y1: {type: "field", field: "label_y"},
+                  line_color: {type: "field", field: "line_color"},
+                  line_alpha: {type: "field", field: "leader_line_alpha"},
+                  line_width: {type: "value", value: 1.5},
+                  line_dash: [4, 4]
+                }
+              }
+            }
+          };
+
+          const labelRenderer = {
+            type: "object",
+            name: "GlyphRenderer",
+            id: CLUSTER_LABEL_RENDERER_ID,
+            attributes: {
+              data_source: source,
+              view: {
+                type: "object",
+                name: "CDSView",
+                id: "annotation_cluster_label_view",
+                attributes: {
+                  filter: {type: "object", name: "AllIndices", id: "annotation_cluster_label_filter"}
+                }
+              },
+              glyph: {
+                type: "object",
+                name: "Text",
+                id: "annotation_cluster_label_text",
+                attributes: {
+                  x: {type: "field", field: "label_x"},
+                  y: {type: "field", field: "label_y"},
+                  text: {type: "field", field: "label"},
+                  text_color: {type: "field", field: "label_text_color"},
+                  text_alpha: {type: "value", value: 1},
+                  text_font_size: {type: "value", value: "13px"},
+                  text_font_style: {type: "value", value: "bold"},
+                  text_align: {type: "field", field: "label_align"},
+                  text_baseline: {type: "value", value: "middle"},
+                  x_offset: {type: "field", field: "label_x_offset"},
+                  y_offset: {type: "value", value: 0},
+                  background_fill_color: {type: "value", value: "#fff"},
+                  background_fill_alpha: {type: "value", value: 0.82},
+                  border_line_color: {type: "field", field: "line_color"},
+                  border_line_alpha: {type: "value", value: 0.35},
+                  padding: 4,
+                  outline_shape: "box"
+                }
+              }
+            }
+          };
+
+          figure.attributes.renderers = figure.attributes.renderers || [];
+          figure.attributes.renderers.push(polygonRenderer, leaderRenderer, labelRenderer);
+
+          const hoverTool = {
+            type: "object",
+            name: "HoverTool",
+            id: CLUSTER_HOVER_ID,
+            attributes: {
+              name: "cluster-hover",
+              renderers: [{id: CLUSTER_LABEL_RENDERER_ID}],
+              tooltips: CLUSTER_TOOLTIPS,
+              point_policy: "follow_mouse"
+            }
+          };
+
+          for (const toolbar of findModels(docs, "Toolbar")) {
+            toolbar.attributes = toolbar.attributes || {};
+            toolbar.attributes.tools = toolbar.attributes.tools || [];
+            toolbar.attributes.tools.push(hoverTool);
+          }
+        }
+
+        function applyColumns(docs, columns, annotations) {
           const sources = findModels(docs, "ColumnDataSource");
           if (sources.length === 0) throw new Error("Template has no ColumnDataSource.");
           sources[0].attributes.data = toBokehMap(columns);
           updateLabelColors(docs, columns);
+          addClusterAnnotations(docs, annotations);
           updateHoverTooltips(docs);
           updateToolbarDefaults(docs);
         }
@@ -335,6 +747,85 @@
           function num(column, i, fallback) {
             const n = Number(value(column, i, fallback));
             return Number.isFinite(n) ? n : fallback;
+          }
+
+          function roundCoord(value) {
+            return Number(Number(value).toFixed(6));
+          }
+
+          function selectedPoint(i) {
+            return {
+              index: Number(i),
+              id: value("idx", i, i),
+              x: num("x", i, NaN),
+              y: num("y", i, NaN),
+              label: value("label", i, "")
+            };
+          }
+
+          function finiteSelectedPoints(indices) {
+            return indices.map(selectedPoint).filter(function(point) {
+              return Number.isFinite(point.x) && Number.isFinite(point.y);
+            });
+          }
+
+          function cross(origin, a, b) {
+            return (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+          }
+
+          function convexHull(points) {
+            const unique = [];
+            const seen = new Set();
+
+            for (const point of points) {
+              const key = roundCoord(point.x) + "," + roundCoord(point.y);
+              if (seen.has(key)) continue;
+              seen.add(key);
+              unique.push({x: point.x, y: point.y});
+            }
+
+            unique.sort(function(a, b) {
+              return a.x === b.x ? a.y - b.y : a.x - b.x;
+            });
+
+            if (unique.length <= 2) return unique;
+
+            const lower = [];
+            for (const point of unique) {
+              while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+              lower.push(point);
+            }
+
+            const upper = [];
+            for (let i = unique.length - 1; i >= 0; i--) {
+              const point = unique[i];
+              while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+              upper.push(point);
+            }
+
+            lower.pop();
+            upper.pop();
+            return lower.concat(upper);
+          }
+
+          function clusterDraft(indices) {
+            const points = finiteSelectedPoints(indices);
+            const hull = convexHull(points);
+            const selectedIds = points.map(function(point) { return point.id; });
+            const firstId = selectedIds.length > 0 ? String(selectedIds[0]).replace(/[^A-Za-z0-9_-]+/g, "_") : "selection";
+
+            return {
+              id: "cluster_" + firstId,
+              label: "New cluster",
+              description: "",
+              label_side: "top_right",
+              polygon_padding: 0.3,
+              polygon_corner_radius: 0.12,
+              polygon: {
+                xs: hull.map(function(point) { return roundCoord(point.x); }),
+                ys: hull.map(function(point) { return roundCoord(point.y); })
+              }
+            };
           }
 
           function previewThumb(i, active) {
@@ -392,6 +883,26 @@
                 <div><b>Label:</b> ${label}</div>
                 <div><b>Patch coords:</b> row=${row}, col=${col}</div>
                 <div><b>Image URL:</b> ${url}</div>
+              </div>`;
+          }
+
+          function clusterCoordinates(indices) {
+            const draft = clusterDraft(indices);
+            const json = JSON.stringify({annotations: {clusters: [draft]}}, null, 2);
+            const polygonNote = draft.polygon.xs.length >= 3
+              ? "Paste this top-level annotations field into the data JSON."
+              : "Select at least 3 non-collinear points for a polygon hull.";
+
+            return `
+              <div style="margin-top:12px; font:13px/1.4 system-ui, sans-serif;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+                  <div>
+                    <div style="font-weight:600;">Cluster coordinates</div>
+                    <div style="color:#666;">${polygonNote}</div>
+                  </div>
+                  <button type="button" data-copy-cluster-json="true" style="padding:4px 8px; border:1px solid #999; background:#fff; cursor:pointer; font:12px/1.2 system-ui, sans-serif;">Copy JSON</button>
+                </div>
+                <textarea data-cluster-json="true" readonly style="box-sizing:border-box; width:100%; min-height:180px; resize:vertical; padding:8px; border:1px solid #bbb; background:#fafafa; color:#222; font:11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;">${escapeHtml(json)}</textarea>
               </div>`;
           }
 
@@ -453,11 +964,11 @@
           function renderSelection(selected, scrollState) {
             if (selected.length === 0) {
               activeIndex = null;
-              info.text = "<i>Click or drag-select points to see details here</i>";
+              info.text = EMPTY_SELECTION_TEXT;
               return;
             }
             if (!selected.some(function(i) { return Number(i) === Number(activeIndex); })) activeIndex = Number(selected[0]);
-            info.text = overview(activeIndex) + details(activeIndex) + previewGrid(selected, activeIndex);
+            info.text = overview(activeIndex) + details(activeIndex) + previewGrid(selected, activeIndex) + clusterCoordinates(selected);
             restoreScrollState(scrollState);
           }
 
@@ -478,7 +989,57 @@
             return target && target.closest("[data-patch-index]");
           }
 
+          function copyButtonFromEvent(event) {
+            const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+            for (const item of path) {
+              if (item instanceof Element && item.dataset.copyClusterJson != null) return item;
+            }
+            const target = event.target instanceof Element ? event.target : event.target.parentElement;
+            return target && target.closest("[data-copy-cluster-json]");
+          }
+
+          function textareaNearButton(button) {
+            const root = button.getRootNode && button.getRootNode();
+            const container = button.closest("div");
+            return (container && container.parentElement && container.parentElement.querySelector("[data-cluster-json]"))
+              || (root && root.querySelector && root.querySelector("[data-cluster-json]"))
+              || document.querySelector("[data-cluster-json]");
+          }
+
+          function copyTextArea(textarea, button) {
+            const text = textarea.value;
+
+            function markCopied() {
+              const original = button.textContent;
+              button.textContent = "Copied";
+              setTimeout(function() { button.textContent = original; }, 1000);
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(markCopied).catch(function() {
+                textarea.select();
+                document.execCommand("copy");
+                markCopied();
+              });
+              return;
+            }
+
+            textarea.select();
+            document.execCommand("copy");
+            markCopied();
+          }
+
           document.addEventListener("click", function(event) {
+            const copyButton = copyButtonFromEvent(event);
+            if (copyButton) {
+              const textarea = textareaNearButton(copyButton);
+              if (!textarea) return;
+              event.preventDefault();
+              event.stopPropagation();
+              copyTextArea(textarea, copyButton);
+              return;
+            }
+
             const button = patchButtonFromEvent(event);
             if (!button) return;
             event.preventDefault();
@@ -625,9 +1186,11 @@
             ]);
             if (!response.ok) throw new Error("HTTP " + response.status + " while loading " + dataSource.url);
 
-            const columns = normalizeColumns(await response.json());
+            const rawData = await response.json();
+            const columns = normalizeColumns(rawData);
+            const annotations = normalizeAnnotations(rawData.annotations);
             const docs = JSON.parse(document.getElementById(TEMPLATE_JSON_ID).textContent);
-            applyColumns(docs, columns);
+            applyColumns(docs, columns, annotations);
             await bokeh.embed.embed_items(JSON.stringify(docs), buildRenderItems(docs));
             installSelectionPreview();
             installHoverTooltipLayout();
