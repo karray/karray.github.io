@@ -123,7 +123,7 @@
     </div>
     <div id="c457899a-5f41-402e-93bd-74dd9efba537" data-source="umap_covid.json" style="display: contents;"></div>
     <script type="application/json" id="bokeh-template-json">
-      {"05a22395-ce6f-48eb-a51c-2cd965daa729":{"version":"3.6.0","title":"Bokeh Application","roots":[{"type":"object","name":"Row","id":"p1045","attributes":{"sizing_mode":"stretch_both","children":[{"type":"object","name":"Div","id":"p1042","attributes":{"width":320,"height":760,"text":"\u003ci\u003eClick or drag-select points to see details here\u003c/i\u003e"}},{"type":"object","name":"Figure","id":"p1004","attributes":{"min_width":1024,"min_height":768,"sizing_mode":"stretch_both","x_range":{"type":"object","name":"DataRange1d","id":"p1005"},"y_range":{"type":"object","name":"DataRange1d","id":"p1006"},"x_scale":{"type":"object","name":"LinearScale","id":"p1014"},"y_scale":{"type":"object","name":"LinearScale","id":"p1015"},"title":{"type":"object","name":"Title","id":"p1007","attributes":{"text":"UMAP Spatial Vectors"}},"renderers":[{"type":"object","name":"GlyphRenderer","id":"p1037","attributes":{"data_source":{"type":"object","name":"ColumnDataSource","id":"p1001","attributes":{"selected":{"type":"object","name":"Selection","id":"p1002","attributes":{"indices":[],"line_indices":[]}},"selection_policy":{"type":"object","name":"UnionRenderers","id":"p1003"},"data":{"type":"map","entries":[["x",[]],["y",[]],["img_url",[]],["cx",[]],["cy",[]],["cell",[]],["orig_w",[]],["orig_h",[]],["row",[]],["col",[]],["idx",[]],["label",[]]]}}},"view":{"type":"object","name":"CDSView","id":"p1038","attributes":{"filter":{"type":"object","name":"AllIndices","id":"p1039"}}},"glyph":{"type":"object","name":"Scatter","id":"p1034","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"type":"object","name":"CategoricalColorMapper","id":"p1030","attributes":{"palette":["#1f77b4","#ff7f0e","#2ca02c"],"factors":["0","1"]}}},"line_alpha":{"type":"value","value":0.6},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.6},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.6}}},"nonselection_glyph":{"type":"object","name":"Scatter","id":"p1035","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.1},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.1},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.1}}},"muted_glyph":{"type":"object","name":"Scatter","id":"p1036","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.2},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.2},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.2}}}}}],"toolbar":{"type":"object","name":"Toolbar","id":"p1013","attributes":{"tools":[{"type":"object","name":"PanTool","id":"p1026"},{"type":"object","name":"WheelZoomTool","id":"p1027","attributes":{"renderers":"auto"}},{"type":"object","name":"BoxSelectTool","id":"p1046","attributes":{"renderers":"auto","overlay":{"type":"object","name":"BoxAnnotation","id":"p1049","attributes":{"bottom":{"type":"number","value":"nan"},"editable":true,"fill_alpha":0.5,"fill_color":"lightgrey","handles":{"type":"object","name":"BoxInteractionHandles","id":"p1050","attributes":{"all":{"type":"object","name":"AreaVisuals","id":"p1051","attributes":{"fill_color":"white","hover_fill_color":"lightgray"}}}},"left":{"type":"number","value":"nan"},"level":"overlay","line_alpha":1,"line_color":"black","line_dash":[4,4],"line_width":2,"right":{"type":"number","value":"nan"},"syncable":false,"top":{"type":"number","value":"nan"},"visible":false}}}},{"type":"object","name":"ResetTool","id":"p1028"},{"type":"object","name":"HoverTool","id":"p1029","attributes":{"renderers":"auto","tooltips":"\n\u0026lt;div style=\"padding:5px;, margin-bottom:5px; border:1px solid #444;\"\u0026gt;\n  \u0026lt;div\u0026gt;@idx\u0026lt;/div\u0026gt;\n  \u0026lt;div style=\"\n      overflow: hidden;\n      width: 100px;\n      height: 100px;\n      border: 1px solid #444;\n  \"\u0026gt;\n      \u0026lt;img src=\"@img_url\"\n          style=\"\n            position: relative;\n            /* shift and scale the full image */\n            left: calc(-@{cx}px * 100 / @{cell});\n            top:  calc(-@{cy}px * 100 / @{cell});\n            width:  calc(@{orig_w}px * 100 / @{cell});\n            height: calc(@{orig_h}px * 100 / @{cell});\n          \"\n      /\u0026gt;\n  \u0026lt;/div\u0026gt;\n  \u0026lt;div\u0026gt;Label: @label\u0026lt;/div\u0026gt;\n\u0026lt;/div\u0026gt;\n  "}},{"type":"object","name":"TapTool","id":"p1044","attributes":{"renderers":"auto"}}]}},"left":[{"type":"object","name":"LinearAxis","id":"p1021","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1022","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1023"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1024"}}}],"below":[{"type":"object","name":"LinearAxis","id":"p1016","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1017","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1018"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1019"}}}],"center":[{"type":"object","name":"Grid","id":"p1020","attributes":{"axis":{"id":"p1016"}}},{"type":"object","name":"Grid","id":"p1025","attributes":{"dimension":1,"axis":{"id":"p1021"}}},{"type":"object","name":"Legend","id":"p1040","attributes":{"items":[{"type":"object","name":"LegendItem","id":"p1041","attributes":{"label":{"type":"field","field":"label"},"renderers":[{"id":"p1037"}]}}]}}]}}]}}]}}
+      {"05a22395-ce6f-48eb-a51c-2cd965daa729":{"version":"3.6.0","title":"Bokeh Application","roots":[{"type":"object","name":"Row","id":"p1045","attributes":{"sizing_mode":"stretch_both","children":[{"type":"object","name":"Div","id":"p1042","attributes":{"width":320,"height":760,"text":"<i>Click or drag-select points to see details here</i>"}},{"type":"object","name":"Figure","id":"p1004","attributes":{"min_width":1024,"min_height":768,"sizing_mode":"stretch_both","x_range":{"type":"object","name":"DataRange1d","id":"p1005"},"y_range":{"type":"object","name":"DataRange1d","id":"p1006"},"x_scale":{"type":"object","name":"LinearScale","id":"p1014"},"y_scale":{"type":"object","name":"LinearScale","id":"p1015"},"title":{"type":"object","name":"Title","id":"p1007","attributes":{"text":"UMAP Spatial Vectors"}},"renderers":[{"type":"object","name":"GlyphRenderer","id":"p1037","attributes":{"data_source":{"type":"object","name":"ColumnDataSource","id":"p1001","attributes":{"selected":{"type":"object","name":"Selection","id":"p1002","attributes":{"indices":[],"line_indices":[]}},"selection_policy":{"type":"object","name":"UnionRenderers","id":"p1003"},"data":{"type":"map","entries":[["x",[]],["y",[]],["img_url",[]],["image_name",[]],["row",[]],["col",[]],["idx",[]],["label",[]],["grid_size",[]],["grid_size_percent",[]],["image_object_fit",[]]]}}},"view":{"type":"object","name":"CDSView","id":"p1038","attributes":{"filter":{"type":"object","name":"AllIndices","id":"p1039"}}},"glyph":{"type":"object","name":"Scatter","id":"p1034","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"type":"object","name":"CategoricalColorMapper","id":"p1030","attributes":{"palette":["#1f77b4","#ff7f0e","#2ca02c"],"factors":["0","1"]}}},"line_alpha":{"type":"value","value":0.6},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.6},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.6}}},"nonselection_glyph":{"type":"object","name":"Scatter","id":"p1035","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.1},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.1},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.1}}},"muted_glyph":{"type":"object","name":"Scatter","id":"p1036","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.2},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.2},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.2}}}}}],"toolbar":{"type":"object","name":"Toolbar","id":"p1013","attributes":{"tools":[{"type":"object","name":"PanTool","id":"p1026"},{"type":"object","name":"WheelZoomTool","id":"p1027","attributes":{"renderers":"auto"}},{"type":"object","name":"BoxSelectTool","id":"p1046","attributes":{"renderers":"auto","overlay":{"type":"object","name":"BoxAnnotation","id":"p1049","attributes":{"bottom":{"type":"number","value":"nan"},"editable":true,"fill_alpha":0.5,"fill_color":"lightgrey","handles":{"type":"object","name":"BoxInteractionHandles","id":"p1050","attributes":{"all":{"type":"object","name":"AreaVisuals","id":"p1051","attributes":{"fill_color":"white","hover_fill_color":"lightgray"}}}},"left":{"type":"number","value":"nan"},"level":"overlay","line_alpha":1,"line_color":"black","line_dash":[4,4],"line_width":2,"right":{"type":"number","value":"nan"},"syncable":false,"top":{"type":"number","value":"nan"},"visible":false}}}},{"type":"object","name":"ResetTool","id":"p1028"},{"type":"object","name":"HoverTool","id":"p1029","attributes":{"renderers":"auto","tooltips":"\n<div style=\"padding:5px; margin-bottom:5px; border:1px solid #444;\">\n  <div>@idx</div>\n  <div style=\"overflow:hidden; width:96px; height:96px; border:1px solid #444;\">\n    <div style=\"position:relative; left:-@{col}00%; top:-@{row}00%; width:@{grid_size_percent}; height:@{grid_size_percent};\">\n      <img src=\"@img_url\" style=\"width:100%; height:100%; object-fit:@{image_object_fit}; display:block;\" />\n    </div>\n  </div>\n  <div>Label: @label</div>\n</div>\n"}},{"type":"object","name":"TapTool","id":"p1044","attributes":{"renderers":"auto"}}]}},"left":[{"type":"object","name":"LinearAxis","id":"p1021","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1022","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1023"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1024"}}}],"below":[{"type":"object","name":"LinearAxis","id":"p1016","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1017","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1018"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1019"}}}],"center":[{"type":"object","name":"Grid","id":"p1020","attributes":{"axis":{"id":"p1016"}}},{"type":"object","name":"Grid","id":"p1025","attributes":{"dimension":1,"axis":{"id":"p1021"}}},{"type":"object","name":"Legend","id":"p1040","attributes":{"items":[{"type":"object","name":"LegendItem","id":"p1041","attributes":{"label":{"type":"field","field":"label"},"renderers":[{"id":"p1037"}]}}]}}]}}]}}]}}
     </script>
     <script type="text/javascript">
       (function() {
@@ -145,6 +145,9 @@
         const HOVER_CARD_GAP = 8;
         const HOVER_MAX_COLUMNS = 4;
         const HOVER_PREVIEW_SIZE = 96;
+        const DEFAULT_GRID_SIZE = 7;
+        const DEFAULT_IMAGE_CROP = "center_square";
+        const SIDEBAR_PREVIEW_SIZE = 64;
         const EMPTY_SELECTION_TEXT = "<i>Click or drag-select points to see details and cluster coordinates here</i>";
         const CLUSTER_TOOLTIPS = `
           <div class="cluster-hover-card" style="box-sizing:border-box; max-width:280px; padding:8px 10px; border:1px solid #777; border-radius:4px; background:#fff; color:#222; font:13px/1.35 system-ui, sans-serif;">
@@ -157,15 +160,9 @@
           <div class="patch-hover-card" style="box-sizing:border-box; width:${HOVER_CARD_WIDTH}px; padding:5px; border:1px solid #444; background:#fff; color:#222; font:12px/1.25 system-ui, sans-serif;">
             <div class="patch-hover-id" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">#@idx</div>
             <div class="patch-hover-thumb" style="overflow:hidden; width:${HOVER_PREVIEW_SIZE}px; height:${HOVER_PREVIEW_SIZE}px; margin:4px 0; border:1px solid #444; background:#f7f7f7;">
-              <img src="@img_url" alt=""
-                style="
-                  position: relative;
-                  left: calc(-@{cx}px * ${HOVER_PREVIEW_SIZE} / @{cell});
-                  top: calc(-@{cy}px * ${HOVER_PREVIEW_SIZE} / @{cell});
-                  width: calc(@{orig_w}px * ${HOVER_PREVIEW_SIZE} / @{cell});
-                  height: calc(@{orig_h}px * ${HOVER_PREVIEW_SIZE} / @{cell});
-                "
-              />
+              <div style="position:relative; left:-@{col}00%; top:-@{row}00%; width:@{grid_size_percent}; height:@{grid_size_percent};">
+                <img src="@img_url" alt="" style="width:100%; height:100%; object-fit:@{image_object_fit}; display:block;" />
+              </div>
             </div>
             <div class="patch-hover-label" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Label: @label</div>
           </div>
@@ -282,6 +279,33 @@
           return [{docid: docid, roots: {[root.id]: CONTAINER_ID}, root_ids: [root.id]}];
         }
 
+        function filenameFromPath(value) {
+          const path = String(value || "").split(/[?#]/)[0];
+          const filename = path.split("/").filter(Boolean).pop();
+          return filename || String(value || "");
+        }
+
+        function joinImageUrl(baseUrl, image) {
+          const imagePath = String(image || "");
+          if (/^[a-z][a-z0-9+.-]*:/i.test(imagePath) || !baseUrl) return imagePath;
+          return String(baseUrl).replace(/\/?$/, "/") + imagePath.replace(/^\/+/, "");
+        }
+
+        function normalizeGridSize(value) {
+          const gridSize = Math.trunc(Number(value));
+          return Number.isFinite(gridSize) && gridSize > 0 ? gridSize : DEFAULT_GRID_SIZE;
+        }
+
+        function normalizeImageCrop(value) {
+          const crop = String(value || DEFAULT_IMAGE_CROP).toLowerCase().replace(/-/g, "_");
+          if (crop === "none" || crop === "as_is" || crop === "original") return "none";
+          return DEFAULT_IMAGE_CROP;
+        }
+
+        function imageObjectFit(imageCrop) {
+          return imageCrop === "none" ? "fill" : "cover";
+        }
+
         function normalizeColumns(columns) {
           if (!columns || typeof columns !== "object" || Array.isArray(columns)) {
             throw new Error("Data JSON must be an object of array columns.");
@@ -290,7 +314,9 @@
             throw new Error("Data JSON must include x and y columns.");
           }
 
-          const entries = Object.entries(columns).filter(function(entry) { return Array.isArray(entry[1]); });
+          const entries = Object.entries(columns).filter(function(entry) {
+            return Array.isArray(entry[1]) && entry[0] !== "images";
+          });
           const lengths = entries.map(function(entry) { return entry[1].length; });
           const minLength = Math.min.apply(null, lengths);
           const maxLength = Math.max.apply(null, lengths);
@@ -304,6 +330,52 @@
           }
           if (Array.isArray(normalized.label)) {
             normalized.label = normalized.label.map(function(value) { return String(value); });
+          }
+
+          const pointCount = normalized.x.length;
+          const images = Array.isArray(columns.images) ? columns.images : null;
+          const imageBaseUrl = typeof columns.image_base_url === "string" ? columns.image_base_url : "";
+          const gridSize = normalizeGridSize(columns.grid_size);
+          const patchesPerImage = gridSize * gridSize;
+          const imageCrop = normalizeImageCrop(columns.image_crop);
+          const objectFit = imageObjectFit(imageCrop);
+          if (images && images.length * patchesPerImage !== pointCount) {
+            console.warn("Data image count does not match point count for grid_size", gridSize);
+          }
+          if (!Array.isArray(normalized.img_url)) {
+            normalized.img_url = Array.from({length: pointCount}, function(_, i) {
+              return images ? joinImageUrl(imageBaseUrl, images[Math.floor(i / patchesPerImage)]) : "";
+            });
+          }
+          if (!Array.isArray(normalized.image_name)) {
+            normalized.image_name = Array.from({length: pointCount}, function(_, i) {
+              const image = images ? images[Math.floor(i / patchesPerImage)] : normalized.img_url[i];
+              return filenameFromPath(image);
+            });
+          }
+          if (!Array.isArray(normalized.idx)) {
+            normalized.idx = Array.from({length: pointCount}, function(_, i) {
+              return images ? Math.floor(i / patchesPerImage) : i;
+            });
+          }
+          if (!Array.isArray(normalized.row)) {
+            normalized.row = Array.from({length: pointCount}, function(_, i) {
+              return Math.floor((i % patchesPerImage) / gridSize);
+            });
+          }
+          if (!Array.isArray(normalized.col)) {
+            normalized.col = Array.from({length: pointCount}, function(_, i) {
+              return i % gridSize;
+            });
+          }
+          if (!Array.isArray(normalized.grid_size)) {
+            normalized.grid_size = Array.from({length: pointCount}, function() { return gridSize; });
+          }
+          if (!Array.isArray(normalized.grid_size_percent)) {
+            normalized.grid_size_percent = Array.from({length: pointCount}, function() { return (gridSize * 100) + "%"; });
+          }
+          if (!Array.isArray(normalized.image_object_fit)) {
+            normalized.image_object_fit = Array.from({length: pointCount}, function() { return objectFit; });
           }
           return normalized;
         }
@@ -753,6 +825,21 @@
             return Number(Number(value).toFixed(6));
           }
 
+          function gridSizeForPoint(i) {
+            return normalizeGridSize(value("grid_size", i, DEFAULT_GRID_SIZE));
+          }
+
+          function gridIndex(column, i) {
+            const gridSize = gridSizeForPoint(i);
+            const index = Math.trunc(num(column, i, 0));
+            return Math.min(Math.max(index, 0), gridSize - 1);
+          }
+
+          function imageFitForPoint(i) {
+            const fit = String(value("image_object_fit", i, "cover"));
+            return fit === "fill" ? "fill" : "cover";
+          }
+
           function selectedPoint(i) {
             return {
               index: Number(i),
@@ -831,17 +918,21 @@
           function previewThumb(i, active) {
             const idx = value("idx", i, i);
             const url = escapeHtml(value("img_url", i, ""));
-            const cx = num("cx", i, 0);
-            const cy = num("cy", i, 0);
-            const cell = Math.max(num("cell", i, 1), 1);
-            const origW = Math.max(num("orig_w", i, cell), 1);
-            const origH = Math.max(num("orig_h", i, cell), 1);
+            const row = gridIndex("row", i);
+            const col = gridIndex("col", i);
+            const gridSize = gridSizeForPoint(i);
+            const objectFit = imageFitForPoint(i);
             const label = escapeHtml(value("label", i, ""));
             const border = i === active ? "2px solid #1f77b4" : "1px solid #555";
+            const imageSize = SIDEBAR_PREVIEW_SIZE * gridSize;
+            const left = -col * SIDEBAR_PREVIEW_SIZE;
+            const top = -row * SIDEBAR_PREVIEW_SIZE;
             return `
-              <button type="button" data-patch-index="${i}" title="Point ${escapeHtml(idx)}" style="width:68px; min-width:68px; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:11px/1.2 system-ui, sans-serif; color:#222;">
-                <div style="overflow:hidden; width:64px; height:64px; border:${border}; box-sizing:border-box; background:#f7f7f7;">
-                  <img src="${url}" style="position:relative; left:calc(-${cx}px * 64 / ${cell}); top:calc(-${cy}px * 64 / ${cell}); width:calc(${origW}px * 64 / ${cell}); height:calc(${origH}px * 64 / ${cell});" />
+              <button type="button" data-patch-index="${i}" title="Point ${escapeHtml(idx)}" style="width:${SIDEBAR_PREVIEW_SIZE + 4}px; min-width:${SIDEBAR_PREVIEW_SIZE + 4}px; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:11px/1.2 system-ui, sans-serif; color:#222;">
+                <div style="overflow:hidden; width:${SIDEBAR_PREVIEW_SIZE}px; height:${SIDEBAR_PREVIEW_SIZE}px; border:${border}; box-sizing:border-box; background:#f7f7f7;">
+                  <div style="position:relative; left:${left}px; top:${top}px; width:${imageSize}px; height:${imageSize}px;">
+                    <img src="${url}" style="width:100%; height:100%; object-fit:${objectFit}; display:block;" />
+                  </div>
                 </div>
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">#${escapeHtml(idx)}</div>
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#555;">${label}</div>
@@ -864,25 +955,29 @@
             const url = escapeHtml(value("img_url", i, ""));
             const row = num("row", i, 0);
             const col = num("col", i, 0);
+            const gridSize = gridSizeForPoint(i);
+            const objectFit = imageFitForPoint(i);
             return `
               <h3 style="margin:0 0 8px 0; font:600 16px/1.3 system-ui, sans-serif;">Point #${escapeHtml(idx)}</h3>
               <div style="width:300px; height:300px; position:relative; border:1px solid #444; margin-bottom:8px; overflow:hidden; background:#f7f7f7;">
-                <img src="${url}" style="width:100%; height:100%; object-fit:cover; display:block;" />
-                <div style="position:absolute; inset:0; background-image:linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px); background-size:calc(100%/7) calc(100%/7); pointer-events:none;"></div>
-                <div style="position:absolute; top:calc(${row} * 100% / 7); left:calc(${col} * 100% / 7); width:calc(100% / 7); height:calc(100% / 7); box-sizing:border-box; border:2px solid yellow; pointer-events:none;"></div>
+                <img src="${url}" style="width:100%; height:100%; object-fit:${objectFit}; display:block;" />
+                <div style="position:absolute; inset:0; background-image:linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px); background-size:calc(100%/${gridSize}) calc(100%/${gridSize}); pointer-events:none;"></div>
+                <div style="position:absolute; top:calc(${row} * 100% / ${gridSize}); left:calc(${col} * 100% / ${gridSize}); width:calc(100% / ${gridSize}); height:calc(100% / ${gridSize}); box-sizing:border-box; border:2px solid yellow; pointer-events:none;"></div>
               </div>`;
           }
 
           function details(i) {
-            const url = escapeHtml(value("img_url", i, ""));
+            const url = value("img_url", i, "");
+            const imageName = escapeHtml(value("image_name", i, filenameFromPath(url)));
             const row = num("row", i, 0);
             const col = num("col", i, 0);
+            const gridSize = gridSizeForPoint(i);
             const label = escapeHtml(value("label", i, ""));
             return `
               <div style="font:13px/1.4 system-ui, sans-serif; overflow-wrap:anywhere; margin-top:10px;">
                 <div><b>Label:</b> ${label}</div>
-                <div><b>Patch coords:</b> row=${row}, col=${col}</div>
-                <div><b>Image URL:</b> ${url}</div>
+                <div><b>Patch coords:</b> row=${row}, col=${col} (${gridSize}x${gridSize})</div>
+                <div><b>Image:</b> <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${imageName}</a></div>
               </div>`;
           }
 
