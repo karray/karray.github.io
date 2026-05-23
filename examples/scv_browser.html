@@ -76,12 +76,15 @@
         background: #fff;
       }
 
-      .scv-hover-id,
-      .scv-hover-label,
+      .scv-hover-title,
       .scv-hover-more {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .scv-hover-title {
+        font-weight: 600;
       }
 
       .scv-hover-thumb {
@@ -784,6 +787,10 @@
           });
         }
 
+        function pointTitle(idx, label) {
+          return "#" + String(idx ?? "") + ", L:" + String(label ?? "");
+        }
+
         function currentBokehDocument() {
           for (const view of Object.values(Bokeh.index || {})) {
             const doc = view && view.model && view.model.document;
@@ -876,9 +883,8 @@
           }
 
           function patchCard(data, i) {
-            const idx = escapeHtml(value(data, "idx", i, i));
+            const title = escapeHtml(pointTitle(value(data, "idx", i, i), value(data, "label", i, "")));
             const url = escapeHtml(value(data, "img_url", i, ""));
-            const label = escapeHtml(value(data, "label", i, ""));
             const gridSize = normalizeGridSize(value(data, "grid_size", i, DEFAULT_GRID_SIZE));
             const row = gridIndex(data, "row", i, gridSize);
             const col = gridIndex(data, "col", i, gridSize);
@@ -888,13 +894,12 @@
             const top = (-row * 100) + "%";
             return `
               <div class="scv-hover-card">
-                <div class="scv-hover-id">#${idx}</div>
+                <div class="scv-hover-title">${title}</div>
                 <div class="scv-hover-thumb">
                   <div style="position:relative; left:${left}; top:${top}; width:${gridPercent}; height:${gridPercent};">
                     <img src="${url}" alt="" style="display:block; width:100%; height:100%; object-fit:${objectFit};" />
                   </div>
                 </div>
-                <div class="scv-hover-label">Label: ${label}</div>
               </div>`;
           }
 
@@ -1052,26 +1057,24 @@
           }
 
           function previewThumb(i, active) {
-            const idx = value("idx", i, i);
+            const title = escapeHtml(pointTitle(value("idx", i, i), value("label", i, "")));
             const url = escapeHtml(value("img_url", i, ""));
             const row = gridIndex("row", i);
             const col = gridIndex("col", i);
             const gridSize = gridSizeForPoint(i);
             const objectFit = imageFitForPoint(i);
-            const label = escapeHtml(value("label", i, ""));
             const border = i === active ? "2px solid #1f77b4" : "1px solid #555";
             const gridPercent = (gridSize * 100) + "%";
             const left = (-col * 100) + "%";
             const top = (-row * 100) + "%";
             return `
-              <button type="button" data-patch-index="${i}" title="Point ${escapeHtml(idx)}" style="box-sizing:border-box; width:100%; min-width:0; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:11px/1.2 system-ui, sans-serif; color:#222;">
+              <button type="button" data-patch-index="${i}" title="${title}" style="box-sizing:border-box; width:100%; min-width:0; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:11px/1.2 system-ui, sans-serif; color:#222;">
                 <div style="box-sizing:border-box; overflow:hidden; width:100%; aspect-ratio:1; border:${border}; background:#f7f7f7;">
                   <div style="position:relative; left:${left}; top:${top}; width:${gridPercent}; height:${gridPercent};">
                     <img src="${url}" alt="" style="display:block; width:100%; height:100%; object-fit:${objectFit};" />
                   </div>
                 </div>
-                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">#${escapeHtml(idx)}</div>
-                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#555;">${label}</div>
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;">${title}</div>
               </button>`;
           }
 
@@ -1087,14 +1090,14 @@
           }
 
           function overview(i) {
-            const idx = value("idx", i, i);
+            const title = escapeHtml(pointTitle(value("idx", i, i), value("label", i, "")));
             const url = escapeHtml(value("img_url", i, ""));
             const row = num("row", i, 0);
             const col = num("col", i, 0);
             const gridSize = gridSizeForPoint(i);
             const objectFit = imageFitForPoint(i);
             return `
-              <h3 style="margin:0 0 8px 0; font:600 16px/1.3 system-ui, sans-serif;">Point #${escapeHtml(idx)}</h3>
+              <h3 style="margin:0 0 8px 0; font:600 16px/1.3 system-ui, sans-serif;">${title}</h3>
               <div style="width:300px; height:300px; position:relative; border:1px solid #444; margin-bottom:8px; overflow:hidden; background:#f7f7f7;">
                 <img src="${url}" style="width:100%; height:100%; object-fit:${objectFit}; display:block;" />
                 <div style="position:absolute; inset:0; background-image:linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px); background-size:calc(100%/${gridSize}) calc(100%/${gridSize}); pointer-events:none;"></div>
@@ -1108,10 +1111,8 @@
             const row = num("row", i, 0);
             const col = num("col", i, 0);
             const gridSize = gridSizeForPoint(i);
-            const label = escapeHtml(value("label", i, ""));
             return `
               <div style="font:13px/1.4 system-ui, sans-serif; overflow-wrap:anywhere; margin-top:10px;">
-                <div><b>Label:</b> ${label}</div>
                 <div><b>Patch coords:</b> row=${row}, col=${col} (${gridSize}x${gridSize})</div>
                 <div><b>Image:</b> <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${imageName}</a></div>
               </div>`;
