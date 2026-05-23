@@ -12,50 +12,6 @@
         padding: 0;
       }
 
-      .bk-tooltip.patch-hover-tooltip {
-        box-sizing: border-box;
-        max-width: calc(100vw - 48px) !important;
-        max-height: calc(100vh - 48px) !important;
-        overflow: auto !important;
-        padding: 8px !important;
-      }
-
-      .patch-hover-grid {
-        display: grid !important;
-        gap: 8px !important;
-        align-items: start !important;
-      }
-
-      .patch-hover-grid > * {
-        margin: 0 !important;
-      }
-
-      .patch-hover-card {
-        box-sizing: border-box;
-        width: 108px;
-        padding: 5px;
-        border: 1px solid #444;
-        background: #fff;
-        color: #222;
-        font: 12px/1.25 system-ui, sans-serif;
-      }
-
-      .patch-hover-id,
-      .patch-hover-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .patch-hover-thumb {
-        overflow: hidden;
-        width: 96px;
-        height: 96px;
-        margin: 4px 0;
-        border: 1px solid #444;
-        background: #f7f7f7;
-      }
-
       .data-source-controls {
         box-sizing: border-box;
         display: flex;
@@ -88,25 +44,58 @@
         text-decoration: underline;
       }
 
-      .cluster-hover-card {
+      .scv-hover-overlay {
         box-sizing: border-box;
-        max-width: 280px;
-        padding: 8px 10px;
+        position: fixed;
+        z-index: 10000;
+        max-width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+        overflow: auto;
+        padding: 8px;
         border: 1px solid #777;
         border-radius: 4px;
         background: #fff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
         color: #222;
-        font: 13px/1.35 system-ui, sans-serif;
+        pointer-events: none;
+        font: 12px/1.25 system-ui, sans-serif;
       }
 
-      .cluster-hover-title {
-        margin-bottom: 4px;
-        font-weight: 700;
+      .scv-hover-grid {
+        display: grid;
+        grid-template-columns: repeat(var(--cols, 1), 108px);
+        gap: 8px;
+        align-items: start;
       }
 
-      .cluster-hover-description {
-        color: #444;
-        overflow-wrap: anywhere;
+      .scv-hover-card {
+        box-sizing: border-box;
+        width: 108px;
+        padding: 5px;
+        border: 1px solid #444;
+        background: #fff;
+      }
+
+      .scv-hover-id,
+      .scv-hover-label,
+      .scv-hover-more {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scv-hover-thumb {
+        overflow: hidden;
+        width: 96px;
+        height: 96px;
+        margin: 4px 0;
+        border: 1px solid #444;
+        background: #f7f7f7;
+      }
+
+      .scv-hover-more {
+        margin-top: 6px;
+        color: #666;
       }
     </style>
     <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.6.0.min.js"></script>
@@ -140,14 +129,10 @@
         const CLUSTER_LEADER_RENDERER_ID = "annotation_cluster_leader_renderer";
         const CLUSTER_LABEL_RENDERER_ID = "annotation_cluster_label_renderer";
         const CLUSTER_HOVER_ID = "annotation_cluster_hover";
+        const PATCH_HOVER_CALLBACK_ID = "patch_hover_overlay_callback";
         const PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
-        const HOVER_CARD_WIDTH = 108;
-        const HOVER_CARD_GAP = 8;
-        const HOVER_MAX_COLUMNS = 4;
-        const HOVER_PREVIEW_SIZE = 96;
         const DEFAULT_GRID_SIZE = 7;
         const DEFAULT_IMAGE_CROP = "center_square";
-        const SIDEBAR_PREVIEW_SIZE = 64;
         const EMPTY_SELECTION_TEXT = "<i>Click or drag-select points to see details and cluster coordinates here</i>";
         const CLUSTER_TOOLTIPS = `
           <div class="cluster-hover-card" style="box-sizing:border-box; max-width:280px; padding:8px 10px; border:1px solid #777; border-radius:4px; background:#fff; color:#222; font:13px/1.35 system-ui, sans-serif;">
@@ -156,17 +141,7 @@
             <div style="margin-top:6px; color:#777; font-size:12px;">@id</div>
           </div>
         `;
-        const HOVER_TOOLTIPS = `
-          <div class="patch-hover-card" style="box-sizing:border-box; width:${HOVER_CARD_WIDTH}px; padding:5px; border:1px solid #444; background:#fff; color:#222; font:12px/1.25 system-ui, sans-serif;">
-            <div class="patch-hover-id" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">#@idx</div>
-            <div class="patch-hover-thumb" style="overflow:hidden; width:${HOVER_PREVIEW_SIZE}px; height:${HOVER_PREVIEW_SIZE}px; margin:4px 0; border:1px solid #444; background:#f7f7f7;">
-              <div style="position:relative; left:-@{col}00%; top:-@{row}00%; width:@{grid_size_percent}; height:@{grid_size_percent};">
-                <img src="@img_url" alt="" style="width:100%; height:100%; object-fit:@{image_object_fit}; display:block;" />
-              </div>
-            </div>
-            <div class="patch-hover-label" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Label: @label</div>
-          </div>
-        `;
+        const PATCH_HOVER_CALLBACK_CODE = "if (window.scvPatchHover) window.scvPatchHover(cb_data);";
 
         function visit(value, fn) {
           if (Array.isArray(value)) {
@@ -627,7 +602,15 @@
           for (const hoverTool of findModels(docs, "HoverTool")) {
             hoverTool.attributes = hoverTool.attributes || {};
             if (hoverTool.attributes.name === "cluster-hover") continue;
-            hoverTool.attributes.tooltips = HOVER_TOOLTIPS;
+            hoverTool.attributes.tooltips = null;
+            hoverTool.attributes.mode = "mouse";
+            hoverTool.attributes.point_policy = "follow_mouse";
+            hoverTool.attributes.callback = {
+              type: "object",
+              name: "CustomJS",
+              id: PATCH_HOVER_CALLBACK_ID,
+              attributes: {code: PATCH_HOVER_CALLBACK_CODE}
+            };
             if (scatterRenderer) hoverTool.attributes.renderers = [{id: scatterRenderer.id}];
           }
         }
@@ -801,9 +784,162 @@
           });
         }
 
+        function currentBokehDocument() {
+          for (const view of Object.values(Bokeh.index || {})) {
+            const doc = view && view.model && view.model.document;
+            if (doc && typeof doc.get_model_by_id === "function") return doc;
+          }
+          return null;
+        }
+
+        function installPatchHoverOverlay() {
+          const doc = currentBokehDocument();
+          const source = doc && doc.get_model_by_id("p1001");
+          if (!source) return;
+
+          let overlay = null;
+          let hoverCanvas = null;
+
+          function ensureOverlay() {
+            if (overlay) return overlay;
+            overlay = document.createElement("div");
+            overlay.className = "scv-hover-overlay";
+            overlay.style.display = "none";
+            document.body.appendChild(overlay);
+            window.addEventListener("blur", hideOverlay);
+            document.addEventListener("mouseleave", hideOverlay);
+            return overlay;
+          }
+
+          function hideOverlay() {
+            if (overlay) overlay.style.display = "none";
+          }
+
+          function value(data, column, i, fallback) {
+            const values = data[column];
+            return values && values[i] != null ? values[i] : fallback;
+          }
+
+          function numberValue(data, column, i, fallback) {
+            const n = Number(value(data, column, i, fallback));
+            return Number.isFinite(n) ? n : fallback;
+          }
+
+          function gridIndex(data, column, i, gridSize) {
+            const index = Math.trunc(numberValue(data, column, i, 0));
+            return Math.min(Math.max(index, 0), gridSize - 1);
+          }
+
+          function hoverIndices(cbData) {
+            const index = cbData && cbData.index ? cbData.index : {};
+            const values = index.indices || (index["1d"] && index["1d"].indices) || [];
+            const seen = new Set();
+            return Array.from(values).map(Number).filter(function(i) {
+              if (!Number.isInteger(i) || seen.has(i)) return false;
+              seen.add(i);
+              return true;
+            });
+          }
+
+          function findCanvas(root) {
+            if (!root || !root.querySelector) return null;
+            const canvas = root.querySelector("canvas");
+            if (canvas) return canvas;
+            const elements = root.querySelectorAll("*");
+            for (const element of elements) {
+              if (element.shadowRoot) {
+                const nested = findCanvas(element.shadowRoot);
+                if (nested) return nested;
+              }
+            }
+            return null;
+          }
+
+          function currentCanvas() {
+            if (hoverCanvas && hoverCanvas.isConnected) return hoverCanvas;
+            const target = document.getElementById(CONTAINER_ID);
+            hoverCanvas = findCanvas(target) || findCanvas(document);
+            return hoverCanvas;
+          }
+
+          function anchorPoint(cbData) {
+            const geometry = cbData && cbData.geometry ? cbData.geometry : {};
+            const sx = Number(geometry.sx);
+            const sy = Number(geometry.sy);
+            const target = document.getElementById(CONTAINER_ID);
+            const canvas = currentCanvas();
+            const rect = canvas ? canvas.getBoundingClientRect() : (target ? target.getBoundingClientRect() : {left: 0, top: 0});
+            return {
+              x: rect.left + (Number.isFinite(sx) ? sx : 0),
+              y: rect.top + (Number.isFinite(sy) ? sy : 0)
+            };
+          }
+
+          function patchCard(data, i) {
+            const idx = escapeHtml(value(data, "idx", i, i));
+            const url = escapeHtml(value(data, "img_url", i, ""));
+            const label = escapeHtml(value(data, "label", i, ""));
+            const gridSize = normalizeGridSize(value(data, "grid_size", i, DEFAULT_GRID_SIZE));
+            const row = gridIndex(data, "row", i, gridSize);
+            const col = gridIndex(data, "col", i, gridSize);
+            const objectFit = String(value(data, "image_object_fit", i, "cover")) === "fill" ? "fill" : "cover";
+            const gridPercent = (gridSize * 100) + "%";
+            const left = (-col * 100) + "%";
+            const top = (-row * 100) + "%";
+            return `
+              <div class="scv-hover-card">
+                <div class="scv-hover-id">#${idx}</div>
+                <div class="scv-hover-thumb">
+                  <div style="position:relative; left:${left}; top:${top}; width:${gridPercent}; height:${gridPercent};">
+                    <img src="${url}" alt="" style="display:block; width:100%; height:100%; object-fit:${objectFit};" />
+                  </div>
+                </div>
+                <div class="scv-hover-label">Label: ${label}</div>
+              </div>`;
+          }
+
+          function positionOverlay(element, cbData) {
+            const anchor = anchorPoint(cbData);
+            const gap = 14;
+            const margin = 12;
+            let left = anchor.x + gap;
+            let top = anchor.y + gap;
+
+            element.style.left = "0";
+            element.style.top = "0";
+            element.style.display = "block";
+
+            if (left + element.offsetWidth + margin > window.innerWidth) left = anchor.x - element.offsetWidth - gap;
+            if (top + element.offsetHeight + margin > window.innerHeight) top = anchor.y - element.offsetHeight - gap;
+
+            element.style.left = Math.max(margin, Math.min(left, window.innerWidth - element.offsetWidth - margin)) + "px";
+            element.style.top = Math.max(margin, Math.min(top, window.innerHeight - element.offsetHeight - margin)) + "px";
+          }
+
+          window.scvPatchHover = function(cbData) {
+            const indices = hoverIndices(cbData);
+            if (indices.length === 0) {
+              hideOverlay();
+              return;
+            }
+
+            const data = source.data;
+            const shown = indices.slice(0, 24);
+            const columns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(shown.length))));
+            const more = Math.max(indices.length - shown.length, 0);
+            const element = ensureOverlay();
+
+            element.style.setProperty("--cols", String(columns));
+            element.innerHTML = `
+              <div class="scv-hover-grid">${shown.map(function(i) { return patchCard(data, i); }).join("")}</div>
+              ${more ? `<div class="scv-hover-more">Showing first ${shown.length}; ${more} more hovered.</div>` : ""}
+            `;
+            positionOverlay(element, cbData);
+          };
+        }
+
         function installSelectionPreview() {
-          const rootView = Object.values(Bokeh.index)[0];
-          const doc = rootView && rootView.model && rootView.model.document;
+          const doc = currentBokehDocument();
           const source = doc && doc.get_model_by_id("p1001");
           const info = doc && doc.get_model_by_id("p1042");
           if (!source || !info) return;
@@ -924,14 +1060,14 @@
             const objectFit = imageFitForPoint(i);
             const label = escapeHtml(value("label", i, ""));
             const border = i === active ? "2px solid #1f77b4" : "1px solid #555";
-            const imageSize = SIDEBAR_PREVIEW_SIZE * gridSize;
-            const left = -col * SIDEBAR_PREVIEW_SIZE;
-            const top = -row * SIDEBAR_PREVIEW_SIZE;
+            const gridPercent = (gridSize * 100) + "%";
+            const left = (-col * 100) + "%";
+            const top = (-row * 100) + "%";
             return `
-              <button type="button" data-patch-index="${i}" title="Point ${escapeHtml(idx)}" style="width:${SIDEBAR_PREVIEW_SIZE + 4}px; min-width:${SIDEBAR_PREVIEW_SIZE + 4}px; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:11px/1.2 system-ui, sans-serif; color:#222;">
-                <div style="overflow:hidden; width:${SIDEBAR_PREVIEW_SIZE}px; height:${SIDEBAR_PREVIEW_SIZE}px; border:${border}; box-sizing:border-box; background:#f7f7f7;">
-                  <div style="position:relative; left:${left}px; top:${top}px; width:${imageSize}px; height:${imageSize}px;">
-                    <img src="${url}" style="width:100%; height:100%; object-fit:${objectFit}; display:block;" />
+              <button type="button" data-patch-index="${i}" title="Point ${escapeHtml(idx)}" style="box-sizing:border-box; width:100%; min-width:0; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:11px/1.2 system-ui, sans-serif; color:#222;">
+                <div style="box-sizing:border-box; overflow:hidden; width:100%; aspect-ratio:1; border:${border}; background:#f7f7f7;">
+                  <div style="position:relative; left:${left}; top:${top}; width:${gridPercent}; height:${gridPercent};">
+                    <img src="${url}" alt="" style="display:block; width:100%; height:100%; object-fit:${objectFit};" />
                   </div>
                 </div>
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">#${escapeHtml(idx)}</div>
@@ -945,7 +1081,7 @@
             return `
               <div style="margin-top:10px;">
                 <div style="font:600 13px/1.3 system-ui, sans-serif; margin-bottom:6px;">Selected previews (${indices.length})</div>
-                <div data-selected-preview-list="true" style="display:flex; flex-wrap:wrap; gap:8px; max-height:250px; overflow:auto; padding-right:4px;">${shown.map(function(i) { return previewThumb(i, active); }).join("")}</div>
+                <div data-selected-preview-list="true" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; max-height:250px; overflow:auto; padding-right:4px;">${shown.map(function(i) { return previewThumb(i, active); }).join("")}</div>
                 ${more ? `<div style="margin-top:6px; color:#666; font:12px/1.3 system-ui, sans-serif;">Showing first ${shown.length}; ${more} more selected.</div>` : ""}
               </div>`;
           }
@@ -1062,7 +1198,7 @@
               info.text = EMPTY_SELECTION_TEXT;
               return;
             }
-            if (!selected.some(function(i) { return Number(i) === Number(activeIndex); })) activeIndex = Number(selected[0]);
+            if (!Number.isInteger(activeIndex) || !selected.some(function(i) { return Number(i) === activeIndex; })) activeIndex = Number(selected[0]);
             info.text = overview(activeIndex) + details(activeIndex) + previewGrid(selected, activeIndex) + clusterCoordinates(selected);
             restoreScrollState(scrollState);
           }
@@ -1073,6 +1209,24 @@
             if (current === lastSelection) return;
             lastSelection = current;
             renderSelection(selected);
+          }
+
+          function connectSelectionUpdates() {
+            const signals = [
+              source.selected && source.selected.change,
+              source.selected && source.selected.properties && source.selected.properties.indices && source.selected.properties.indices.change,
+              source.change
+            ];
+            let connected = false;
+
+            for (const signal of signals) {
+              if (signal && typeof signal.connect === "function") {
+                signal.connect(updateIfChanged);
+                connected = true;
+              }
+            }
+
+            return connected;
           }
 
           function patchButtonFromEvent(event) {
@@ -1148,98 +1302,7 @@
           }, true);
 
           updateIfChanged();
-          setInterval(updateIfChanged, 150);
-        }
-
-        function installHoverTooltipLayout() {
-          let scheduled = false;
-
-          function collect(root, selector, matches) {
-            if (!root || !root.querySelectorAll) return matches;
-            matches.push.apply(matches, Array.from(root.querySelectorAll(selector)));
-            if (root instanceof Element && root.shadowRoot) collect(root.shadowRoot, selector, matches);
-            for (const element of root.querySelectorAll("*")) {
-              if (element.shadowRoot) collect(element.shadowRoot, selector, matches);
-            }
-            return matches;
-          }
-
-          function isTooltipElement(element) {
-            return element instanceof Element && Array.from(element.classList).some(function(className) {
-              return className.toLowerCase().includes("tooltip");
-            });
-          }
-
-          function closestTooltip(element) {
-            let node = element;
-            while (node) {
-              if (isTooltipElement(node)) return node;
-              if (node.parentElement) {
-                node = node.parentElement;
-                continue;
-              }
-              const root = node.getRootNode && node.getRootNode();
-              node = root && root.host ? root.host : null;
-            }
-            return null;
-          }
-
-          function commonAncestor(nodes) {
-            if (nodes.length === 0) return null;
-            let candidate = nodes[0].parentElement;
-            while (candidate) {
-              if (nodes.every(function(node) { return candidate.contains(node); })) return candidate;
-              candidate = candidate.parentElement;
-            }
-            return nodes[0].parentElement;
-          }
-
-          function styleTooltips() {
-            scheduled = false;
-            const cards = collect(document, ".patch-hover-card", []);
-            const tooltips = new Set(cards.map(function(card) {
-              return closestTooltip(card);
-            }).filter(Boolean));
-
-            for (const tooltip of tooltips) {
-              const tooltipCards = collect(tooltip, ".patch-hover-card", []);
-              const grid = commonAncestor(tooltipCards);
-              if (!grid) continue;
-
-              const columns = Math.min(
-                HOVER_MAX_COLUMNS,
-                Math.max(1, Math.ceil(Math.sqrt(tooltipCards.length)))
-              );
-              const width = columns * HOVER_CARD_WIDTH + (columns - 1) * HOVER_CARD_GAP;
-
-              tooltip.classList.add("patch-hover-tooltip");
-              tooltip.style.boxSizing = "border-box";
-              tooltip.style.maxWidth = "calc(100vw - 48px)";
-              tooltip.style.maxHeight = "calc(100vh - 48px)";
-              tooltip.style.overflow = "auto";
-              tooltip.style.padding = "8px";
-
-              grid.classList.add("patch-hover-grid");
-              grid.style.display = "grid";
-              grid.style.gap = HOVER_CARD_GAP + "px";
-              grid.style.alignItems = "start";
-              grid.style.gridTemplateColumns = "repeat(" + columns + ", " + HOVER_CARD_WIDTH + "px)";
-              grid.style.width = width + "px";
-
-              for (const card of tooltipCards) card.style.margin = "0";
-            }
-          }
-
-          function scheduleStyleTooltips() {
-            if (scheduled) return;
-            scheduled = true;
-            requestAnimationFrame(styleTooltips);
-          }
-
-          const observer = new MutationObserver(scheduleStyleTooltips);
-          observer.observe(document.documentElement, {childList: true, subtree: true});
-          setInterval(styleTooltips, 250);
-          styleTooltips();
+          if (!connectSelectionUpdates()) setInterval(updateIfChanged, 150);
         }
 
         function waitForBokeh(root) {
@@ -1287,8 +1350,8 @@
             const docs = JSON.parse(document.getElementById(TEMPLATE_JSON_ID).textContent);
             applyColumns(docs, columns, annotations);
             await bokeh.embed.embed_items(JSON.stringify(docs), buildRenderItems(docs));
+            installPatchHoverOverlay();
             installSelectionPreview();
-            installHoverTooltipLayout();
           } catch (error) {
             showError(error, dataSource);
           }
