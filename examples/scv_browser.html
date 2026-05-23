@@ -6,14 +6,20 @@
     <style>
       html, body {
         box-sizing: border-box;
-        display: flow-root;
         height: 100%;
         margin: 0;
         padding: 0;
       }
 
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
       .data-source-controls {
         box-sizing: border-box;
+        flex: 0 0 auto;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -44,6 +50,38 @@
         text-decoration: underline;
       }
 
+      .scv-layout {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      .scv-selected-panel {
+        box-sizing: border-box;
+        flex: 0 0 320px;
+        width: 320px;
+        min-height: 0;
+        overflow: auto;
+        padding: 0;
+        color: #222;
+      }
+
+      .scv-plot-wrap {
+        display: flex;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .scv-root {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+      }
+
       .scv-hover-overlay {
         box-sizing: border-box;
         position: fixed;
@@ -63,9 +101,21 @@
 
       .scv-hover-grid {
         display: grid;
-        grid-template-columns: repeat(var(--cols, 1), 108px);
+        grid-template-columns: 108px;
         gap: 8px;
         align-items: start;
+      }
+
+      .scv-hover-grid:has(.scv-hover-card:nth-child(2)) {
+        grid-template-columns: repeat(2, 108px);
+      }
+
+      .scv-hover-grid:has(.scv-hover-card:nth-child(5)) {
+        grid-template-columns: repeat(3, 108px);
+      }
+
+      .scv-hover-grid:has(.scv-hover-card:nth-child(10)) {
+        grid-template-columns: repeat(4, 108px);
       }
 
       .scv-hover-card {
@@ -100,6 +150,162 @@
         margin-top: 6px;
         color: #666;
       }
+
+      .scv-patch-crop {
+        position: relative;
+        left: calc(var(--col) * -100%);
+        top: calc(var(--row) * -100%);
+        width: calc(var(--grid) * 100%);
+        height: calc(var(--grid) * 100%);
+      }
+
+      .scv-patch-crop img,
+      .scv-overview-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: var(--fit, cover);
+      }
+
+      .scv-selected-title {
+        margin: 0 0 8px;
+        font: 600 16px/1.3 system-ui, sans-serif;
+      }
+
+      .scv-overview-frame {
+        position: relative;
+        overflow: hidden;
+        width: 300px;
+        height: 300px;
+        margin-bottom: 8px;
+        border: 1px solid #444;
+        background: #f7f7f7;
+      }
+
+      .scv-overview-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(to right, rgba(255, 255, 255, 0.6) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+        background-size: calc(100% / var(--grid)) calc(100% / var(--grid));
+        pointer-events: none;
+      }
+
+      .scv-overview-marker {
+        position: absolute;
+        top: calc(var(--row) * 100% / var(--grid));
+        left: calc(var(--col) * 100% / var(--grid));
+        box-sizing: border-box;
+        width: calc(100% / var(--grid));
+        height: calc(100% / var(--grid));
+        border: 2px solid yellow;
+        pointer-events: none;
+      }
+
+      .scv-selected-details,
+      .scv-cluster-draft {
+        margin-top: 10px;
+        overflow-wrap: anywhere;
+        font: 13px/1.4 system-ui, sans-serif;
+      }
+
+      .scv-selected-preview-section {
+        margin-top: 10px;
+      }
+
+      .scv-section-title {
+        margin-bottom: 6px;
+        font: 600 13px/1.3 system-ui, sans-serif;
+      }
+
+      .scv-selected-preview-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        max-height: 250px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .scv-selected-preview-more {
+        margin-top: 6px;
+        color: #666;
+        font: 12px/1.3 system-ui, sans-serif;
+      }
+
+      .scv-selected-preview-button {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #222;
+        cursor: pointer;
+        text-align: left;
+        font: 11px/1.2 system-ui, sans-serif;
+      }
+
+      .scv-selected-thumb {
+        box-sizing: border-box;
+        overflow: hidden;
+        width: 100%;
+        aspect-ratio: 1;
+        border: 1px solid #555;
+        background: #f7f7f7;
+      }
+
+      .scv-selected-thumb.is-active {
+        border: 2px solid #1f77b4;
+      }
+
+      .scv-selected-preview-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+      }
+
+      .scv-cluster-draft {
+        margin-top: 12px;
+      }
+
+      .scv-cluster-draft-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .scv-cluster-draft-title {
+        font-weight: 600;
+      }
+
+      .scv-cluster-draft-note {
+        color: #666;
+      }
+
+      .scv-copy-button {
+        padding: 4px 8px;
+        border: 1px solid #999;
+        background: #fff;
+        cursor: pointer;
+        font: 12px/1.2 system-ui, sans-serif;
+      }
+
+      .scv-cluster-json {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+        padding: 8px;
+        border: 1px solid #bbb;
+        background: #fafafa;
+        color: #222;
+        font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
     </style>
     <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.6.0.min.js"></script>
@@ -113,9 +319,14 @@
       <select id="data-source-select" autocomplete="off"></select>
       <a class="data-source-share" id="data-source-share"></a>
     </div>
-    <div id="c457899a-5f41-402e-93bd-74dd9efba537" data-source="umap_covid.json" style="display: contents;"></div>
+    <main class="scv-layout">
+      <aside id="scv-selected-panel" class="scv-selected-panel"><i>Click or drag-select points to see details and cluster coordinates here</i></aside>
+      <section class="scv-plot-wrap">
+        <div id="c457899a-5f41-402e-93bd-74dd9efba537" class="scv-root" data-source="umap_covid.json"></div>
+      </section>
+    </main>
     <script type="application/json" id="bokeh-template-json">
-      {"05a22395-ce6f-48eb-a51c-2cd965daa729":{"version":"3.6.0","title":"Bokeh Application","roots":[{"type":"object","name":"Row","id":"p1045","attributes":{"sizing_mode":"stretch_both","children":[{"type":"object","name":"Div","id":"p1042","attributes":{"width":320,"height":760,"text":"<i>Click or drag-select points to see details here</i>"}},{"type":"object","name":"Figure","id":"p1004","attributes":{"min_width":1024,"min_height":768,"sizing_mode":"stretch_both","x_range":{"type":"object","name":"DataRange1d","id":"p1005"},"y_range":{"type":"object","name":"DataRange1d","id":"p1006"},"x_scale":{"type":"object","name":"LinearScale","id":"p1014"},"y_scale":{"type":"object","name":"LinearScale","id":"p1015"},"title":{"type":"object","name":"Title","id":"p1007","attributes":{"text":"UMAP Spatial Vectors"}},"renderers":[{"type":"object","name":"GlyphRenderer","id":"p1037","attributes":{"data_source":{"type":"object","name":"ColumnDataSource","id":"p1001","attributes":{"selected":{"type":"object","name":"Selection","id":"p1002","attributes":{"indices":[],"line_indices":[]}},"selection_policy":{"type":"object","name":"UnionRenderers","id":"p1003"},"data":{"type":"map","entries":[["x",[]],["y",[]],["img_url",[]],["image_name",[]],["row",[]],["col",[]],["idx",[]],["label",[]],["grid_size",[]],["grid_size_percent",[]],["image_object_fit",[]]]}}},"view":{"type":"object","name":"CDSView","id":"p1038","attributes":{"filter":{"type":"object","name":"AllIndices","id":"p1039"}}},"glyph":{"type":"object","name":"Scatter","id":"p1034","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"type":"object","name":"CategoricalColorMapper","id":"p1030","attributes":{"palette":["#1f77b4","#ff7f0e","#2ca02c"],"factors":["0","1"]}}},"line_alpha":{"type":"value","value":0.6},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.6},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.6}}},"nonselection_glyph":{"type":"object","name":"Scatter","id":"p1035","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.1},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.1},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.1}}},"muted_glyph":{"type":"object","name":"Scatter","id":"p1036","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.2},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.2},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.2}}}}}],"toolbar":{"type":"object","name":"Toolbar","id":"p1013","attributes":{"tools":[{"type":"object","name":"PanTool","id":"p1026"},{"type":"object","name":"WheelZoomTool","id":"p1027","attributes":{"renderers":"auto"}},{"type":"object","name":"BoxSelectTool","id":"p1046","attributes":{"renderers":"auto","overlay":{"type":"object","name":"BoxAnnotation","id":"p1049","attributes":{"bottom":{"type":"number","value":"nan"},"editable":true,"fill_alpha":0.5,"fill_color":"lightgrey","handles":{"type":"object","name":"BoxInteractionHandles","id":"p1050","attributes":{"all":{"type":"object","name":"AreaVisuals","id":"p1051","attributes":{"fill_color":"white","hover_fill_color":"lightgray"}}}},"left":{"type":"number","value":"nan"},"level":"overlay","line_alpha":1,"line_color":"black","line_dash":[4,4],"line_width":2,"right":{"type":"number","value":"nan"},"syncable":false,"top":{"type":"number","value":"nan"},"visible":false}}}},{"type":"object","name":"ResetTool","id":"p1028"},{"type":"object","name":"HoverTool","id":"p1029","attributes":{"renderers":"auto","tooltips":"\n<div style=\"padding:5px; margin-bottom:5px; border:1px solid #444;\">\n  <div>@idx</div>\n  <div style=\"overflow:hidden; width:96px; height:96px; border:1px solid #444;\">\n    <div style=\"position:relative; left:-@{col}00%; top:-@{row}00%; width:@{grid_size_percent}; height:@{grid_size_percent};\">\n      <img src=\"@img_url\" style=\"width:100%; height:100%; object-fit:@{image_object_fit}; display:block;\" />\n    </div>\n  </div>\n  <div>Label: @label</div>\n</div>\n"}},{"type":"object","name":"TapTool","id":"p1044","attributes":{"renderers":"auto"}}]}},"left":[{"type":"object","name":"LinearAxis","id":"p1021","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1022","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1023"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1024"}}}],"below":[{"type":"object","name":"LinearAxis","id":"p1016","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1017","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1018"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1019"}}}],"center":[{"type":"object","name":"Grid","id":"p1020","attributes":{"axis":{"id":"p1016"}}},{"type":"object","name":"Grid","id":"p1025","attributes":{"dimension":1,"axis":{"id":"p1021"}}},{"type":"object","name":"Legend","id":"p1040","attributes":{"items":[{"type":"object","name":"LegendItem","id":"p1041","attributes":{"label":{"type":"field","field":"label"},"renderers":[{"id":"p1037"}]}}]}}]}}]}}]}}
+      {"05a22395-ce6f-48eb-a51c-2cd965daa729":{"version":"3.6.0","title":"Bokeh Application","roots":[{"type":"object","name":"Row","id":"p1045","attributes":{"sizing_mode":"stretch_both","children":[{"type":"object","name":"Figure","id":"p1004","attributes":{"min_width":1024,"min_height":768,"sizing_mode":"stretch_both","x_range":{"type":"object","name":"DataRange1d","id":"p1005"},"y_range":{"type":"object","name":"DataRange1d","id":"p1006"},"x_scale":{"type":"object","name":"LinearScale","id":"p1014"},"y_scale":{"type":"object","name":"LinearScale","id":"p1015"},"title":{"type":"object","name":"Title","id":"p1007","attributes":{"text":"UMAP Spatial Vectors"}},"renderers":[{"type":"object","name":"GlyphRenderer","id":"p1037","attributes":{"data_source":{"type":"object","name":"ColumnDataSource","id":"p1001","attributes":{"selected":{"type":"object","name":"Selection","id":"p1002","attributes":{"indices":[],"line_indices":[]}},"selection_policy":{"type":"object","name":"UnionRenderers","id":"p1003"},"data":{"type":"map","entries":[["x",[]],["y",[]],["label",[]]]}}},"view":{"type":"object","name":"CDSView","id":"p1038","attributes":{"filter":{"type":"object","name":"AllIndices","id":"p1039"}}},"glyph":{"type":"object","name":"Scatter","id":"p1034","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"type":"object","name":"CategoricalColorMapper","id":"p1030","attributes":{"palette":["#1f77b4","#ff7f0e","#2ca02c"],"factors":["0","1"]}}},"line_alpha":{"type":"value","value":0.6},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.6},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.6}}},"nonselection_glyph":{"type":"object","name":"Scatter","id":"p1035","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.1},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.1},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.1}}},"muted_glyph":{"type":"object","name":"Scatter","id":"p1036","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.2},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.2},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.2}}}}}],"toolbar":{"type":"object","name":"Toolbar","id":"p1013","attributes":{"tools":[{"type":"object","name":"PanTool","id":"p1026"},{"type":"object","name":"WheelZoomTool","id":"p1027","attributes":{"renderers":"auto"}},{"type":"object","name":"BoxSelectTool","id":"p1046","attributes":{"renderers":"auto","overlay":{"type":"object","name":"BoxAnnotation","id":"p1049","attributes":{"bottom":{"type":"number","value":"nan"},"editable":true,"fill_alpha":0.5,"fill_color":"lightgrey","handles":{"type":"object","name":"BoxInteractionHandles","id":"p1050","attributes":{"all":{"type":"object","name":"AreaVisuals","id":"p1051","attributes":{"fill_color":"white","hover_fill_color":"lightgray"}}}},"left":{"type":"number","value":"nan"},"level":"overlay","line_alpha":1,"line_color":"black","line_dash":[4,4],"line_width":2,"right":{"type":"number","value":"nan"},"syncable":false,"top":{"type":"number","value":"nan"},"visible":false}}}},{"type":"object","name":"ResetTool","id":"p1028"},{"type":"object","name":"HoverTool","id":"p1029","attributes":{"renderers":"auto"}},{"type":"object","name":"TapTool","id":"p1044","attributes":{"renderers":"auto"}}]}},"left":[{"type":"object","name":"LinearAxis","id":"p1021","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1022","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1023"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1024"}}}],"below":[{"type":"object","name":"LinearAxis","id":"p1016","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1017","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1018"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1019"}}}],"center":[{"type":"object","name":"Grid","id":"p1020","attributes":{"axis":{"id":"p1016"}}},{"type":"object","name":"Grid","id":"p1025","attributes":{"dimension":1,"axis":{"id":"p1021"}}},{"type":"object","name":"Legend","id":"p1040","attributes":{"items":[{"type":"object","name":"LegendItem","id":"p1041","attributes":{"label":{"type":"field","field":"label"},"renderers":[{"id":"p1037"}]}}]}}]}}]}}]}}
     </script>
     <script type="text/javascript">
       (function() {
@@ -127,6 +338,7 @@
         const DATA_OPTIONS = [
           {id: "covid", label: "COVID-19 spatial embeddings", url: "umap_covid.json"}
         ];
+        const SELECTED_PANEL_ID = "scv-selected-panel";
         const CLUSTER_SOURCE_ID = "annotation_cluster_source";
         const CLUSTER_RENDERER_ID = "annotation_cluster_renderer";
         const CLUSTER_LEADER_RENDERER_ID = "annotation_cluster_leader_renderer";
@@ -308,6 +520,8 @@
           }
           if (Array.isArray(normalized.label)) {
             normalized.label = normalized.label.map(function(value) { return String(value); });
+          } else {
+            normalized.label = Array.from({length: normalized.x.length}, function() { return ""; });
           }
 
           const pointCount = normalized.x.length;
@@ -322,7 +536,8 @@
           }
           if (!Array.isArray(normalized.img_url)) {
             normalized.img_url = Array.from({length: pointCount}, function(_, i) {
-              return images ? joinImageUrl(imageBaseUrl, images[Math.floor(i / patchesPerImage)]) : "";
+              const image = images ? images[Math.floor(i / patchesPerImage)] : "";
+              return image ? joinImageUrl(imageBaseUrl, image) : "";
             });
           }
           if (!Array.isArray(normalized.image_name)) {
@@ -349,13 +564,53 @@
           if (!Array.isArray(normalized.grid_size)) {
             normalized.grid_size = Array.from({length: pointCount}, function() { return gridSize; });
           }
-          if (!Array.isArray(normalized.grid_size_percent)) {
-            normalized.grid_size_percent = Array.from({length: pointCount}, function() { return (gridSize * 100) + "%"; });
-          }
           if (!Array.isArray(normalized.image_object_fit)) {
             normalized.image_object_fit = Array.from({length: pointCount}, function() { return objectFit; });
           }
           return normalized;
+        }
+
+        function pointValue(data, column, i, fallback) {
+          const values = data[column];
+          return values && values[i] != null ? values[i] : fallback;
+        }
+
+        function pointNumber(data, column, i, fallback) {
+          const n = Number(pointValue(data, column, i, fallback));
+          return Number.isFinite(n) ? n : fallback;
+        }
+
+        function pointGridSize(data, i) {
+          return normalizeGridSize(pointValue(data, "grid_size", i, DEFAULT_GRID_SIZE));
+        }
+
+        function pointGridIndex(data, column, i, gridSize) {
+          const size = gridSize || pointGridSize(data, i);
+          const index = Math.trunc(pointNumber(data, column, i, 0));
+          return Math.min(Math.max(index, 0), size - 1);
+        }
+
+        function pointImageFit(data, i) {
+          const fit = String(pointValue(data, "image_object_fit", i, "cover"));
+          return fit === "fill" ? "fill" : "cover";
+        }
+
+        function pointPreview(data, i) {
+          const gridSize = pointGridSize(data, i);
+          const row = pointGridIndex(data, "row", i, gridSize);
+          const col = pointGridIndex(data, "col", i, gridSize);
+          const objectFit = pointImageFit(data, i);
+          const url = pointValue(data, "img_url", i, "");
+
+          return {
+            title: escapeHtml(pointTitle(pointValue(data, "idx", i, i), pointValue(data, "label", i, ""))),
+            url: escapeHtml(url),
+            imageName: escapeHtml(pointValue(data, "image_name", i, filenameFromPath(url))),
+            row: row,
+            col: col,
+            gridSize: gridSize,
+            cropStyle: "--grid:" + gridSize + "; --row:" + row + "; --col:" + col + "; --fit:" + objectFit + ";"
+          };
         }
 
         function toBokehMap(columns) {
@@ -791,6 +1046,13 @@
           return "#" + String(idx ?? "") + ", L:" + String(label ?? "");
         }
 
+        function renderPatchCrop(preview) {
+          return `
+            <div class="scv-patch-crop" style="${preview.cropStyle}">
+              <img src="${preview.url}" alt="" />
+            </div>`;
+        }
+
         function currentBokehDocument() {
           for (const view of Object.values(Bokeh.index || {})) {
             const doc = view && view.model && view.model.document;
@@ -820,21 +1082,6 @@
 
           function hideOverlay() {
             if (overlay) overlay.style.display = "none";
-          }
-
-          function value(data, column, i, fallback) {
-            const values = data[column];
-            return values && values[i] != null ? values[i] : fallback;
-          }
-
-          function numberValue(data, column, i, fallback) {
-            const n = Number(value(data, column, i, fallback));
-            return Number.isFinite(n) ? n : fallback;
-          }
-
-          function gridIndex(data, column, i, gridSize) {
-            const index = Math.trunc(numberValue(data, column, i, 0));
-            return Math.min(Math.max(index, 0), gridSize - 1);
           }
 
           function hoverIndices(cbData) {
@@ -883,22 +1130,12 @@
           }
 
           function patchCard(data, i) {
-            const title = escapeHtml(pointTitle(value(data, "idx", i, i), value(data, "label", i, "")));
-            const url = escapeHtml(value(data, "img_url", i, ""));
-            const gridSize = normalizeGridSize(value(data, "grid_size", i, DEFAULT_GRID_SIZE));
-            const row = gridIndex(data, "row", i, gridSize);
-            const col = gridIndex(data, "col", i, gridSize);
-            const objectFit = String(value(data, "image_object_fit", i, "cover")) === "fill" ? "fill" : "cover";
-            const gridPercent = (gridSize * 100) + "%";
-            const left = (-col * 100) + "%";
-            const top = (-row * 100) + "%";
+            const preview = pointPreview(data, i);
             return `
               <div class="scv-hover-card">
-                <div class="scv-hover-title">${title}</div>
+                <div class="scv-hover-title">${preview.title}</div>
                 <div class="scv-hover-thumb">
-                  <div style="position:relative; left:${left}; top:${top}; width:${gridPercent}; height:${gridPercent};">
-                    <img src="${url}" alt="" style="display:block; width:100%; height:100%; object-fit:${objectFit};" />
-                  </div>
+                  ${renderPatchCrop(preview)}
                 </div>
               </div>`;
           }
@@ -930,11 +1167,9 @@
 
             const data = source.data;
             const shown = indices.slice(0, 24);
-            const columns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(shown.length))));
             const more = Math.max(indices.length - shown.length, 0);
             const element = ensureOverlay();
 
-            element.style.setProperty("--cols", String(columns));
             element.innerHTML = `
               <div class="scv-hover-grid">${shown.map(function(i) { return patchCard(data, i); }).join("")}</div>
               ${more ? `<div class="scv-hover-more">Showing first ${shown.length}; ${more} more hovered.</div>` : ""}
@@ -946,39 +1181,22 @@
         function installSelectionPreview() {
           const doc = currentBokehDocument();
           const source = doc && doc.get_model_by_id("p1001");
-          const info = doc && doc.get_model_by_id("p1042");
-          if (!source || !info) return;
+          const panel = document.getElementById(SELECTED_PANEL_ID);
+          if (!source || !panel) return;
 
           let lastSelection = null;
           let activeIndex = null;
 
           function value(column, i, fallback) {
-            const values = source.data[column];
-            return values && values[i] != null ? values[i] : fallback;
+            return pointValue(source.data, column, i, fallback);
           }
 
           function num(column, i, fallback) {
-            const n = Number(value(column, i, fallback));
-            return Number.isFinite(n) ? n : fallback;
+            return pointNumber(source.data, column, i, fallback);
           }
 
           function roundCoord(value) {
             return Number(Number(value).toFixed(6));
-          }
-
-          function gridSizeForPoint(i) {
-            return normalizeGridSize(value("grid_size", i, DEFAULT_GRID_SIZE));
-          }
-
-          function gridIndex(column, i) {
-            const gridSize = gridSizeForPoint(i);
-            const index = Math.trunc(num(column, i, 0));
-            return Math.min(Math.max(index, 0), gridSize - 1);
-          }
-
-          function imageFitForPoint(i) {
-            const fit = String(value("image_object_fit", i, "cover"));
-            return fit === "fill" ? "fill" : "cover";
           }
 
           function selectedPoint(i) {
@@ -1057,24 +1275,14 @@
           }
 
           function previewThumb(i, active) {
-            const title = escapeHtml(pointTitle(value("idx", i, i), value("label", i, "")));
-            const url = escapeHtml(value("img_url", i, ""));
-            const row = gridIndex("row", i);
-            const col = gridIndex("col", i);
-            const gridSize = gridSizeForPoint(i);
-            const objectFit = imageFitForPoint(i);
-            const border = i === active ? "2px solid #1f77b4" : "1px solid #555";
-            const gridPercent = (gridSize * 100) + "%";
-            const left = (-col * 100) + "%";
-            const top = (-row * 100) + "%";
+            const preview = pointPreview(source.data, i);
+            const activeClass = i === active ? " is-active" : "";
             return `
-              <button type="button" data-patch-index="${i}" title="${title}" style="box-sizing:border-box; width:100%; min-width:0; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; font:11px/1.2 system-ui, sans-serif; color:#222;">
-                <div style="box-sizing:border-box; overflow:hidden; width:100%; aspect-ratio:1; border:${border}; background:#f7f7f7;">
-                  <div style="position:relative; left:${left}; top:${top}; width:${gridPercent}; height:${gridPercent};">
-                    <img src="${url}" alt="" style="display:block; width:100%; height:100%; object-fit:${objectFit};" />
-                  </div>
+              <button type="button" class="scv-selected-preview-button" data-patch-index="${i}" title="${preview.title}">
+                <div class="scv-selected-thumb${activeClass}">
+                  ${renderPatchCrop(preview)}
                 </div>
-                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;">${title}</div>
+                <div class="scv-selected-preview-title">${preview.title}</div>
               </button>`;
           }
 
@@ -1082,39 +1290,30 @@
             const shown = indices.slice(0, 80);
             const more = Math.max(indices.length - shown.length, 0);
             return `
-              <div style="margin-top:10px;">
-                <div style="font:600 13px/1.3 system-ui, sans-serif; margin-bottom:6px;">Selected previews (${indices.length})</div>
-                <div data-selected-preview-list="true" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; max-height:250px; overflow:auto; padding-right:4px;">${shown.map(function(i) { return previewThumb(i, active); }).join("")}</div>
-                ${more ? `<div style="margin-top:6px; color:#666; font:12px/1.3 system-ui, sans-serif;">Showing first ${shown.length}; ${more} more selected.</div>` : ""}
+              <div class="scv-selected-preview-section">
+                <div class="scv-section-title">Selected previews (${indices.length})</div>
+                <div class="scv-selected-preview-list" data-selected-preview-list="true">${shown.map(function(i) { return previewThumb(i, active); }).join("")}</div>
+                ${more ? `<div class="scv-selected-preview-more">Showing first ${shown.length}; ${more} more selected.</div>` : ""}
               </div>`;
           }
 
           function overview(i) {
-            const title = escapeHtml(pointTitle(value("idx", i, i), value("label", i, "")));
-            const url = escapeHtml(value("img_url", i, ""));
-            const row = num("row", i, 0);
-            const col = num("col", i, 0);
-            const gridSize = gridSizeForPoint(i);
-            const objectFit = imageFitForPoint(i);
+            const preview = pointPreview(source.data, i);
             return `
-              <h3 style="margin:0 0 8px 0; font:600 16px/1.3 system-ui, sans-serif;">${title}</h3>
-              <div style="width:300px; height:300px; position:relative; border:1px solid #444; margin-bottom:8px; overflow:hidden; background:#f7f7f7;">
-                <img src="${url}" style="width:100%; height:100%; object-fit:${objectFit}; display:block;" />
-                <div style="position:absolute; inset:0; background-image:linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px); background-size:calc(100%/${gridSize}) calc(100%/${gridSize}); pointer-events:none;"></div>
-                <div style="position:absolute; top:calc(${row} * 100% / ${gridSize}); left:calc(${col} * 100% / ${gridSize}); width:calc(100% / ${gridSize}); height:calc(100% / ${gridSize}); box-sizing:border-box; border:2px solid yellow; pointer-events:none;"></div>
+              <h3 class="scv-selected-title">${preview.title}</h3>
+              <div class="scv-overview-frame" style="${preview.cropStyle}">
+                <img class="scv-overview-image" src="${preview.url}" alt="" />
+                <div class="scv-overview-grid"></div>
+                <div class="scv-overview-marker"></div>
               </div>`;
           }
 
           function details(i) {
-            const url = value("img_url", i, "");
-            const imageName = escapeHtml(value("image_name", i, filenameFromPath(url)));
-            const row = num("row", i, 0);
-            const col = num("col", i, 0);
-            const gridSize = gridSizeForPoint(i);
+            const preview = pointPreview(source.data, i);
             return `
-              <div style="font:13px/1.4 system-ui, sans-serif; overflow-wrap:anywhere; margin-top:10px;">
-                <div><b>Patch coords:</b> row=${row}, col=${col} (${gridSize}x${gridSize})</div>
-                <div><b>Image:</b> <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${imageName}</a></div>
+              <div class="scv-selected-details">
+                <div><b>Patch coords:</b> row=${preview.row}, col=${preview.col} (${preview.gridSize}x${preview.gridSize})</div>
+                <div><b>Image:</b> <a href="${preview.url}" target="_blank" rel="noopener noreferrer">${preview.imageName}</a></div>
               </div>`;
           }
 
@@ -1126,15 +1325,15 @@
               : "Select at least 3 non-collinear points for a polygon hull.";
 
             return `
-              <div style="margin-top:12px; font:13px/1.4 system-ui, sans-serif;">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+              <div class="scv-cluster-draft">
+                <div class="scv-cluster-draft-header">
                   <div>
-                    <div style="font-weight:600;">Cluster coordinates</div>
-                    <div style="color:#666;">${polygonNote}</div>
+                    <div class="scv-cluster-draft-title">Cluster coordinates</div>
+                    <div class="scv-cluster-draft-note">${polygonNote}</div>
                   </div>
-                  <button type="button" data-copy-cluster-json="true" style="padding:4px 8px; border:1px solid #999; background:#fff; cursor:pointer; font:12px/1.2 system-ui, sans-serif;">Copy JSON</button>
+                  <button type="button" class="scv-copy-button" data-copy-cluster-json="true">Copy JSON</button>
                 </div>
-                <textarea data-cluster-json="true" readonly style="box-sizing:border-box; width:100%; min-height:180px; resize:vertical; padding:8px; border:1px solid #bbb; background:#fafafa; color:#222; font:11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;">${escapeHtml(json)}</textarea>
+                <textarea class="scv-cluster-json" data-cluster-json="true" readonly>${escapeHtml(json)}</textarea>
               </div>`;
           }
 
@@ -1142,13 +1341,10 @@
             if (!state) return;
 
             function restore() {
-              for (const item of state.ancestors) {
-                item.element.scrollTop = item.top;
-                item.element.scrollLeft = item.left;
-              }
+              panel.scrollTop = state.panelTop;
+              panel.scrollLeft = state.panelLeft;
 
-              const root = state.listRoot && state.listRoot.querySelector ? state.listRoot : document;
-              const list = root.querySelector("[data-selected-preview-list]");
+              const list = panel.querySelector("[data-selected-preview-list]");
               if (list) {
                 list.scrollTop = state.listTop;
                 list.scrollLeft = state.listLeft;
@@ -1164,43 +1360,22 @@
 
           function captureScrollState(button) {
             const list = button.closest("[data-selected-preview-list]");
-            const ancestors = [];
-
-            function nextAncestor(element) {
-              if (element.parentElement) return element.parentElement;
-              const root = element.getRootNode && element.getRootNode();
-              return root && root.host ? root.host : null;
-            }
-
-            let node = nextAncestor(button);
-
-            while (node) {
-              if (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth) {
-                ancestors.push({
-                  element: node,
-                  top: node.scrollTop,
-                  left: node.scrollLeft
-                });
-              }
-              node = nextAncestor(node);
-            }
-
             return {
-              listRoot: list ? list.getRootNode() : null,
+              panelTop: panel.scrollTop,
+              panelLeft: panel.scrollLeft,
               listTop: list ? list.scrollTop : 0,
-              listLeft: list ? list.scrollLeft : 0,
-              ancestors: ancestors
+              listLeft: list ? list.scrollLeft : 0
             };
           }
 
           function renderSelection(selected, scrollState) {
             if (selected.length === 0) {
               activeIndex = null;
-              info.text = EMPTY_SELECTION_TEXT;
+              panel.innerHTML = EMPTY_SELECTION_TEXT;
               return;
             }
             if (!Number.isInteger(activeIndex) || !selected.some(function(i) { return Number(i) === activeIndex; })) activeIndex = Number(selected[0]);
-            info.text = overview(activeIndex) + details(activeIndex) + previewGrid(selected, activeIndex) + clusterCoordinates(selected);
+            panel.innerHTML = overview(activeIndex) + details(activeIndex) + previewGrid(selected, activeIndex) + clusterCoordinates(selected);
             restoreScrollState(scrollState);
           }
 
@@ -1231,29 +1406,17 @@
           }
 
           function patchButtonFromEvent(event) {
-            const path = typeof event.composedPath === "function" ? event.composedPath() : [];
-            for (const item of path) {
-              if (item instanceof Element && item.dataset.patchIndex != null) return item;
-            }
-            const target = event.target instanceof Element ? event.target : event.target.parentElement;
+            const target = event.target instanceof Element ? event.target : null;
             return target && target.closest("[data-patch-index]");
           }
 
           function copyButtonFromEvent(event) {
-            const path = typeof event.composedPath === "function" ? event.composedPath() : [];
-            for (const item of path) {
-              if (item instanceof Element && item.dataset.copyClusterJson != null) return item;
-            }
-            const target = event.target instanceof Element ? event.target : event.target.parentElement;
+            const target = event.target instanceof Element ? event.target : null;
             return target && target.closest("[data-copy-cluster-json]");
           }
 
-          function textareaNearButton(button) {
-            const root = button.getRootNode && button.getRootNode();
-            const container = button.closest("div");
-            return (container && container.parentElement && container.parentElement.querySelector("[data-cluster-json]"))
-              || (root && root.querySelector && root.querySelector("[data-cluster-json]"))
-              || document.querySelector("[data-cluster-json]");
+          function textareaNearButton() {
+            return panel.querySelector("[data-cluster-json]");
           }
 
           function copyTextArea(textarea, button) {
@@ -1279,10 +1442,10 @@
             markCopied();
           }
 
-          document.addEventListener("click", function(event) {
+          panel.addEventListener("click", function(event) {
             const copyButton = copyButtonFromEvent(event);
             if (copyButton) {
-              const textarea = textareaNearButton(copyButton);
+              const textarea = textareaNearButton();
               if (!textarea) return;
               event.preventDefault();
               event.stopPropagation();
@@ -1300,7 +1463,7 @@
             const scrollState = captureScrollState(button);
             activeIndex = nextIndex;
             renderSelection(selected, scrollState);
-          }, true);
+          });
 
           updateIfChanged();
           if (!connectSelectionUpdates()) setInterval(updateIfChanged, 150);
