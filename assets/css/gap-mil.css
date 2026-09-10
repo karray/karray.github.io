@@ -1,0 +1,39 @@
+/* Scoped to this article's figures; no framework or external font required. */
+.mil-figure { --mil-dog:#14685f; --mil-bike:#a04e19; margin:2.3rem 0; padding:1.6rem; border:1px solid #dadfdc; border-radius:12px; background:#fafbf8; color:#243832; font:16px/1.6 system-ui,sans-serif; box-sizing:border-box; }
+.mil-figure *, .mil-details * { box-sizing:border-box; }
+.mil-figure .mil-kicker { color:#52645e; font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:1rem; }
+.mil-figure p { margin:.7rem 0; }
+.mil-figure figcaption { display:block; margin-top:1.2rem; padding-top:.9rem; border-top:1px solid #dce3de; color:#52645e; font-size:.82rem; line-height:1.55; text-align:left; }
+.mil-routes { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
+.mil-routes > div { padding:1rem; background:white; border:1px solid #dce3de; border-radius:8px; text-align:center; min-width:0; }
+.mil-step,.mil-arrow,.mil-answer { display:block; }
+.mil-step { padding:.7rem .3rem; }
+.mil-arrow { color:#65716c; font-size:.82rem; }
+.mil-answer { color:#14685f; background:#e6f1e9; margin-top:.7rem; padding:.5rem; border-radius:4px; font-weight:700; }
+.mil-figure label { display:block; font-weight:600; }
+.mil-figure output { font-variant-numeric:tabular-nums; color:#14685f; }
+.mil-figure input[type=range] { display:block; width:100%; min-height:44px; margin:.4rem 0 1rem; accent-color:#14685f; cursor:pointer; }
+.mil-figure input:focus-visible { outline:3px solid #14685f; outline-offset:4px; }
+.mil-demo-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:1.5rem; align-items:center; }
+.mil-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; max-width:260px; }
+.mil-grid span,.mil-votes span { display:flex; align-items:center; justify-content:center; aspect-ratio:1; border-radius:4px; color:white; background:#14685f; font-size:.8rem; font-weight:650; }
+.mil-grid .mil-bike-cell,.mil-votes .mil-bike-cell { background:#a04e19; }
+.mil-legend { font-size:.8rem; }
+.mil-dog-text { color:#14685f; }
+.mil-bike-text { color:#a04e19; }
+.mil-score-label { display:flex; justify-content:space-between; gap:.5rem; font-size:.86rem; }
+.mil-score-label strong { font-variant-numeric:tabular-nums; }
+.mil-track { height:12px; background:#e5e9e5; border-radius:3px; overflow:hidden; margin:.4rem 0 1rem; }
+.mil-bar { height:100%; border-radius:3px; }
+.mil-dog-bar { background:#14685f; }
+.mil-bike-bar { background:#a04e19; }
+.mil-neutral-bar { background:#657481; }
+.mil-result { font-size:.9rem; min-height:5em; }
+.mil-votes { display:grid; grid-template-columns:repeat(9,1fr); gap:5px; margin:1rem 0; }
+.mil-evidence-row { display:grid; grid-template-columns:1fr auto; gap:0 .8rem; margin-top:1rem; font-size:.88rem; }
+.mil-evidence-row .mil-track { grid-column:1 / -1; margin-bottom:.2rem; }
+.mil-details { border-left:3px solid #14685f; padding:.8rem 1rem; margin:1.5rem 0; background:#f6f8f5; }
+.mil-details summary { cursor:pointer; font-weight:600; }
+.mil-details summary:focus-visible { outline:3px solid #14685f; }
+@media(max-width:540px) { .mil-figure { padding:1rem; margin:1.8rem 0; } .mil-routes,.mil-demo-columns { grid-template-columns:1fr; } .mil-grid { margin:auto; width:100%; } .mil-result { min-height:0; } }
+@media print { .mil-figure { break-inside:avoid; box-shadow:none; } .mil-figure input { display:none; } }

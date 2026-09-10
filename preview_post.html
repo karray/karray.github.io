@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Layout Previews - Aray Karjauv</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0b;
+            --bg-card: #141416;
+            --bg-hover: #1a1a1d;
+            --text-primary: #f5f5f7;
+            --text-secondary: #a1a1a6;
+            --text-muted: #6e6e73;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --accent-soft: rgba(99, 102, 241, 0.15);
+            --border: #2a2a2e;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Navigation for switching layouts */
+        .layout-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 11, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .layout-nav button {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .layout-nav button:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .layout-nav button.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .layout-section {
+            display: none;
+            padding-top: 80px;
+            min-height: 100vh;
+        }
+
+        .layout-section.active {
+            display: block;
+        }
+
+        /* Common article styles */
+        article h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+            color: var(--text-primary);
+        }
+
+        article h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 28px 0 12px;
+            color: var(--text-primary);
+        }
+
+        article p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        article ul,
+        article ol {
+            margin: 16px 0;
+            padding-left: 24px;
+            color: var(--text-secondary);
+        }
+
+        article li {
+            margin-bottom: 8px;
+        }
+
+        article code {
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--accent);
+        }
+
+        article pre {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+            margin: 24px 0;
+        }
+
+        article pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+
+        article a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        article a:hover {
+            text-decoration: underline;
+        }
+
+        article blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 20px;
+            margin: 24px 0;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .post-meta {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* ================================
+       LAYOUT 1: Minimal Reading
+       Clean, distraction-free reading
+    ================================ */
+        .layout-1 {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        .layout-1 .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 40px;
+        }
+
+        .layout-1 .back-link:hover {
+            color: var(--text-primary);
+        }
+
+        .layout-1 .post-header {
+            margin-bottom: 48px;
+        }
+
+        .layout-1 .post-title {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 16px;
+        }
+
+        .layout-1 article p {
+            font-size: 17px;
+            line-height: 1.8;
+        }
+
+        /* ================================
+       LAYOUT 2: Card Header
+       Prominent header card
+    ================================ */
+        .layout-2 {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        .layout-2 .post-header {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px;
+            margin-bottom: 48px;
+        }
+
+        .layout-2 .post-title {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 20px;
+        }
+
+        .layout-2 .author-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .layout-2 .author-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-1);
+        }
+
+        .layout-2 .author-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .layout-2 .tags {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        /* ================================
+       LAYOUT 3: Magazine Editorial
+       Serif-heavy editorial style
+    ================================ */
+        .layout-3 {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 80px 24px;
+        }
+
+        .layout-3 .post-header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .layout-3 .category {
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .layout-3 .post-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 48px;
+            font-weight: 600;
+            line-height: 1.2;
+            margin-bottom: 24px;
+        }
+
+        .layout-3 .post-meta {
+            font-size: 15px;
+        }
+
+        .layout-3 article p {
+            font-size: 18px;
+            line-height: 1.9;
+        }
+
+        .layout-3 article p:first-of-type::first-letter {
+            font-family: 'Playfair Display', serif;
+            font-size: 72px;
+            float: left;
+            line-height: 1;
+            padding-right: 12px;
+            color: var(--accent);
+        }
+
+        /* ================================
+       LAYOUT 4: Gradient Hero
+       Full-width gradient header
+    ================================ */
+        .layout-4 .hero {
+            background: var(--gradient-1);
+            padding: 100px 24px 80px;
+            text-align: center;
+        }
+
+        .layout-4 .hero .post-title {
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.3;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            color: white;
+        }
+
+        .layout-4 .hero .post-meta {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .layout-4 .content {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        /* ================================
+       LAYOUT 5: Split Header
+       Image/content split layout
+    ================================ */
+        .layout-5 .header-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 60vh;
+        }
+
+        .layout-5 .header-image {
+            background: var(--gradient-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 64px;
+        }
+
+        .layout-5 .header-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+            background: var(--bg-card);
+        }
+
+        .layout-5 .post-title {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 20px;
+        }
+
+        .layout-5 .content {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        @media (max-width: 768px) {
+            .layout-5 .header-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ================================
+       LAYOUT 6: Sidebar TOC
+       Table of contents sidebar
+    ================================ */
+        .layout-6 {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 48px;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        .layout-6 .toc {
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+        }
+
+        .layout-6 .toc-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .layout-6 .toc-list {
+            list-style: none;
+        }
+
+        .layout-6 .toc-item {
+            padding: 8px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-left: 2px solid transparent;
+            padding-left: 12px;
+            transition: all 0.2s;
+        }
+
+        .layout-6 .toc-item:hover {
+            color: var(--text-primary);
+        }
+
+        .layout-6 .toc-item.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+        }
+
+        .layout-6 .post-title {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .layout-6 {
+                grid-template-columns: 1fr;
+            }
+
+            .layout-6 .toc {
+                display: none;
+            }
+        }
+
+        /* ================================
+       LAYOUT 7: Compact Tech
+       Dense technical documentation style
+    ================================ */
+        .layout-7 {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        .layout-7 .breadcrumb {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .layout-7 .breadcrumb a {
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+
+        .layout-7 .breadcrumb a:hover {
+            color: var(--accent);
+        }
+
+        .layout-7 .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 32px;
+        }
+
+        .layout-7 .post-title {
+            font-size: 28px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        .layout-7 .tags {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .layout-7 article p {
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        /* ================================
+       LAYOUT 8: Progress Reader
+       Reading progress indicator
+    ================================ */
+        .layout-8 .progress-bar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--border);
+        }
+
+        .layout-8 .progress-fill {
+            height: 100%;
+            width: 35%;
+            background: var(--gradient-1);
+            transition: width 0.1s;
+        }
+
+        .layout-8 .content {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        .layout-8 .post-title {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 16px;
+        }
+
+        .layout-8 .reading-time {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            font-size: 13px;
+            background: var(--bg-card);
+            padding: 6px 12px;
+            border-radius: 20px;
+            margin-top: 12px;
+        }
+
+        /* ================================
+       LAYOUT 9: Newspaper Column
+       Multi-column article layout
+    ================================ */
+        .layout-9 {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        .layout-9 .post-header {
+            text-align: center;
+            border-bottom: 3px double var(--border);
+            padding-bottom: 32px;
+            margin-bottom: 40px;
+        }
+
+        .layout-9 .post-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 16px;
+        }
+
+        .layout-9 .columns {
+            column-count: 2;
+            column-gap: 48px;
+            column-rule: 1px solid var(--border);
+        }
+
+        .layout-9 article p {
+            font-size: 15px;
+            line-height: 1.75;
+        }
+
+        .layout-9 article h2 {
+            column-span: all;
+        }
+
+        @media (max-width: 768px) {
+            .layout-9 .columns {
+                column-count: 1;
+            }
+        }
+
+        /* ================================
+       LAYOUT 10: Terminal Post
+       Hacker/terminal aesthetic
+    ================================ */
+        .layout-10 {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 24px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .layout-10 .terminal-header {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px 8px 0 0;
+            padding: 12px 16px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .layout-10 .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .layout-10 .terminal-dot.red {
+            background: #ff5f56;
+        }
+
+        .layout-10 .terminal-dot.yellow {
+            background: #ffbd2e;
+        }
+
+        .layout-10 .terminal-dot.green {
+            background: #27c93f;
+        }
+
+        .layout-10 .terminal-body {
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 24px;
+        }
+
+        .layout-10 .prompt {
+            color: #22c55e;
+        }
+
+        .layout-10 .post-title {
+            font-size: 16px;
+            font-weight: 400;
+            color: #22c55e;
+            margin-bottom: 24px;
+        }
+
+        .layout-10 article {
+            color: #e5e5e5;
+        }
+
+        .layout-10 article p {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #e5e5e5;
+        }
+
+        .layout-10 article h2 {
+            color: #22c55e;
+            font-size: 16px;
+            margin-top: 32px;
+            font-weight: 400;
+        }
+
+        .layout-10 article h2::before {
+            content: '## ';
+            color: var(--text-muted);
+        }
+
+        .layout-10 article code {
+            background: transparent;
+            color: #f59e0b;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="layout-nav">
+        <button class="active" onclick="showLayout(1)">1. Minimal</button>
+        <button onclick="showLayout(2)">2. Card Header</button>
+        <button onclick="showLayout(3)">3. Magazine</button>
+        <button onclick="showLayout(4)">4. Gradient Hero</button>
+        <button onclick="showLayout(5)">5. Split Header</button>
+        <button onclick="showLayout(6)">6. Sidebar TOC</button>
+        <button onclick="showLayout(7)">7. Tech Docs</button>
+        <button onclick="showLayout(8)">8. Progress</button>
+        <button onclick="showLayout(9)">9. Newspaper</button>
+        <button onclick="showLayout(10)">10. Terminal</button>
+    </nav>
+
+    <!-- Sample article content -->
+    <template id="article-content">
+        <h2>Introduction</h2>
+        <p>Podcasts are a great example of how this technology can be useful. Podcasts have gained growing popularity,
+            which has led to an increasing demand for tools capable of automatically transcribing and segmenting podcast
+            episodes, thus saving a significant amount of time on manual work.</p>
+
+        <p>Before diving into the Jupyter notebook, let me briefly introduce three libraries that form the backbone of
+            this pipeline.</p>
+
+        <h2>Implementation</h2>
+        <p>The notebook has a Setup section that installs packages and defines helper functions. We will go through all
+            sections and look at each cell step by step.</p>
+
+        <h3>Install dependencies</h3>
+        <p>To begin, it's important to install dependencies, and it must be done in a specific order due to conflicts
+            between Pyannote and PyTorch Lightning.</p>
+
+        <pre><code>!pip install pyannote.audio==2.1.1 denoiser==0.1.5
+!pip install omegaconf==2.3.0 pytorch-lightning==1.8.4</code></pre>
+
+        <blockquote>If you want to try out this demo on your own computer, you will need to install ffmpeg package since
+            we will process video and audio files.</blockquote>
+
+        <h3>Main Code</h3>
+        <p>This section contains the most important part of the demo. Let's examine the code more closely. We'll start
+            by importing the required libraries and loading the pretrained models.</p>
+
+        <ul>
+            <li><strong>Denoiser</strong> is a PyTorch implementation of Meta's paper for real-time speech enhancement.
+            </li>
+            <li><strong>Pyannote</strong> is an open-source toolkit for audio segmentation.</li>
+            <li><strong>Whisper</strong> is OpenAI's Automatic Speech Recognition system trained on 680,000 hours of
+                data.</li>
+        </ul>
+
+        <h2>Conclusion</h2>
+        <p>To sum up, this tutorial provides a comprehensive guide to building a speech recognition and speaker
+            diarization pipeline utilizing three different models. With the recent release of the Whisper API,
+            developers can now easily integrate the model into their apps.</p>
+    </template>
+
+    <!-- LAYOUT 1: Minimal Reading -->
+    <section id="layout-1" class="layout-section active">
+        <div class="layout-1">
+            <a href="#" class="back-link">← Back to posts</a>
+            <header class="post-header">
+                <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition and Speaker Diarization</h1>
+                <p class="post-meta">March 31, 2023 · Aray Karjauv · 8 min read</p>
+            </header>
+            <article id="content-1"></article>
+        </div>
+    </section>
+
+    <!-- LAYOUT 2: Card Header -->
+    <section id="layout-2" class="layout-section">
+        <div class="layout-2">
+            <header class="post-header">
+                <p class="post-meta">March 31, 2023</p>
+                <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition and Speaker Diarization</h1>
+                <p style="color: var(--text-secondary);">Learn how to transcribe any video in one of 99 languages,
+                    identify speakers, and translate text into any of these languages.</p>
+                <div class="tags">
+                    <span class="tag">Speech</span>
+                    <span class="tag">Python</span>
+                    <span class="tag">ML</span>
+                </div>
+                <div class="author-info">
+                    <div class="author-avatar"></div>
+                    <div>
+                        <p class="author-name">Aray Karjauv</p>
+                        <p class="post-meta">8 min read</p>
+                    </div>
+                </div>
+            </header>
+            <article id="content-2"></article>
+        </div>
+    </section>
+
+    <!-- LAYOUT 3: Magazine Editorial -->
+    <section id="layout-3" class="layout-section">
+        <div class="layout-3">
+            <header class="post-header">
+                <p class="category">Audio Processing</p>
+                <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition</h1>
+                <p class="post-meta">By Aray Karjauv · March 31, 2023</p>
+            </header>
+            <article id="content-3"></article>
+        </div>
+    </section>
+
+    <!-- LAYOUT 4: Gradient Hero -->
+    <section id="layout-4" class="layout-section">
+        <div class="layout-4">
+            <div class="hero">
+                <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition and Speaker Diarization</h1>
+                <p class="post-meta">March 31, 2023 · Aray Karjauv · 8 min read</p>
+            </div>
+            <div class="content">
+                <article id="content-4"></article>
+            </div>
+        </div>
+    </section>
+
+    <!-- LAYOUT 5: Split Header -->
+    <section id="layout-5" class="layout-section">
+        <div class="layout-5">
+            <div class="header-grid">
+                <div class="header-image">🎤</div>
+                <div class="header-content">
+                    <p class="post-meta" style="margin-bottom: 16px;">March 31, 2023 · 8 min read</p>
+                    <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition and Speaker Diarization
+                    </h1>
+                    <p style="color: var(--text-secondary);">Learn how to transcribe any video in one of 99 languages,
+                        identify speakers, and translate text.</p>
+                </div>
+            </div>
+            <div class="content">
+                <article id="content-5"></article>
+            </div>
+        </div>
+    </section>
+
+    <!-- LAYOUT 6: Sidebar TOC -->
+    <section id="layout-6" class="layout-section">
+        <div class="layout-6">
+            <aside class="toc">
+                <p class="toc-title">On this page</p>
+                <ul class="toc-list">
+                    <li class="toc-item active">Introduction</li>
+                    <li class="toc-item">Implementation</li>
+                    <li class="toc-item" style="padding-left: 24px;">Install dependencies</li>
+                    <li class="toc-item" style="padding-left: 24px;">Main Code</li>
+                    <li class="toc-item">Conclusion</li>
+                </ul>
+            </aside>
+            <main>
+                <header style="margin-bottom: 40px;">
+                    <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition</h1>
+                    <p class="post-meta">March 31, 2023 · Aray Karjauv · 8 min read</p>
+                </header>
+                <article id="content-6"></article>
+            </main>
+        </div>
+    </section>
+
+    <!-- LAYOUT 7: Compact Tech -->
+    <section id="layout-7" class="layout-section">
+        <div class="layout-7">
+            <nav class="breadcrumb">
+                <a href="#">Home</a> / <a href="#">Posts</a> / Speech Recognition
+            </nav>
+            <header class="post-header">
+                <div>
+                    <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition</h1>
+                    <p class="post-meta">Updated March 31, 2023</p>
+                </div>
+                <div class="tags">
+                    <span class="tag">Speech</span>
+                    <span class="tag">Python</span>
+                </div>
+            </header>
+            <article id="content-7"></article>
+        </div>
+    </section>
+
+    <!-- LAYOUT 8: Progress Reader -->
+    <section id="layout-8" class="layout-section">
+        <div class="layout-8">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <div class="content">
+                <header style="margin-bottom: 40px;">
+                    <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition</h1>
+                    <p class="post-meta">March 31, 2023 · Aray Karjauv</p>
+                    <div class="reading-time">📖 8 min read</div>
+                </header>
+                <article id="content-8"></article>
+            </div>
+        </div>
+    </section>
+
+    <!-- LAYOUT 9: Newspaper Column -->
+    <section id="layout-9" class="layout-section">
+        <div class="layout-9">
+            <header class="post-header">
+                <h1 class="post-title">Hands-on Guide to Multi-Language Speech Recognition and Speaker Diarization</h1>
+                <p class="post-meta">By Aray Karjauv · March 31, 2023</p>
+            </header>
+            <div class="columns">
+                <article id="content-9"></article>
+            </div>
+        </div>
+    </section>
+
+    <!-- LAYOUT 10: Terminal Post -->
+    <section id="layout-10" class="layout-section">
+        <div class="layout-10">
+            <div class="terminal-header">
+                <div class="terminal-dot red"></div>
+                <div class="terminal-dot yellow"></div>
+                <div class="terminal-dot green"></div>
+            </div>
+            <div class="terminal-body">
+                <p><span class="prompt">$</span> cat speech-recognition-guide.md</p>
+                <h1 class="post-title"># Hands-on Guide to Multi-Language Speech Recognition</h1>
+                <p class="post-meta" style="margin-bottom: 24px;">// Author: Aray Karjauv | Date: 2023-03-31 | Read:
+                    8min</p>
+                <article id="content-10"></article>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Clone article content to each layout
+        const template = document.getElementById('article-content');
+        for (let i = 1; i <= 10; i++) {
+            const container = document.getElementById('content-' + i);
+            if (container) {
+                container.innerHTML = template.innerHTML;
+            }
+        }
+
+        function showLayout(num) {
+            // Hide all sections
+            document.querySelectorAll('.layout-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.layout-nav button').forEach(b => b.classList.remove('active'));
+
+            // Show selected
+            document.getElementById('layout-' + num).classList.add('active');
+            document.querySelectorAll('.layout-nav button')[num - 1].classList.add('active');
+        }
+
+        // Simulate progress bar for layout 8
+        document.getElementById('layout-8').addEventListener('scroll', function () {
+            const progressFill = document.querySelector('.layout-8 .progress-fill');
+            const scrollPercent = (this.scrollTop / (this.scrollHeight - this.clientHeight)) * 100;
+            progressFill.style.width = scrollPercent + '%';
+        });
+    </script>
+</body>
+
+</html>

@@ -41,13 +41,31 @@
         font: inherit;
       }
 
-      .data-source-share {
-        color: #666;
-        overflow-wrap: anywhere;
+      .data-source-custom {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: min(520px, 100%);
       }
 
-      .data-source-share:hover {
-        text-decoration: underline;
+      .data-source-custom[hidden] {
+        display: none;
+      }
+
+      .data-source-custom input {
+        box-sizing: border-box;
+        flex: 1 1 280px;
+        min-width: 180px;
+        padding: 4px 8px;
+        font: inherit;
+      }
+
+      .data-source-custom button {
+        padding: 4px 10px;
+        border: 1px solid #999;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
       }
 
       .scv-layout {
@@ -317,7 +335,10 @@
     <div class="data-source-controls" id="data-source-controls">
       <label for="data-source-select">Data source</label>
       <select id="data-source-select" autocomplete="off"></select>
-      <a class="data-source-share" id="data-source-share"></a>
+      <form class="data-source-custom" id="data-source-custom" hidden>
+        <input id="data-source-url" type="text" inputmode="url" autocomplete="url" placeholder="https://example.org/data.json">
+        <button type="submit">Load</button>
+      </form>
     </div>
     <main class="scv-layout">
       <aside id="scv-selected-panel" class="scv-selected-panel"><i>Click or drag-select points to see details and cluster coordinates here</i></aside>
@@ -335,8 +356,10 @@
         const DEFAULT_DATA_URL = "umap_covid.json";
         const DATA_OPTION_PARAM = "option";
         const DATA_URL_PARAM = "data";
+        const CUSTOM_DATA_OPTION_ID = "__custom__";
         const DATA_OPTIONS = [
-          {id: "covid", label: "COVID-19 spatial embeddings", url: "umap_covid.json"}
+          {id: "covid", label: "COVID-19 spatial embeddings", url: "umap_covid.json"},
+          {id: "convnext_imagenet", label: "ConvNeXtBaseIN1K ImageNet embeddings", url: "ConvNeXtBaseIN1K.json"}
         ];
         const SELECTED_PANEL_ID = "scv-selected-panel";
         const CLUSTER_SOURCE_ID = "annotation_cluster_source";
@@ -390,39 +413,43 @@
 
         function getDataSource() {
           const params = new URLSearchParams(window.location.search);
+          const customUrl = params.get(DATA_URL_PARAM);
+          if (customUrl) {
+            return {id: CUSTOM_DATA_OPTION_ID, label: "External JSON URL", url: customUrl, predefined: false};
+          }
+
           const optionId = params.get(DATA_OPTION_PARAM);
           const option = findDataOption(optionId);
 
           if (option) return Object.assign({predefined: true}, option);
           if (optionId) console.warn("Unknown data option:", optionId);
 
-          const customUrl = params.get(DATA_URL_PARAM);
-          if (customUrl) {
-            return {id: "__custom__", label: "Custom data URL", url: customUrl, predefined: false};
-          }
-
           const fallbackUrl = getFallbackDataUrl();
           const fallbackOption = DATA_OPTIONS.find(function(item) {
             return item.url === fallbackUrl;
           });
           if (fallbackOption) return Object.assign({predefined: true}, fallbackOption);
-          return {id: "__default__", label: "Default data", url: fallbackUrl, predefined: false};
+          return {id: CUSTOM_DATA_OPTION_ID, label: "External JSON URL", url: fallbackUrl, predefined: false};
         }
 
-        function optionShareQuery(option) {
-          return "?" + DATA_OPTION_PARAM + "=" + encodeURIComponent(option.id);
-        }
-
-        function optionShareUrl(option) {
+        function optionBrowserUrl(option) {
           const url = new URL(window.location.href);
           url.searchParams.set(DATA_OPTION_PARAM, option.id);
           url.searchParams.delete(DATA_URL_PARAM);
           return url;
         }
 
+        function customDataBrowserUrl(dataUrl) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete(DATA_OPTION_PARAM);
+          url.searchParams.set(DATA_URL_PARAM, dataUrl);
+          return url;
+        }
+
         function installDataSourceSelector(dataSource) {
           const select = document.getElementById("data-source-select");
-          const share = document.getElementById("data-source-share");
+          const customForm = document.getElementById("data-source-custom");
+          const customInput = document.getElementById("data-source-url");
           if (!select) return;
 
           select.textContent = "";
@@ -433,33 +460,42 @@
             select.appendChild(item);
           }
 
+          const customOption = document.createElement("option");
+          customOption.value = CUSTOM_DATA_OPTION_ID;
+          customOption.textContent = "External JSON URL...";
+          select.appendChild(customOption);
+
           if (dataSource.predefined) {
             select.value = dataSource.id;
           } else {
-            const customOption = document.createElement("option");
-            customOption.value = dataSource.id;
-            customOption.textContent = dataSource.label + " (" + dataSource.url + ")";
-            select.appendChild(customOption);
-            select.value = dataSource.id;
+            select.value = CUSTOM_DATA_OPTION_ID;
           }
 
-          if (share) {
-            if (dataSource.predefined) {
-              const shareUrl = optionShareUrl(dataSource);
-              share.href = shareUrl.toString();
-              share.textContent = "Share link: " + optionShareQuery(dataSource);
-            } else {
-              share.removeAttribute("href");
-              share.textContent = "Loaded from ?data=" + dataSource.url;
-            }
-          }
+          if (customInput) customInput.value = dataSource.predefined ? "" : dataSource.url;
+          if (customForm) customForm.hidden = select.value !== CUSTOM_DATA_OPTION_ID;
 
           select.onchange = function() {
             const option = findDataOption(select.value);
-            if (!option) return;
+            if (option) {
+              window.location.assign(optionBrowserUrl(option).toString());
+              return;
+            }
 
-            window.location.assign(optionShareUrl(option).toString());
+            if (customForm) customForm.hidden = false;
+            if (customInput) customInput.focus();
           };
+
+          if (customForm && customInput) {
+            customForm.onsubmit = function(event) {
+              event.preventDefault();
+              const dataUrl = customInput.value.trim();
+              if (!dataUrl) {
+                customInput.focus();
+                return;
+              }
+              window.location.assign(customDataBrowserUrl(dataUrl).toString());
+            };
+          }
         }
 
         function buildRenderItems(docs) {
@@ -1495,7 +1531,7 @@
           target.style.display = "block";
           target.style.padding = "16px";
           target.style.font = "14px/1.4 system-ui, sans-serif";
-          target.textContent = "Could not load column data from " + dataSource.url + ". Serve this HTML over HTTP, choose another predefined source, or pass another column JSON with ?data=path/to/data.json.";
+          target.textContent = "Could not load column data from " + dataSource.url + ". Serve this HTML over HTTP, choose another predefined source, or load an external column JSON URL.";
         }
 
         async function embedDocument(root) {
