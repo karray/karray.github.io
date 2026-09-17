@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Figure gallery — tile effect sandbox</title>
+<style>
+  @property --r { syntax: "<length>"; inherits: false; initial-value: 0px; }
+
+  :root {
+    --ink: #1d2b24; --muted: #5f7169; --line: #dde4df; --accent: #14685f; --card: #fff;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0; padding: 2.5rem 1.5rem 6rem; background: #f4f6f2; color: var(--ink);
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  header, section { max-width: 1180px; margin: 0 auto; }
+  header { margin-bottom: 2.5rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .4rem; }
+  h2 {
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted);
+    margin: 3rem 0 .2rem; padding-bottom: .5rem; border-bottom: 1px solid var(--line);
+  }
+  h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .lede { color: var(--muted); max-width: 70ch; margin: 0 0 .5rem; }
+  .lede code { background: #e7ece6; padding: .05rem .3rem; border-radius: 4px; font-size: .85em; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-top: 1.4rem; }
+
+  .card {
+    flex: 0 1 270px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: .85rem; box-shadow: 0 1px 2px rgb(20 40 30 / .05);
+  }
+  .card.wide { flex-basis: 420px; }
+  .card h3 { margin: 0 0 .15rem; font-size: .92rem; }
+  .card p { margin: .35rem 0 0; font-size: .76rem; color: var(--muted); }
+  .card .cost {
+    display: inline-block; margin-top: .5rem; font-size: .68rem; padding: .1rem .45rem;
+    border-radius: 99px; background: #eef3ee; color: var(--muted);
+  }
+
+  .panel {
+    position: relative; width: 100%; aspect-ratio: 1; overflow: hidden;
+    border-radius: 8px; background: #eef1ec; touch-action: none; cursor: crosshair;
+    --perspective: 620px;               /* each tile projects itself */
+  }
+  .panel img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .panel .map { image-rendering: pixelated; }
+  .panel.dense .map { image-rendering: auto; }
+
+  .hint {
+    position: absolute; left: 50%; bottom: .5rem; translate: -50% 0; z-index: 5;
+    padding: .12rem .5rem; border-radius: 99px; background: rgb(29 43 36 / .78); color: #fff;
+    font-size: .66rem; pointer-events: none; transition: opacity .25s ease;
+  }
+  .on .hint { opacity: 0; }
+
+  /* ---------------------------------------------------------------------
+     The tile layer. Nothing here mentions a grid size: the engine sets the
+     track count and the sprite offsets, and every effect is expressed in
+     percentages of a tile, unitless scales, or a depth in px — so the same
+     rules produce the same gesture at 7x7 and at 12x12.
+     Only transform and opacity animate, so tiles stay on the compositor.
+  --------------------------------------------------------------------- */
+
+  .tiles-layer { position: absolute; inset: 0; display: grid; z-index: 2; }
+
+  .tile {
+    background-repeat: no-repeat;
+    transform: scale(1.04);            /* hairline overlap hides subpixel seams */
+    transition: transform .34s cubic-bezier(.3, .9, .3, 1), opacity .34s ease;
+  }
+  .tile.crisp { image-rendering: pixelated; }
+
+  /* the press/release wave: one delay per tile, written once per gesture,
+     normalised to 0-1 so the wave lasts the same time at any resolution */
+  .tiles-layer.staggered .tile { transition-delay: calc(var(--d, 0) * 420ms); }
+
+  /* ------------------------------------------------- reference gestures */
+
+  .lens-hard.on .map {
+    -webkit-mask-image: radial-gradient(circle 46px at var(--x) var(--y), transparent 0 45px, #000 47px);
+    mask-image: radial-gradient(circle 46px at var(--x) var(--y), transparent 0 45px, #000 47px);
+  }
+  .lens-soft .map {
+    --r: 0px;
+    -webkit-mask-image: radial-gradient(circle var(--r) at var(--x) var(--y), transparent 0 34%, rgb(0 0 0 / .4) 66%, #000 100%);
+    mask-image: radial-gradient(circle var(--r) at var(--x) var(--y), transparent 0 34%, rgb(0 0 0 / .4) 66%, #000 100%);
+    transition: --r .45s cubic-bezier(.34, 1.4, .5, 1);
+  }
+  .lens-soft.on .map { --r: 84px; }
+
+  /* ------------------------------------------------- C: switching images */
+
+  .stage .layer { position: absolute; inset: 0; }
+  .fade .incoming { animation: fade .45s ease both; }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  .wipe .incoming { animation: wipe .62s cubic-bezier(.4, 0, .2, 1) both; }
+  @keyframes wipe {
+    from { clip-path: circle(0% at var(--ox, 50%) var(--oy, 0%)); }
+    to { clip-path: circle(142% at var(--ox, 50%) var(--oy, 0%)); }
+  }
+  .picks { display: flex; gap: .4rem; justify-content: center; margin-top: .6rem; }
+  .pick {
+    width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; overflow: hidden;
+    cursor: pointer; background: none; opacity: .55; transition: opacity .2s; outline: 2px solid transparent;
+  }
+  .pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pick[aria-pressed="true"] { opacity: 1; outline-color: var(--accent); outline-offset: 2px; }
+
+  /* ------------------------------------------------------- D: arrival */
+
+  .arrive { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45rem; }
+  .arrive .panel { border-radius: 6px; }
+  .arrive .map { opacity: 0; }
+  .arrive.in .map { animation: settle .85s cubic-bezier(.2, .8, .3, 1) calc(var(--i) * 70ms) both; }
+  @keyframes settle {
+    from { opacity: 0; transform: scale(1.12); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* -------------------------------------------------------- E: the dock */
+
+  .dock { display: flex; align-items: flex-end; justify-content: center; gap: 8px; height: 104px; }
+  .dock button {
+    flex: 0 0 auto; width: var(--size, 40px); height: var(--size, 40px);
+    padding: 0; border: 0; border-radius: 22%; overflow: hidden; cursor: pointer; background: none;
+  }
+  .dock img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .dock.linear button { transition: width .12s ease-out, height .12s ease-out; }
+  .dock.spring button { transition: width .34s cubic-bezier(.34, 1.7, .5, 1), height .34s cubic-bezier(.34, 1.7, .5, 1); }
+
+  button.ghost {
+    margin-top: .6rem; font: inherit; font-size: .74rem; padding: .3rem .7rem;
+    border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tile effect sandbox</h1>
+  <p class="lede">Three effects, one engine. <strong>Hover</strong> applies the effect locally around the
+  pointer; <strong>press and hold</strong> sends the same effect across the whole map as a wave from the
+  point you pressed, and <strong>releasing</strong> plays that wave backwards — the tiles that left last
+  return first.</p>
+  <p class="lede">Sections R and S run identical code and identical numbers over a 12×12 and a 7×7 grid.
+  Every distance is a percentage of a tile, a unitless scale, or a depth in px, and the wave delay is
+  normalised, so nothing is tuned per resolution.
+  Add <code>?pin</code> to freeze the hover state or <code>?pin=hold</code> to freeze the pressed state.</p>
+</header>
+
+<section>
+  <h2>R · The three effects <small>— dense map, 12×12</small></h2>
+  <div class="row" id="dense"></div>
+</section>
+
+<section>
+  <h2>S · Same code, same numbers, 7×7 <small>— one tile per LaFAM cell</small></h2>
+  <div class="row" id="seven"></div>
+</section>
+
+<section>
+  <h2>A · Reveal gestures <small>— kept for comparison</small></h2>
+  <div class="row" id="reveal"></div>
+</section>
+
+<section>
+  <h2>C · Switching image</h2>
+  <div class="row" id="switch"></div>
+</section>
+
+<section>
+  <h2>D · Arrival</h2>
+  <div class="row" id="arrive"></div>
+</section>
+
+<section>
+  <h2>E · Dock easing</h2>
+  <div class="row" id="dock"></div>
+</section>
+
+<script>
+(() => {
+  "use strict";
+  const IMG = "/assets/img/posts/lafam/figures/images/";
+  const MAP = "/assets/img/posts/lafam/figures/heatmaps/";
+  const ENC = "ResNet50TV1IN1K";
+  const SHOTS = [
+    { id: "dog_dog", src: IMG + "dog_dog.jpeg" },
+    { id: "dog_cat", src: IMG + "dog_cat.jpeg" },
+    { id: "fish_person", src: IMG + "fish_person.png" },
+  ];
+  const map = (layer, id) => `${MAP}${layer}_${ENC}_${id}.png`;
+  const PIN = new URLSearchParams(location.search).get("pin");
+  const PINNED = PIN !== null;
+  const PIN_HOLD = PIN === "hold";
+  const pins = [];
+
+  const el = (tag, props = {}, kids = []) => {
+    const node = Object.assign(document.createElement(tag), props);
+    kids.forEach((k) => node.append(k));
+    return node;
+  };
+
+  const card = (host, title, note, cost, opts = {}) => {
+    const panel = el("div", { className: "panel" + (opts.dense ? " dense" : "") });
+    const box = el("div", { className: "card" + (opts.wide ? " wide" : "") }, [
+      el("h3", { textContent: title }), panel,
+      el("p", { textContent: note }), el("span", { className: "cost", textContent: cost }),
+    ]);
+    document.getElementById(host).append(box);
+    return { panel, box };
+  };
+
+  /* ------------------------------------------------------ the effects --
+     hover(k, ux, uy)  k = 1 at the pointer, 0 at the edge of its reach
+     away(ux, uy)      the full-strength state used by press-and-hold
+     reach             fraction of the grid the hover touches
+     Percentages resolve against the tile's own box, so they mean the same
+     thing at any grid size.
+  */
+
+  const EFFECTS = {
+    ripple: {
+      title: "Ripple out",
+      note: "Tiles shrink away near the pointer. Press and the whole map dissolves outward from your finger; release and it rebuilds inward.",
+      reach: .28,
+      hover: (k) => ({ transform: `scale(${(1.04 - .98 * k).toFixed(3)})`, opacity: (1 - k).toFixed(2) }),
+      away: () => ({ transform: "scale(0)", opacity: "0" }),
+    },
+    push: {
+      title: "Push aside",
+      note: "Tiles slide radially outward, parting the map rather than deleting it. Press and the whole map is thrown off the panel from the press point.",
+      reach: .28,
+      hover: (k, ux, uy) => ({
+        transform: `translate(${(ux * k * 115).toFixed(1)}%, ${(uy * k * 115).toFixed(1)}%) scale(${(1.04 - .2 * k).toFixed(3)})`,
+        opacity: (1 - .5 * k * k).toFixed(2),
+      }),
+      away: (ux, uy) => ({
+        transform: `translate(${(ux * 620).toFixed(0)}%, ${(uy * 620).toFixed(0)}%) scale(.65)`,
+        opacity: "0",
+      }),
+    },
+    recede: {
+      title: "Recede",
+      note: "Tiles drop backwards in 3D and clear completely across the inner half of the reach, so the map opens like a lens. Press and the whole plane falls away from the point you pressed.",
+      reach: .46,
+      /* u = distance to the pointer as a share of the reach. The inner 45%
+         is fully transparent; the rest is a smoothstep, so there is no rim.
+         The tile slides *away* from the pointer and projects its own
+         perspective, so it shrinks where it stands: a shared vanishing
+         point would drag every receding tile inwards instead. Depth runs
+         as k squared, so a tile that is still visible has barely moved and
+         no gaps open between tiles that have not yet faded. */
+      hover: (k, ux, uy) => {
+        const u = 1 - k, t = Math.max(0, Math.min(1, (u - .45) / .55));
+        const out = k * 45;
+        return {
+          transform: `translate(${(ux * out).toFixed(1)}%, ${(uy * out).toFixed(1)}%)`
+            + ` perspective(var(--perspective)) translateZ(${(-230 * k * k).toFixed(0)}px) scale(1.04)`,
+          opacity: (t * t * (3 - 2 * t)).toFixed(3),
+        };
+      },
+      away: (ux, uy) => ({
+        transform: `translate(${(ux * 144).toFixed(0)}%, ${(uy * 144).toFixed(0)}%)`
+          + ` perspective(var(--perspective)) translateZ(-552px) scale(1.04)`,
+        opacity: "0",
+      }),
+    },
+  };
+
+  /* --------------------------------------------------------- the engine */
+
+  const tileGrid = (panel, { n, layer, crisp, shot = SHOTS[0] }) => {
+    const layerEl = el("div", { className: "tiles-layer" });
+    layerEl.style.gridTemplate = `repeat(${n}, 1fr) / repeat(${n}, 1fr)`;
+    const url = map(layer, shot.id);
+    const tiles = [];
+    for (let i = 0; i < n * n; i++) {
+      const r = (i / n) | 0, c = i % n;
+      const t = el("div", { className: "tile" + (crisp ? " crisp" : "") });
+      t.style.backgroundImage = `url(${url})`;
+      t.style.backgroundSize = `${n * 100}% ${n * 100}%`;
+      t.style.backgroundPosition = `${(c / (n - 1)) * 100}% ${(r / (n - 1)) * 100}%`;
+      layerEl.append(t);
+      tiles.push(t);
+    }
+    panel.append(layerEl);
+    return { layerEl, tiles, n };
+  };
+
+  const REST = { transform: "scale(1.04)", opacity: "1" };
+  const put = (t, s) => { t.style.transform = s.transform; t.style.opacity = s.opacity; };
+
+  const drive = (panel, grid, fx) => {
+    const { layerEl, tiles, n } = grid;
+    const reach = fx.reach * n;
+    let frame = 0;
+    let live = new Set();      /* tiles currently displaced by hover */
+    let held = false, busy = false, origin = null, at = null, settle = 0;
+
+    /* hover: touch only the tiles inside the reach, reset the ones that
+       just left it. A frame is a few dozen style writes, not n². */
+    const hover = ({ x, y, w, h }) => {
+      if (busy) return;
+      const cx = (x / w) * n - .5, cy = (y / h) * n - .5;
+      const next = new Set();
+      const c0 = Math.max(0, Math.floor(cx - reach)), c1 = Math.min(n - 1, Math.ceil(cx + reach));
+      const r0 = Math.max(0, Math.floor(cy - reach)), r1 = Math.min(n - 1, Math.ceil(cy + reach));
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+          const dx = c - cx, dy = r - cy, d = Math.hypot(dx, dy);
+          if (d > reach) continue;
+          const i = r * n + c;
+          put(tiles[i], fx.hover(1 - d / reach, dx / (d || 1), dy / (d || 1)));
+          next.add(i);
+          live.delete(i);
+        }
+      }
+      live.forEach((i) => put(tiles[i], REST));
+      live = next;
+    };
+
+    /* press / release: one pass over the grid, then the browser runs the
+       whole wave from transition-delay alone - nothing per frame. */
+    const wave = (cx, cy, out) => {
+      const far = Math.max(
+        Math.hypot(cx + .5, cy + .5), Math.hypot(n - .5 - cx, cy + .5),
+        Math.hypot(cx + .5, n - .5 - cy), Math.hypot(n - .5 - cx, n - .5 - cy)) || 1;
+      /* coming back, the map lands on whatever the pointer is doing by now
+         rather than on a flat state it would immediately have to undo */
+      const back = !out && at && at.inside ? at : null;
+      const reach = fx.reach * n;
+      const next = new Set();
+      layerEl.classList.add("staggered");
+      for (let i = 0; i < tiles.length; i++) {
+        const r = (i / n) | 0, c = i % n;
+        const dx = c - cx, dy = r - cy, d = Math.hypot(dx, dy);
+        const norm = d / far;
+        /* going out: near tiles first. coming back: the wave runs backwards,
+           so the tiles that left last return first. */
+        tiles[i].style.setProperty("--d", (out ? norm : 1 - norm).toFixed(3));
+        if (out) { put(tiles[i], fx.away(dx / (d || 1), dy / (d || 1))); continue; }
+        let state = REST;
+        if (back) {
+          const bx = c - back.cx, by = r - back.cy, bd = Math.hypot(bx, by);
+          if (bd < reach) {
+            state = fx.hover(1 - bd / reach, bx / (bd || 1), by / (bd || 1));
+            next.add(i);
+          }
+        }
+        put(tiles[i], state);
+      }
+      if (!out) live = next;
+    };
+
+    const press = (x, y, w, h) => {
+      clearTimeout(settle);
+      /* a mouse sends a move just before the button goes down, and that
+         move's frame would otherwise repaint over the press wave */
+      if (frame) { cancelAnimationFrame(frame); frame = 0; }
+      live = new Set();
+      held = busy = true;
+      origin = { cx: (x / w) * n - .5, cy: (y / h) * n - .5 };
+      wave(origin.cx, origin.cy, true);
+    };
+
+    const release = () => {
+      if (!held) return;
+      held = false;
+      wave(origin.cx, origin.cy, false);
+      /* stay busy until the return wave lands, so a stray pointermove
+         cannot start fighting it, then drop the stagger for snappy hover */
+      settle = setTimeout(() => {
+        busy = false;
+        layerEl.classList.remove("staggered");
+      }, 900);
+    };
+
+    panel.addEventListener("pointermove", (e) => {
+      const b = panel.getBoundingClientRect();
+      const p = { x: e.clientX - b.left, y: e.clientY - b.top, w: b.width, h: b.height };
+      /* recorded even mid-wave: the release needs to know where the pointer
+         ended up */
+      at = { cx: (p.x / p.w) * n - .5, cy: (p.y / p.h) * n - .5,
+             inside: p.x >= 0 && p.x <= p.w && p.y >= 0 && p.y <= p.h };
+      if (frame) return;
+      frame = requestAnimationFrame(() => { frame = 0; hover(p); });
+    });
+    panel.addEventListener("pointerenter", () => panel.classList.add("on"));
+    panel.addEventListener("pointerleave", () => {
+      panel.classList.remove("on"); at = null; release();
+      if (!held) tiles.forEach(t => put(t, REST));
+    });
+    panel.addEventListener("pointerdown", (e) => {
+      const b = panel.getBoundingClientRect();
+      panel.setPointerCapture?.(e.pointerId);
+      press(e.clientX - b.left, e.clientY - b.top, b.width, b.height);
+    });
+    ["pointerup", "pointercancel"].forEach((ev) => panel.addEventListener(ev, release));
+
+    if (PINNED) pins.push(() => {
+      const b = panel.getBoundingClientRect();
+      panel.classList.add("on");
+      if (PIN_HOLD) press(b.width * .44, b.height * .46, b.width, b.height);
+      else hover({ x: b.width * .44, y: b.height * .46, w: b.width, h: b.height });
+    });
+  };
+
+  const effectCard = (host, key, n, crisp, extra) => {
+    const fx = EFFECTS[key];
+    const c = card(host, fx.title + (crisp ? " · 7×7" : ""), extra || fx.note,
+      "transform + opacity", { dense: !crisp });
+    c.panel.append(el("img", { className: "base", src: SHOTS[0].src, alt: "" }));
+    drive(c.panel, tileGrid(c.panel, { n, layer: crisp ? "lafam" : "anyup", crisp }), fx);
+    c.panel.append(el("span", { className: "hint", textContent: "hover · press and hold" }));
+  };
+
+  ["ripple", "push", "recede"].forEach((k) => effectCard("dense", k, 12, false));
+  ["ripple", "push", "recede"].forEach((k) => effectCard("seven", k, 7, true,
+    "Identical parameters to the card above; only the grid size differs."));
+
+  /* ------------------------------------------------------ A · reference */
+
+  const setXY = (node) => (e) => {
+    const b = node.getBoundingClientRect();
+    node.style.setProperty("--x", (e.clientX - b.left) + "px");
+    node.style.setProperty("--y", (e.clientY - b.top) + "px");
+  };
+  const lens = (title, note, cost, cls) => {
+    const c = card("reveal", title, note, cost, { dense: true });
+    c.panel.classList.add(cls);
+    c.panel.append(el("img", { className: "base", src: SHOTS[0].src, alt: "" }),
+                   el("img", { className: "map", src: map("anyup", SHOTS[0].id), alt: "" }));
+    c.panel.addEventListener("pointermove", setXY(c.panel));
+    c.panel.addEventListener("pointerenter", () => c.panel.classList.add("on"));
+    c.panel.addEventListener("pointerleave", () => c.panel.classList.remove("on"));
+    if (PINNED) pins.push(() => {
+      const b = c.panel.getBoundingClientRect();
+      c.panel.classList.add("on");
+      c.panel.style.setProperty("--x", b.width * .44 + "px");
+      c.panel.style.setProperty("--y", b.height * .46 + "px");
+    });
+  };
+  lens("A1 · Today", "Hard-edged circular hole punched in the map.", "shipping now", "lens-hard");
+  lens("A2 · Feathered + spring", "Soft falloff, radius springs open and closed.", "~3 lines of CSS", "lens-soft");
+
+  /* ------------------------------------------------ C · switching image */
+
+  const switcher = (title, note, cost, mode) => {
+    const c = card("switch", title, note, cost, { dense: true });
+    c.panel.classList.add("stage", mode);
+    let current = el("div", { className: "layer" });
+    current.append(el("img", { src: SHOTS[0].src, alt: "" }), el("img", { className: "map", src: map("anyup", SHOTS[0].id), alt: "" }));
+    c.panel.append(current);
+    const picks = el("div", { className: "picks" });
+    SHOTS.forEach((shot, i) => {
+      const b = el("button", { className: "pick", type: "button" });
+      b.setAttribute("aria-pressed", String(i === 0));
+      b.append(el("img", { src: shot.src, alt: "" }));
+      b.addEventListener("click", () => {
+        [...picks.children].forEach((p) => p.setAttribute("aria-pressed", "false"));
+        b.setAttribute("aria-pressed", "true");
+        const origin = b.getBoundingClientRect(), stageBox = c.panel.getBoundingClientRect();
+        const next = el("div", { className: "layer incoming" });
+        next.style.setProperty("--ox", ((origin.left + origin.width / 2 - stageBox.left) / stageBox.width * 100).toFixed(1) + "%");
+        next.style.setProperty("--oy", "108%");
+        next.append(el("img", { src: shot.src, alt: "" }), el("img", { className: "map", src: map("anyup", shot.id), alt: "" }));
+        c.panel.append(next);
+        next.addEventListener("animationend", () => { current.remove(); current = next; next.classList.remove("incoming"); }, { once: true });
+      });
+      picks.append(b);
+    });
+    c.box.insertBefore(picks, c.box.querySelector("p"));
+  };
+
+  switcher("C1 · Crossfade", "The new maps fade in over the old ones.", "~6 lines", "fade");
+  switcher("C2 · Wipe from the thumbnail", "The new image sweeps out of the thumbnail you clicked.", "~12 lines", "wipe");
+
+  /* ------------------------------------------------------- D · arrival */
+
+  {
+    const c = card("arrive", "D · Maps settle in on scroll", "Photographs first, maps row by row when the figure reaches the viewport.", "IntersectionObserver", { wide: true });
+    c.panel.remove();
+    const grid = el("div", { className: "arrive" });
+    ["CLIPConvNext", "ConvNeXtBaseIN1K", "DINOv1ResNet50", "DINOv3ConvNext", "MAEViTB16", "ResNet50TV1IN1K"].forEach((enc, i) => {
+      const p = el("div", { className: "panel dense" });
+      p.style.setProperty("--i", i);
+      p.append(el("img", { src: SHOTS[0].src, alt: "" }),
+               el("img", { className: "map", src: `${MAP}anyup_${enc}_${SHOTS[0].id}.png`, alt: "" }));
+      grid.append(p);
+    });
+    c.box.insertBefore(grid, c.box.querySelector("p"));
+    const replay = el("button", { className: "ghost", type: "button", textContent: "Replay" });
+    replay.addEventListener("click", () => { grid.classList.remove("in"); void grid.offsetWidth; grid.classList.add("in"); });
+    c.box.append(replay);
+    new IntersectionObserver((entries) => entries.forEach((e) => grid.classList.toggle("in", e.isIntersecting)), { threshold: .35 }).observe(grid);
+  }
+
+  /* ---------------------------------------------------------- E · dock */
+
+  const dockDemo = (title, note, mode) => {
+    const c = card("dock", title, note, "1 line of CSS");
+    c.panel.remove();
+    const dock = el("div", { className: "dock " + mode });
+    const thumbs = SHOTS.concat(SHOTS.slice(0, 2)).map((shot) => {
+      const b = el("button", { type: "button" });
+      b.append(el("img", { src: shot.src, alt: "" }));
+      dock.append(b);
+      return b;
+    });
+    c.box.insertBefore(dock, c.box.querySelector("p"));
+    const paint = (px) => {
+      const box = dock.getBoundingClientRect();
+      const rest = 40, gap = 8, total = thumbs.length * rest + gap * (thumbs.length - 1);
+      let x = (box.width - total) / 2;
+      thumbs.forEach((t) => {
+        const centre = x + rest / 2;
+        x += rest + gap;
+        let size = rest;
+        if (px !== null) {
+          const d = Math.abs(px - centre) / 96;
+          if (d < 1) size = rest + (78 - rest) * Math.cos((d * Math.PI) / 2) ** 2;
+        }
+        t.style.setProperty("--size", Math.round(size) + "px");
+      });
+    };
+    dock.addEventListener("pointermove", (e) => paint(e.clientX - dock.getBoundingClientRect().left));
+    dock.addEventListener("pointerleave", () => paint(null));
+    paint(null);
+  };
+
+  dockDemo("E1 · Linear (today)", "Short ease-out. Correct, slightly mechanical.", "linear");
+  dockDemo("E2 · Spring", "The size overshoots a little before it settles.", "spring");
+
+  if (PINNED) requestAnimationFrame(() => pins.forEach((f) => f()));
+})();
+</script>
+</body>
+</html>

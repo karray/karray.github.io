@@ -1,0 +1,501 @@
+/* Reusable figure gallery: a dock-style image picker above a grid of
+   image/overlay panels. Every rule is scoped to .fg so the component can be
+   dropped into any post without touching the surrounding page styles.
+   Per-instance theming: override the custom properties below via
+   `style="--fg-accent: #155799"` on the figure. */
+
+.fg {
+  --fg-accent: #14685f;
+  --fg-ink: #23362c;
+  --fg-muted: #5b6d63;
+  --fg-surface: #fafbf8;
+  --fg-raised: #fff;
+  --fg-line: #d9e2dc;
+  --fg-shadow: 18 44 34;
+
+  /* dock geometry */
+  --fg-thumb-min: 40px;      /* an item far from both cursor and selection */
+  --fg-thumb-selected: 62px; /* the selected item at rest */
+  --fg-thumb-max: 80px;      /* the item under the cursor */
+  --fg-magnify-range: 110px; /* cursor influence radius, in px */
+  --fg-dock-gap: 8px;
+
+  /* panels */
+  --fg-label-width: 1.9rem;
+  --fg-cell-max: 260px;   /* panels stay near the maps' own resolution */
+  --fg-overlay-opacity: 1;
+
+  /* the reveal gesture: the map is cut into tiles that fall back through
+     the panel and fade, opening a window onto the photograph. Every value
+     is either a fraction of the grid or an absolute depth, so the same
+     numbers give the same gesture on a 7x7 and on a 14x14 map. */
+  --fg-reach: .46;           /* share of the map the pointer disturbs */
+  --fg-depth: 230px;         /* how far the tile under the pointer falls */
+  --fg-spread: 45;           /* how far it slides clear, as a % of a tile */
+  --fg-perspective: 620px;   /* viewing distance the depth shrinks against */
+  --fg-tile-move: .14s;      /* one tile's trip out or back */
+  --fg-wave: 420ms;          /* the press wave's trip across the map */
+
+  /* arrival */
+  --fg-settle-hold: 50ms;   /* beat between a panel arriving and its map */
+  --fg-settle-step: 130ms;   /* one column behind the one to its left */
+  --fg-settle-wave: 420ms;   /* the wave's trip from the top left corner */
+  --fg-settle-move: .2s;     /* one tile dropping into place */
+
+  margin: 2rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--fg-line);
+  border-radius: 14px;
+  background: var(--fg-surface);
+  color: var(--fg-ink);
+  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-sizing: border-box;
+}
+
+.fg * {
+  box-sizing: border-box;
+}
+
+.fg-kicker {
+  margin: 0 0 .9rem;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.fg figcaption {
+  margin-top: 1rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--fg-line);
+  text-align: left;
+  color: var(--fg-muted);
+  font-size: .8rem;
+}
+
+/* ---------------------------------------------------------------- dock --- */
+
+.fg-dock {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--fg-dock-gap);
+  /* fixed box: thumbs grow inside it, so neither the dock nor the figure
+     around it ever changes size. The extra height is room for the name
+     plate above the tallest thumb. */
+  height: calc(var(--fg-thumb-max) + 1.8rem);
+  margin: 0 0 1.4rem;
+}
+
+.fg-thumb {
+  --fg-size: var(--fg-thumb-min);
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--fg-size);
+  height: var(--fg-size);
+  padding: 0;
+  border: 0;
+  border-radius: 22%;
+  background: var(--fg-raised);
+  cursor: pointer;
+  /* the size overshoots slightly before it settles, so the dock reads as
+     sprung rather than mechanical */
+  transition:
+    width .34s cubic-bezier(.34, 1.7, .5, 1),
+    height .34s cubic-bezier(.34, 1.7, .5, 1),
+    box-shadow .2s ease;
+  /* the thumb itself is the hit target; labels must not eat pointer events */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fg-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  object-fit: cover;
+  box-shadow: 0 1px 2px rgb(var(--fg-shadow) / .18), 0 0 0 1px rgb(var(--fg-shadow) / .1) inset;
+  transition: box-shadow .2s ease;
+}
+
+.fg-thumb:hover img,
+.fg-thumb:focus-visible img {
+  box-shadow: 0 6px 16px -6px rgb(var(--fg-shadow) / .45), 0 0 0 1px rgb(var(--fg-shadow) / .12) inset;
+}
+
+.fg-thumb:focus {
+  outline: none;
+}
+
+.fg-thumb:focus-visible {
+  outline: 3px solid var(--fg-accent);
+  outline-offset: 3px;
+}
+
+/* selected: accent ring, a lift, and a caret pointing at the panels below */
+.fg-thumb[aria-selected="true"] img {
+  box-shadow:
+    0 0 0 2px var(--fg-raised),
+    0 0 0 4px var(--fg-accent),
+    0 10px 20px -10px rgb(var(--fg-shadow) / .5);
+}
+
+.fg-thumb[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -.85rem;
+  width: 7px;
+  height: 7px;
+  background: var(--fg-accent);
+  border-radius: 2px;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* floating name plate, macOS-dock style */
+.fg-thumb-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + .45rem);
+  transform: translateX(-50%) translateY(3px);
+  padding: .16rem .5rem;
+  max-width: 11rem;
+  border-radius: 999px;
+  background: var(--fg-ink);
+  color: #fff;
+  font-size: .7rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.fg-thumb:hover .fg-thumb-label,
+.fg-thumb:focus-visible .fg-thumb-label {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.fg-now {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 1rem 0 .2rem;
+}
+
+.fg-title {
+  font-size: 1.02rem;
+}
+
+.fg-count {
+  color: var(--fg-muted);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ controls --- */
+
+.fg-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.4rem;
+  align-items: center;
+  margin: .8rem 0 1rem;
+  font-size: .83rem;
+}
+
+.fg-control-slider {
+  display: flex;
+  gap: .55rem;
+  align-items: center;
+  flex: 1 1 15rem;
+  min-width: 12rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.fg-control-slider input[type=range] {
+  flex: 1 1 5rem;
+  min-width: 5rem;
+  min-height: 40px;
+  accent-color: var(--fg-accent);
+}
+
+.fg-control-slider output {
+  color: var(--fg-muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.6rem;
+  text-align: right;
+}
+
+.fg-control-toggle {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.fg-control-toggle input[type=checkbox] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--fg-accent);
+}
+
+.fg :is(input, select, button):focus-visible {
+  outline: 3px solid var(--fg-accent);
+  outline-offset: 3px;
+}
+
+/* -------------------------------------------------------------- panels --- */
+
+.fg-panels {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* edge shadows that appear only while there is more grid to scroll to */
+  background:
+    linear-gradient(to right, var(--fg-surface) 30%, transparent) left / 26px 100% no-repeat local,
+    linear-gradient(to left, var(--fg-surface) 30%, transparent) right / 26px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(var(--fg-shadow) / .16), transparent) left / 11px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(var(--fg-shadow) / .16), transparent) right / 11px 100% no-repeat scroll;
+}
+
+.fg-grid {
+  display: grid;
+  grid-template-columns: var(--fg-label-width) repeat(var(--fg-cols, 3), minmax(6rem, var(--fg-cell-max)));
+  justify-content: center;
+  gap: .5rem .45rem;
+  align-items: center;
+  min-width: max-content;
+}
+
+.fg-grid.fg-grid--unlabelled {
+  grid-template-columns: repeat(var(--fg-cols, 3), minmax(6rem, var(--fg-cell-max)));
+}
+
+.fg-grid > .fg-head {
+  color: var(--fg-muted);
+  font-size: .69rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-align: center;
+  align-self: end;
+  padding-bottom: .15rem;
+}
+
+.fg-grid > .fg-head:first-child,
+.fg-row-label {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  background: linear-gradient(90deg, var(--fg-surface) 82%, rgb(250 251 248 / 0));
+  padding-right: .5rem;
+}
+
+/* row labels read bottom-to-top, like a chart's y-axis, so the axis costs
+   one line of text instead of a whole column of the figure's width */
+.fg-row-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  place-self: center;
+  font-size: .78rem;
+  font-weight: 650;
+  padding: 0;
+}
+
+.fg-stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  /* a figure can be twenty panels tall; the ones off screen should cost
+     nothing to keep there. The box still comes from the aspect ratio, so
+     the grid's layout is unaffected. */
+  content-visibility: auto;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #eef1ec;
+  box-shadow: 0 0 0 1px rgb(var(--fg-shadow) / .1) inset;
+}
+
+.fg-stack img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.fg-stack .fg-overlay {
+  opacity: var(--fg-overlay-opacity);
+  transition: opacity .15s ease;
+}
+
+/* maps are shown at their own resolution: a 7x7 map stays 7 visible
+   blocks. `rendering: auto` on a column opts back into smooth scaling. */
+.fg-stack .fg-overlay {
+  image-rendering: pixelated;
+}
+
+.fg-stack .fg-overlay[data-rendering="auto"] {
+  image-rendering: auto;
+}
+
+/* ------------------------------------------------------- reveal tiles --- */
+
+/* The tile layer replaces the overlay image once the script has built it;
+   nothing here knows the grid size - the script sets --fg-n and the
+   per-tile background offsets, and every distance below is a scale, a
+   depth, or a share of the map. */
+
+.fg-stack.fg-tiled .fg-overlay {
+  opacity: 0;
+}
+
+.fg-tiles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  grid-template: repeat(var(--fg-n), 1fr) / repeat(var(--fg-n), 1fr);
+  opacity: var(--fg-overlay-opacity);
+  image-rendering: pixelated;
+}
+
+.fg-tiles[data-rendering="auto"] {
+  image-rendering: auto;
+}
+
+/* Tiles shrink in place and slide outwards. The shrink is written as a
+   plain 2D scale rather than a perspective divide - the two are the same
+   number for a tile projected about its own centre, and the 2D form keeps
+   the tile out of a 3D rendering context. */
+.fg-tile {
+  background-image: var(--fg-map);
+  background-size: calc(var(--fg-n) * 100%) calc(var(--fg-n) * 100%);
+  background-repeat: no-repeat;
+  /* a hairline overlap: tile edges land on fractional pixels otherwise */
+  transform: scale(1.04);
+  transition:
+    transform var(--fg-tile-move) cubic-bezier(.3, .9, .3, 1),
+    opacity var(--fg-tile-move) ease;
+}
+
+/* press and release: one delay per tile, written once for the whole
+   gesture, normalised so the wave takes the same time at any resolution */
+.fg-tiles.fg-wave .fg-tile {
+  transition-delay: calc(var(--d, 0) * var(--fg-wave));
+}
+
+/* arrival: the same wave, slower, run from the top left corner */
+.fg-tiles.fg-settling .fg-tile {
+  transition-duration: var(--fg-settle-move);
+  transition-delay:
+    calc(var(--fg-settle-hold) + var(--fg-i, 0) * var(--fg-settle-step)
+      + var(--d, 0) * var(--fg-settle-wave));
+}
+
+/* seeding the state a tile starts from must not be animated itself */
+.fg-tiles.fg-instant .fg-tile {
+  transition: none;
+}
+
+/* --------------------------------------------------------- arrival --- */
+
+/* A map is held back until its own panel scrolls into view, then builds
+   itself out of its tiles in a wave from the top left corner - the same
+   engine as the reveal, run slower. Only armed by the script, so a page
+   without it shows every map immediately. */
+
+.fg-stack.fg-armed :is(.fg-overlay, .fg-tiles) {
+  opacity: 0;
+}
+
+.fg-help {
+  margin: .9rem 0 0;
+  font-size: .78rem;
+  color: var(--fg-muted);
+}
+
+/* --------------------------------------------------------- adaptations --- */
+
+/* the reveal window is a pointer affordance; touch-only devices get the
+   opacity slider instead */
+@media (hover: none) {
+  .fg-control-toggle:has(.fg-reveal-toggle) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .fg {
+    --fg-thumb-min: 36px;
+    --fg-thumb-selected: 54px;
+    --fg-thumb-max: 64px;
+    --fg-label-width: 1.7rem;
+    padding: 1rem;
+  }
+
+  .fg-grid {
+    grid-template-columns: var(--fg-label-width) repeat(var(--fg-cols, 3), minmax(7.4rem, var(--fg-cell-max)));
+  }
+
+  .fg-grid.fg-grid--unlabelled {
+    grid-template-columns: repeat(var(--fg-cols, 3), minmax(7.4rem, var(--fg-cell-max)));
+  }
+
+  .fg-row-label {
+    font-size: .7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .fg-thumb,
+  .fg-thumb img,
+  .fg-thumb-label,
+  .fg-stack .fg-overlay,
+  .fg-tile {
+    transition: none;
+  }
+
+  /* the script does not arm either gesture here; this is the backstop */
+  .fg-stack.fg-armed .fg-tiles,
+  .fg-stack.fg-armed:not(.fg-tiled) .fg-overlay {
+    opacity: var(--fg-overlay-opacity);
+  }
+}
+
+@media print {
+
+  .fg-controls,
+  .fg-dock {
+    display: none;
+  }
+
+  /* a map still waiting to scroll into view must not print blank */
+  .fg-stack.fg-armed .fg-tiles,
+  .fg-stack.fg-armed:not(.fg-tiled) .fg-overlay {
+    opacity: var(--fg-overlay-opacity);
+  }
+
+  .fg {
+    break-inside: avoid;
+  }
+}

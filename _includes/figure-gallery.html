@@ -1,0 +1,95 @@
+{%- comment -%}
+Reusable figure gallery: a dock-style image picker over a grid of panels,
+where every panel shows one image plus an optional overlay (heatmap, mask,
+segmentation, ...).
+
+  {% include figure-gallery.html id="lafam-encoders" data=site.data.galleries.lafam_encoders %}
+
+The `data` object (usually a file under _data/galleries/) accepts:
+
+  items      required. [{id, label, src, thumb?, overlay?}] - the dock.
+  columns    required. [{label, layer?, alt?, rendering?, tiles?}] - one
+             panel column each; a column without `layer` shows the bare
+             image, `rendering: auto` scales its map smoothly instead of
+             nearest-neighbour, and `tiles` fixes the reveal grid instead
+             of taking it from the map's own resolution.
+  rows       required. [{id, label}] - one panel row each. Use a single
+             row with an empty label for a gallery with no row axis.
+  overlay    overlay path template; `{item}`, `{row}` and `{layer}` are
+             substituted. Per-item `overlay` overrides it.
+  kicker, caption, help, row_header     text, all optional.
+  opacity    initial overlay opacity in percent (default 100).
+  reveal     `false` drops the reveal gesture and its control. The gesture
+             cuts the map into tiles that fall away around the pointer;
+             tune it per instance with --fg-reach and --fg-depth.
+  style      extra CSS custom properties for this instance.
+
+Anything not supplied is skipped, so a minimal gallery needs only
+`items`, `columns` and `rows`.
+{%- endcomment -%}
+{%- assign g = include.data -%}
+{%- assign uid = include.id | default: g.id | default: 'figure-gallery' | slugify -%}
+{%- assign items = g.items -%}
+{%- assign columns = g.columns -%}
+{%- assign rows = g.rows -%}
+{%- assign first = items[0] -%}
+{%- assign kicker = include.kicker | default: g.kicker -%}
+{%- assign caption = include.caption | default: g.caption -%}
+{%- assign help = include.help | default: g.help -%}
+{%- assign opacity = g.opacity | default: 100 -%}
+{%- assign reveal = true -%}{%- if g.reveal == false -%}{%- assign reveal = false -%}{%- endif -%}
+{%- assign style = include.style | default: g.style -%}
+{%- assign row_labels = rows | map: 'label' | join: '' | strip -%}
+{%- comment -%}Liquid ends a variable at the first `}`, so the placeholders are captured as literal text. Path templates keep their braces, which rules out `relative_url` (it percent-encodes them) - hence `prepend: site.baseurl`.{%- endcomment -%}
+{%- capture tok_layer -%}{layer}{%- endcapture -%}
+{%- capture tok_row -%}{row}{%- endcapture -%}
+{%- capture tok_item -%}{item}{%- endcapture -%}
+{%- unless figure_gallery_assets -%}
+<link rel="stylesheet" href="{{ '/assets/css/figure-gallery.css' | relative_url }}">
+<script src="{{ '/assets/js/figure-gallery.js' | relative_url }}" defer></script>
+{%- assign figure_gallery_assets = true -%}
+{%- endunless -%}
+<figure class="fg" id="{{ uid }}" data-fg data-overlay="{{ g.overlay | prepend: site.baseurl }}" style="--fg-cols: {{ columns | size }}; --fg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
+  {%- if kicker %}<p class="fg-kicker">{{ kicker }}</p>{% endif -%}
+  <div class="fg-dock" role="tablist" aria-label="{{ g.dock_label | default: 'Choose an image' }}">
+    {%- for item in items -%}
+    {%- assign selected = forloop.first -%}
+    <button type="button" class="fg-thumb" id="{{ uid }}-tab-{{ forloop.index }}" role="tab"
+      aria-selected="{{ selected }}" aria-controls="{{ uid }}-panels" tabindex="{% if selected %}0{% else %}-1{% endif %}"
+      {% if selected %}data-selected="true" {% endif %}data-item="{{ item.id }}" data-label="{{ item.label | escape }}"
+      data-src="{{ item.src | relative_url }}"{% if item.overlay %} data-overlay="{{ item.overlay | prepend: site.baseurl }}"{% endif %}>
+      <img src="{{ item.thumb | default: item.src | relative_url }}" alt="" loading="lazy" decoding="async">
+      <span class="fg-thumb-label">{{ item.label }}</span>
+    </button>
+    {%- endfor -%}
+  </div>
+  <p class="fg-now" aria-live="polite"><strong class="fg-title">{{ first.label }}</strong><span class="fg-count">1 / {{ items | size }}</span></p>
+  <div class="fg-controls">
+    <label class="fg-control-slider">Overlay opacity
+      <input class="fg-opacity" type="range" min="0" max="100" step="5" value="{{ opacity }}" aria-label="Overlay opacity">
+      <output class="fg-opacity-value">{{ opacity }}%</output>
+    </label>
+    {%- if reveal %}
+    <label class="fg-control-toggle"><input class="fg-reveal-toggle" type="checkbox" checked> {{ g.reveal_label | default: 'Reveal the image under the pointer' }}</label>
+    {%- endif -%}
+  </div>
+  <div class="fg-panels" id="{{ uid }}-panels" role="tabpanel" aria-labelledby="{{ uid }}-tab-1">
+    <div class="fg-grid{% if row_labels == '' %} fg-grid--unlabelled{% endif %}">
+      {%- if row_labels != '' %}<span class="fg-head">{{ g.row_header }}</span>{% endif -%}
+      {%- for column in columns %}<span class="fg-head">{{ column.label }}</span>{% endfor -%}
+      {%- for row in rows -%}
+      {%- if row_labels != '' %}<span class="fg-row-label">{{ row.label }}</span>{% endif -%}
+      {%- for column in columns -%}
+      {%- capture overlay_src -%}{%- if column.layer -%}{{ first.overlay | default: g.overlay | replace: tok_layer, column.layer | replace: tok_row, row.id | replace: tok_item, first.id | relative_url }}{%- endif -%}{%- endcapture -%}
+      <div class="fg-stack" data-row="{{ row.id }}"{% if column.layer %} data-layer="{{ column.layer }}"{% endif %}{% if column.tiles %} data-tiles="{{ column.tiles }}"{% endif %}>
+        <img class="fg-base" src="{{ first.src | relative_url }}" alt="{{ first.label | escape }}" loading="lazy" decoding="async">
+        {%- if column.layer %}<img class="fg-overlay" src="{{ overlay_src }}" alt="{{ column.alt | default: column.label }} overlay{% if row.label != '' %} for {{ row.label }}{% endif %}" loading="lazy" decoding="async"{% if column.rendering %} data-rendering="{{ column.rendering }}"{% endif %}>{% endif -%}
+      </div>
+      {%- endfor -%}
+      {%- endfor -%}
+    </div>
+  </div>
+  {%- if help %}<p class="fg-help">{{ help }}</p>{% endif -%}
+  <noscript><p class="fg-help">Showing “{{ first.label }}”. Enable JavaScript to switch between the {{ items | size }} images.</p></noscript>
+  {%- if caption %}<figcaption>{{ caption }}</figcaption>{% endif -%}
+</figure>

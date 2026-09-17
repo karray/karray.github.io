@@ -1,5 +1,7 @@
 ---
 layout: post
+styles:
+  - /assets/css/lafam.css
 title: Unsupervised Feature Attribution for Foundation Models
 date: 2025-11-01 00:00:00 +0200
 tags: XAI, CNN, Foundation Models, Self-Supervised Learning
@@ -217,8 +219,6 @@ The metric choices also matter. Sparseness measures how concentrated a map is, b
 
 </details>
 
-<link rel="stylesheet" href="{{ '/assets/css/lafam-resolution.css' | relative_url }}">
-
 LaFAM's limitation is easy to see: the final ResNet-50 features occupy a $7\times7$ grid. The response is already informative, but its display is coarse. Nearest-neighbor resizing makes larger tiles, and bilinear resizing blends their edges. To refine the spatial detail, we can use the image itself as guidance.
 
 ## A finer picture with AnyUp
@@ -233,26 +233,9 @@ The spatial signal still comes from the encoder's features. AnyUp adds a pretrai
 
 ### Compare maps across encoders
 
-Use the carousel to move through five real images, then compare both LaFAM and its AnyUp refinement across all ten encoders. Adjust the map opacity, and move over either view to reveal the photograph in a small region around the pointer.
+Pick one of five real images from the strip below, then compare both LaFAM and its AnyUp refinement across all ten encoders. Adjust the map opacity, and move over either view to reveal the photograph in a small region around the pointer.
 
-<figure class="lf-figure" id="lf-gallery" data-images="{{ '/assets/img/posts/lafam/figures/images' | relative_url }}" data-heatmaps="{{ '/assets/img/posts/lafam/figures/heatmaps' | relative_url }}">
-  <div class="lf-kicker">Real images · compare encoder responses</div>
-  <div class="lf-carousel" aria-label="Image carousel">
-    <button class="lf-arrow" id="lf-previous" type="button" aria-label="Previous image">&#8592;</button>
-    <div class="lf-carousel-copy"><strong id="lf-image-title">Two dogs</strong><span id="lf-image-count">1 / 5</span></div>
-    <button class="lf-arrow" id="lf-next" type="button" aria-label="Next image">&#8594;</button>
-  </div>
-  <div class="lf-controls">
-    <label for="lf-opacity">Map opacity <output id="lf-opacity-value" for="lf-opacity">70%</output><input id="lf-opacity" type="range" min="0" max="100" value="70"></label>
-  </div>
-  <div class="lf-view-controls"><label><input id="lf-reveal" type="checkbox" checked> Reveal image around pointer</label></div>
-  <div class="lf-panels" id="lf-panels"></div>
-  <p class="lf-status" id="lf-gallery-status" aria-live="polite">Two dogs · LaFAM and AnyUp across ten encoders. Move over a view to reveal the image beneath the map.</p>
-  <noscript><p>This figure needs JavaScript to switch images and heatmap variants.</p></noscript>
-  <figcaption>Each encoder panel contains both precomputed overlays for the same image. The hover window temporarily hides the map around the pointer, making it easier to inspect the underlying pixels.</figcaption>
-</figure>
-<script id="lf-gallery-data" type="application/json">{"images":[{"id":"dog_dog","title":"Two dogs","extension":"jpeg"},{"id":"dog_cat","title":"Dog and cat","extension":"jpeg"},{"id":"fish_person","title":"Fish and person","extension":"png"},{"id":"misc","title":"Miscellaneous scene","extension":"png"},{"id":"spider_web","title":"Spider web","extension":"png"}],"models":[{"id":"CLIPConvNext","label":"CLIP ConvNeXt"},{"id":"ConvNeXtBaseIN1K","label":"ConvNeXt Base"},{"id":"DINOv1ResNet50","label":"DINOv1 ResNet-50"},{"id":"DINOv1ViTB16","label":"DINOv1 ViT-B/16"},{"id":"DINOv3ConvNext","label":"DINOv3 ConvNeXt"},{"id":"DINOv3ViTB16","label":"DINOv3 ViT-B/16"},{"id":"MAEViTB16","label":"MAE ViT-B/16"},{"id":"MaxViTBaseIN1K","label":"MaxViT Base"},{"id":"ResNet50TV1IN1K","label":"ResNet-50"},{"id":"SwinBaseIN1K","label":"Swin Base"}]}</script>
-<script src="{{ '/assets/js/lafam-resolution.js' | relative_url }}"></script>
+{% include figure-gallery.html id="lafam-encoders" data=site.data.galleries.lafam_encoders %}
 
 
 

@@ -1,0 +1,93 @@
+/* Styles for the static figures and tables of the LaFAM resolution post.
+   The interactive gallery lives in figure-gallery.css / figure-gallery.js. */
+
+.lf-figure {
+  margin: 2rem 0;
+  padding: 1.3rem;
+  border: 1px solid #d9e2dc;
+  border-radius: 12px;
+  background: #fafbf8;
+  color: #253d31;
+  font: 15px/1.6 system-ui, sans-serif;
+  box-sizing: border-box;
+}
+
+.lf-figure * {
+  box-sizing: border-box;
+}
+
+.lf-figure figcaption {
+  margin-top: 1rem;
+  padding-top: .9rem;
+  border-top: 1px solid #d9e2dc;
+  text-align: left;
+  color: #52645a;
+  font-size: .8rem;
+}
+
+.lf-figure p {
+  margin: .7rem 0;
+}
+
+.lf-table-scroll {
+  overflow-x: auto;
+  margin: 1rem 0 2rem;
+}
+
+.lf-table-scroll table {
+  min-width: 520px;
+  font-size: .84rem;
+}
+
+.lf-detail {
+  padding: .8rem 1rem;
+  margin: 1.4rem 0;
+  border-left: 3px solid #14685f;
+  background: #f5f8f3;
+}
+
+.lf-detail summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.lf-paths {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .8rem;
+}
+
+.lf-paths div {
+  background: white;
+  border: 1px solid #dce3dd;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.lf-paths span {
+  display: block;
+  margin: .65rem 0;
+}
+
+.lf-paths img {
+  display: block;
+  width: 100%;
+  max-width: 224px;
+  margin: .8rem auto;
+}
+
+@media (max-width:580px) {
+  .lf-figure {
+    padding: 1rem;
+  }
+
+  .lf-paths {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .lf-figure {
+    break-inside: avoid;
+  }
+}

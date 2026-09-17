@@ -1,0 +1,64 @@
+# Gallery for the LaFAM / AnyUp comparison. Rendered by
+# _includes/figure-gallery.html; see that file for the full schema.
+
+kicker: Real images · compare encoder responses
+dock_label: Choose an image to compare
+overlay: /assets/img/posts/lafam/figures/heatmaps/{layer}_{row}_{item}.png
+opacity: 100
+reveal_label: Reveal the image under the pointer
+
+help: >-
+  Pick an image from the dock, then read across a row to compare the coarse
+  LaFAM map with its AnyUp refinement. Move over a map and it falls away
+  around the pointer; press and hold to clear the whole map from the point
+  you pressed, and let go to bring it back.
+
+caption: >-
+  Each panel pairs the same photograph with a precomputed map, so no inference
+  runs in the browser. The reveal gesture pulls the map back around the
+  pointer, which makes it easier to check what the response is sitting on.
+
+columns:
+  - label: LaFAM
+    layer: lafam
+  - label: AnyUp
+    layer: anyup
+
+items:
+  - id: dog_dog
+    label: Two dogs
+    src: /assets/img/posts/lafam/figures/images/dog_dog.jpeg
+  - id: dog_cat
+    label: Dog and cat
+    src: /assets/img/posts/lafam/figures/images/dog_cat.jpeg
+  - id: fish_person
+    label: Fish and person
+    src: /assets/img/posts/lafam/figures/images/fish_person.png
+  - id: misc
+    label: Miscellaneous scene
+    src: /assets/img/posts/lafam/figures/images/misc.png
+  - id: spider_web
+    label: Spider web
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+
+rows:
+  - id: CLIPConvNext
+    label: CLIP ConvNeXt
+  - id: ConvNeXtBaseIN1K
+    label: ConvNeXt Base
+  - id: DINOv1ResNet50
+    label: DINOv1 ResNet-50
+  - id: DINOv1ViTB16
+    label: DINOv1 ViT-B/16
+  - id: DINOv3ConvNext
+    label: DINOv3 ConvNeXt
+  - id: DINOv3ViTB16
+    label: DINOv3 ViT-B/16
+  - id: MAEViTB16
+    label: MAE ViT-B/16
+  - id: MaxViTBaseIN1K
+    label: MaxViT Base
+  - id: ResNet50TV1IN1K
+    label: ResNet-50
+  - id: SwinBaseIN1K
+    label: Swin Base
