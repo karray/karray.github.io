@@ -8,53 +8,76 @@ tags: XAI, CNN, Foundation Models, Self-Supervised Learning
 description: How activation maps and relevance propagation can shed light on deep models without any labels.
 ---
 
-Foundation models trained without labels can learn a lot, but understanding what they actually see is another story. Convolutional networks and transformers, though, hide a clue: their activations quietly reveal where the model is looking. No labels, no gradients, just the network explaining itself. The only problem is that its vision is still a bit blurry… for now.
+Foundation models trained without explicit labels can learn remarkably rich representations. But the same lack of supervision that makes this possible also makes them harder to interpret and validate. Without annotations to tell us what the model has learned, where can we look for clues? Convolutional networks and transformers offer one in their activations. These activations can be turned into saliency maps that show where the model responds most strongly, without extra labels or gradients. The catch is that these maps are often coarse. In this blog post, we explore how to extract spatial saliency maps from these activations and how they can be refined.
 
 <!--more-->
 
-This journey started with my attempt to use Generative Adversarial Networks (GANs) as feature extractors for medical images. GANs can synthesize high-quality images from random noise and control the generation process via latent variables, but they are not inherently invertible. I tried to address this limitation, but it didn’t work well (see my earlier [post](/2023/01/06/turning-stylegan-into-a-latent-feature-extractor.html) for details). Debugging that encoder-based GAN quickly turned into an exercise in frustration, exposing how few tools exist to reveal what such models actually learn. That limitation led to a broader question -- how can we explain models that where trained without explicit annotations? This question is central to self-supervised learning (SSL), where models learn latent representations directly from unlabeled data. How can we see what such models focus on? That question brings us to LaFAM [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv et al.</a>], a straightforward but effective method for unsupervised feature attribution.
+This journey started with my attempt to use Generative Adversarial Networks (GANs) as feature extractors for medical images. GANs can synthesize high-quality images from random noise and provide control over the generation via latent variables, but they are not inherently invertible. I tried to address this limitation, but the approach did not work well (see my earlier [post](/2023/01/06/turning-stylegan-into-a-latent-feature-extractor.html) for details). Debugging that encoder-based GAN quickly became an exercise in frustration. More importantly, it exposed how few tools exist for debugging models trained without explicit annotations. The limitation is particularly relevant in self-supervised learning (SSL), where useful representations are learned directly from unlabeled data. LaFAM [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv et al.</a>] provides a simple way to approach this problem by deriving feature attribution maps directly from model activations.
 
-This post explores whether the model has already computed a useful spatial explanation while processing the image. We will look how LaFAM provides quick saliency maps in an unsupervised setting, born out of the need to interpret SSL models. This approach allows us to visualize where learned features respond without choosing a class and computing gradients. We also compare LRP with AnyUp for refining the resolution of spatial explanations.
-<!-- Along the way, we'll maintain a critical lens: Are our evaluation metrics actually fair? What limitations do these methods have? -->
-
-<!-- By the end, we’ll see not only where the network looks, but also reflect on the perennial XAI question of “so what?” (or rather what is it seeing there?). -->
-
-<!-- (If you're just joining, no worries – each part stands alone. But know that Part 1 dealt with GANs and encoder limitations, and Part 3 will tackle Multiple Instance Learning. Now let's dive in!) -->
+Unlike supervised settings, where methods such as Grad-CAM are readily available, attribution options for self-supervised models remain limited. Here, we test how far LaFAM can take us. We first apply it to convolutional neural networks (CNNs) and then extend it to Vision Transformers (ViTs). We examine what these activation-based maps reveal, where they fall short, and whether their coarse spatial structure can be refined using LRP-based refinement or AnyUp.
 
 ## Self-Supervised Learning Meets XAI
 
-Self-Supervised Learning (SSL) has emerged as a way for models to learn useful representations without manual labels. Vision models like SimCLR and DINO can train on millions of images by solving proxy tasks (e.g., contrasting different augmented views of the same image) and then be fine-tuned for actual tasks. SSL models are often called foundation models for their broad adaptability. Yet, the absence of labels makes it difficult to verify whether the learned features are actually relevant for a given downstream task. Moreover, when trained with proxy tasks such as random cropping, a model may unintentionally associate irrelevant features without us realizing, and evaluating it is non-trivial [<a href="#meehan2023do" data-ref="meehan2023do">Meehan et al.</a>].
+Self-Supervised Learning (SSL) allows models to learn useful representations without manual labels. This matters because collecting data is often much easier than annotating it, especially at scale. SSL makes it possible to use that unlabeled data to learn representations that can later be reused or fine-tuned for downstream tasks, such as image classification or segmentation. At the core of these models is an encoder, a network that turns an input image into a compact set of features called an embedding. In a supervised classifier, this embedding is typically passed to a prediction head that produces class scores. SSL models such as SimCLR and DINO instead train the encoder without class labels, using different augmented views of the same image as part of the learning signal. Once pretrained, the encoder can be reused or fine-tuned for downstream tasks. At sufficiently large scale, models trained this way can also form the basis of foundation models.
 
-Explainable AI (XAI) offers ways to probe a model’s reasoning, for example, by producing saliency maps that highlight important regions of an input. Traditional XAI methods, though, are designed for supervised models by attributing input importance for a specific class. Methods like Grad-CAM and occlusion-based methods (e.g., RISE) require a so-called score function. This function takes a target class as input to guide the attribution. This poses a problem for SSL, as there are no explicit labels to explain.
+SSL models can be trained on millions of images by solving proxy tasks (e.g., contrasting different augmented views of the same image). Yet, the absence of labels makes it difficult to verify whether the learned representations are actually relevant for a given downstream task. Moreover, when trained with proxy tasks such as random cropping, a model may unintentionally associate irrelevant features without us realizing, and evaluating it is non-trivial [<a href="#meehan2023do" data-ref="meehan2023do">Meehan et al.</a>].
 
-There have been attempts to adapt XAI to label-free models. One such attempt is RELAX (Representation Learning Explainability) which extended the supervised occlusion method RISE. The key idea is clever: SSL models output embeddings that are unitless, meaning that each value does not refer to any particular feature. Since we don't know what a target embedding should look like, the authors propose to first create a reference embedding from the original input and extract embeddings from occluded inputs. We can then define a score function that measures cosine similarity between the reference embedding and the occluded ones and use it to attribute the most salient features.
+This is where Explainable AI (XAI) would seem useful. For supervised models, methods such as Grad-CAM can highlight image regions that contribute to a particular prediction. Occlusion methods such as RISE take a different route. They repeatedly mask parts of the input and observe how the target prediction score changes.
 
-However, RELAX ended up being computationally expensive as it needs many forward passes with different masks, and it often produced very noisy maps. Moreover, using random patch occlusions can introduce unnatural artifacts, leading the model to react strangely to a big gray patch that it would never see during normal operation.
+For an SSL encoder, however, there may be no prediction score to explain. The model produces an embedding, and individual dimensions of that embedding usually have no predefined semantic meaning. Asking for the importance of a pixel for “class cat” therefore makes little sense when there is no cat score in the first place.
 
-## Label-Free Activation Maps
+<!-- Explainable AI (XAI) offers ways to probe a model’s reasoning, for example, by producing saliency maps that highlight important regions of an input. Traditional XAI methods, though, are designed for supervised models by attributing input importance for a specific class. Methods like Grad-CAM and occlusion-based methods (e.g., RISE) require a so-called score function. This function takes a target class as input to guide the attribution. This poses a problem for SSL, as there are no explicit labels to explain. -->
 
-<!-- An important advantage of CNNs is that their spatial feature maps preserve the structure of the input image. As layers stack, each convolution processes a local region of the previous feature map, which causes receptive fields to expand with depth. By the final convolutional layer, neurons cover enough of the image to encode class-specific signals while still retaining coarse spatial layout. -->
+There have been attempts to adapt XAI to label-free models. One such attempt is RELAX (Representation Learning Explainability) which extended the supervised occlusion method RISE. The key idea is clever: Instead of asking how masking part of an image changes a class score, it asks how much it changes the representation. The original image provides a reference embedding. Masked versions of the image are passed through the same encoder, and their embeddings are compared with the reference using cosine similarity. If masking a region substantially changes the representation, that region was probably important to the encoder.
 
-A key strength of CNNs is that their activation maps maintain a connection between detected patterns and their positions in the input image. This property makes the models inherently more explainable and underpins the success of Class Activation Map (CAM) methods. By weighting the maps in the final convolutional layer according to their contribution to a target class, these methods can localize the image regions most relevant in supervised settings.
+The idea is simple, but it comes at a cost. RELAX requires many masked versions of each image and therefore many forward passes through the model, while the resulting maps can be noisy. More generally, masking itself is not entirely innocent. Removing parts of an image creates inputs that differ from what the model normally sees, so part of the response may come from the perturbation rather than from the feature we intended to study.
 
-<details><summary>What is an activation map?</summary>
+## From Class-Specific to Label-Free Activation Maps
+
+One useful property of CNNs is that their convolutional feature maps retain a spatial layout. If a feature responds strongly in one part of the image, we can trace that response back to roughly the same region in the input. This spatial structure is what makes methods such as Class Activation Maps (CAMs) possible.
+
+<details><summary>What is an activation map and receptive field?</summary>
 <p>
-Each convolutional layer takes an input and produces activation maps (also called feature maps) that record activations of specific visual patterns across the image. The first layer processes raw pixels and responds to simple local features such as edges or color contrasts. Each subsequent layer takes the feature map from the previous one and combines these basic patterns into more complex and abstract representations, like textures or object parts. The area a neuron responds to is called its receptive field. As the network goes deeper, receptive fields grow as a result of pooling operations or convolution strides, which reduce the spatial size of feature maps. This lets deeper neurons capture a larger portion of the image while still preserving coarse spatial relationships.
+
+Each convolutional layer produces a collection of activation maps, also called feature maps. Each map records how strongly a learned feature responds at different spatial locations. Early layers often respond to relatively simple patterns such as edges or color contrasts. Deeper layers combine these responses into more complex representations. These can become selective to textures, shapes, object parts, or other structures useful to the model, although individual channels do not necessarily correspond to clean human-interpretable concepts.
+
+Each activation is influenced by a region of the original image called its receptive field. Receptive fields grow as convolutional layers are stacked. Pooling and strided convolutions increase them further while reducing spatial resolution. As a result, deeper feature maps capture information from larger regions of the image but provide a progressively coarser spatial view.
+
 </p>
 </details>
 
+There is another useful property in many CNNs: before an activation map is passed to the next convolutional layer, it goes through a ReLU activation, where negative responses are set to zero. This means that the activation map only contains positive values, indicating where a feature is active.
 
-But what if we don’t have a class? The answer is simple -- we don't need it. We can simply average all the activation maps at the last convolutional layer to get a generic saliency map. This label-free map doesn’t focus on any one class. It treats every learned feature as equally interesting, highlighting regions that strongly activate any of the high-level features in that layer. Essentially, it’s a visualization of “where the network is looking” in a class-agnostic sense.
+This is where supervision enters CAM. In the original CAM formulation, the classifier assigns a different weight to each feature channel for each class. To explain a prediction such as *cat*, CAM combines the spatial activation maps using the weights associated with the cat class. Features that are strongly associated with that class contribute more to the resulting heatmap. Grad-CAM generalizes this idea by using gradients to estimate how important each feature map is for a chosen target. In other words, the activation maps tell us **where a feature responds**, while the class-specific weights tell us **which features matter for the target**.
 
-LaFAM (Label-free Activation Map) [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv et al.</a>] evaluates this approach systematically. The method is astonishingly simple yet effective. It outperforms RELAX and even stands up well against Grad-CAM.
+But what if there is no class to explain? LaFAM (Label-free Activation Map) [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv et al.</a>] takes a surprisingly simple approach. Instead of finding class-specific weights, it gives every feature channel equal weight and averages their activation maps. For the ReLU-based CNNs considered in LaFAM, these activations are non-negative. They therefore do not cancel when averaged. A location receives a high value when many high-level features respond there, or when a smaller number respond particularly strongly. Seen this way, LaFAM is less mysterious. While CAM asks the classifier which feature maps matter and then combines them accordingly, LaFAM simply lets every feature map vote equally.
 
-Think of the feature channels as a collection of sensors. Each responds to a different learned pattern. LaFAM averages their readings at each location, showing where the collection responds strongly. We are reading a signal the network already produced. When we train a model, it sees similar objects and learns to associate them with certain features that are almost always present, while unrelated background features usually do not correlate with the object and the model learns to ignore them. The resulting saliency map reflects the model’s learned feature preferences.
+However, there is no guarantee that the strongest responses will correspond to the object we expect. A model may respond to the foreground, but it may also learn background textures, acquisition artifacts, or other correlations present in the training data. This is not unique to self-supervised learning. Supervised models can rely on the same kinds of shortcuts, and exposing such behavior is one of the reasons we use attribution methods in the first place.
 
-### A Note on Vision Transformers (ViTs)
+LaFAM therefore does not try to decide which activations are semantically “correct.” It simply exposes where the learned representation responds strongly. If those responses fall on the object, we learn something about the representation. If they consistently fall on the background or on an unexpected artifact, that may be even more informative.
 
-ViTs do not have the same spatial structure as CNNs. However, an image in a ViT is split into patches called tokens. Each token naturally corresponds to a specific region of the image. The attention mechanism in ViTs allows each token to interact with others, enabling them to exchange information and capture global context. Tokens from the final layer can be averaged to produce a saliency map similar to CAM and, hence, LaFAM can be applied to ViTs as well. However, most of the work on ViTs has focused on attention-based methods and require a target class to produce saliency maps. To best of my knowledge, there is no systematic evaluation of CAM-based methods on ViTs yet. 
+There is one important distinction from methods such as Grad-CAM. Grad-CAM highlights regions associated with a particular prediction, so an unexpected region can indicate that the decision itself relies on a shortcut. LaFAM has no target prediction. An unexpected region instead tells us that the representation contains a strong response there. Whether that feature ultimately becomes a shortcut depends on how the representation is used downstream.
 
-### Qualitative Comparison
+### What About Vision Transformers?
+
+A ViT represents an image differently. It divides the image into patches and represents each patch with a token. These tokens form a sequence, but each patch token still has a spatial address in the original image. Self-attention allows information to flow between patches, so a token in a deep layer no longer describes only its own patch. Nevertheless, the patch tokens can still be arranged back into their original spatial grid.
+
+This gives us something analogous to a CNN feature map. Instead of having a vector of channel activations at every spatial location, we have a vector of features for every patch token. If we reduce each patch token to a single score and reshape those scores into the patch grid, we obtain a coarse spatial map.
+
+There is an important catch, however. The ReLU argument that made averaging easy for CNNs no longer transfers directly. Standard ViTs use operations such as LayerNorm and GELU, and their token representations contain both positive and negative values. Simply averaging these values can cause them to cancel. A LaFAM-style extension to ViTs therefore requires more care about which activations we extract and how we reduce their feature dimension.
+
+Most ViT explainability work approaches the problem through attention. Self-supervised ViTs have also shown that label-free attention maps can reveal surprisingly clear object structure. Here, however, we are interested in a different question whether the token representations themselves can provide a useful spatial signal, in the same spirit as activation maps in CNNs.
+
+### Results
+
+<!-- {% include figure-gallery.html  %} -->
+
+
+LaFAM's limitation is easy to see: the final ResNet-50 features occupy a $7\times7$ grid. The response is already informative, but its display is coarse. Nearest-neighbor resizing makes larger tiles, and bilinear resizing blends their edges. To refine the spatial detail, we can use the image itself as guidance.
+
+
+<details markdown="1">
+<summary>Supporting evidence: the original LaFAM evaluation</summary>
 
 <figure>
 <img src="/assets/img/posts/lafam/pascal_voc_2012_results.svg" alt="LaFAM vs. Grad-CAM vs. RELAX" />
@@ -74,9 +97,6 @@ Let's look closer at the model misprediction cases. For Grad-CAM we visualize th
 ![Grad-CAM for Misclassification Case](/assets/img/posts/lafam/imgnet_missclf_short.svg){: .center-image }
 
 LaFAM clearly highlights true objects, suggesting that these objects strongly activate multiple channels in the final conv layer. However, the prediction is wrong. The reason could be that the last fully connected layer puts more weight on specific features that mislead the final decision, even though many other features correctly identify the object.
-
-<details markdown="1">
-<summary>Supporting evidence: the original LaFAM evaluation</summary>
 
 The LaFAM paper [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv et al.</a>] systematically evaluates and compares averaged activation maps against RELAX (the prior SSL method) using SSL models (SimCLR and SwAV on ResNet50 backbones), and also compared it against Grad-CAM for a fully supervised ResNet50 classifier as a sanity check. The saliancy maps for ResNet50 have only 7x7 size and were upscaled to match the input image size using nearest-neighbor interpolation. Since we don't have class labels to evaluate “correctness” of an explanation, the evaluation was performed on datasets with segmentation masks (ImageNet-S and PASCAL VOC) and a suite of evaluation metrics from the Quantus XAI evaluation framework. Essentially, we treat it as a localization task, whith goal to assess how well the saliency maps align with the segmentaions masks.
 
@@ -208,8 +228,6 @@ The LaFAM paper [<a href="#karjauv2024lafam" data-ref="karjauv2024lafam">Karjauv
 </p>
 </details>
 
-### Reading the original results
-
 These measurements show that channel-averaged feature activity can localize annotated objects in the evaluated CNNs, including the self-supervised models. They do not establish that every active feature is an object detector or that the network has discarded all background information.
 
 The class-free view is useful when a predicted label is wrong: it lets us inspect activity without first selecting that mistaken class. A region lighting up is still not proof that the model recognizes its object correctly. Reading the class evidence at individual locations is the subject of the next post.
@@ -219,7 +237,6 @@ The metric choices also matter. Sparseness measures how concentrated a map is, b
 
 </details>
 
-LaFAM's limitation is easy to see: the final ResNet-50 features occupy a $7\times7$ grid. The response is already informative, but its display is coarse. Nearest-neighbor resizing makes larger tiles, and bilinear resizing blends their edges. To refine the spatial detail, we can use the image itself as guidance.
 
 ## A finer picture with AnyUp
 
