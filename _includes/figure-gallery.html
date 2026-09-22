@@ -22,6 +22,19 @@ The `data` object (usually a file under _data/galleries/) accepts:
   reveal     `false` drops the reveal gesture and its control. The gesture
              cuts the map into tiles that fall away around the pointer;
              tune it per instance with --fg-reach and --fg-depth.
+  controls   [{name?, target, type, label, ...}] - content controls rendered
+             inside the figure itself, above the display controls (opacity,
+             reveal). Each drives `{row}` or `{layer}` for every panel
+             directly, so a page never has to reach in and poke `.fg-stack`
+             datasets by hand. `target`: "row" or "layer". `type`: "range"
+             ({min, max, step?, default?}) or "select" ({options?: [{value,
+             label}], default?} - omit `options` for a page script to
+             populate later, e.g. from fetched data). `name`, if given,
+             becomes `data-control="{name}"` on the control element, so a
+             page script can still find it the same way it would any other
+             control. Moving any control crossfades the affected panels
+             (see `restage()` in figure-gallery.js) rather than replaying
+             the scroll-in arrival animation - built for scrubbing.
   style      extra CSS custom properties for this instance.
 
 Anything not supplied is skipped, so a minimal gallery needs only
@@ -38,6 +51,9 @@ Anything not supplied is skipped, so a minimal gallery needs only
 {%- assign help = include.help | default: g.help -%}
 {%- assign opacity = g.opacity | default: 100 -%}
 {%- assign reveal = true -%}{%- if g.reveal == false -%}{%- assign reveal = false -%}{%- endif -%}
+{%- assign controls = g.controls -%}
+{%- assign layer_control = nil -%}
+{%- for c in controls -%}{%- if c.target == 'layer' and layer_control == nil -%}{%- assign layer_control = c -%}{%- endif -%}{%- endfor -%}
 {%- assign style = include.style | default: g.style -%}
 {%- assign row_labels = rows | map: 'label' | join: '' | strip -%}
 {%- comment -%}Liquid ends a variable at the first `}`, so the placeholders are captured as literal text. Path templates keep their braces, which rules out `relative_url` (it percent-encodes them) - hence `prepend: site.baseurl`.{%- endcomment -%}
@@ -65,13 +81,33 @@ Anything not supplied is skipped, so a minimal gallery needs only
   </div>
   <p class="fg-now" aria-live="polite"><strong class="fg-title">{{ first.label }}</strong><span class="fg-count">1 / {{ items | size }}</span></p>
   <div class="fg-controls">
-    <label class="fg-control-slider">Overlay opacity
-      <input class="fg-opacity" type="range" min="0" max="100" step="5" value="{{ opacity }}" aria-label="Overlay opacity">
-      <output class="fg-opacity-value">{{ opacity }}%</output>
-    </label>
-    {%- if reveal %}
-    <label class="fg-control-toggle"><input class="fg-reveal-toggle" type="checkbox" checked> {{ g.reveal_label | default: 'Reveal the image under the pointer' }}</label>
+    {%- if controls %}
+    <div class="fg-controls-content">
+      {%- for c in controls -%}
+      {%- if c.type == 'range' -%}
+      <label class="fg-control-slider">{{ c.label }}
+        <input class="fg-axis" type="range" data-axis-target="{{ c.target }}"{% if c.name %} data-control="{{ c.name }}"{% endif %} min="{{ c.min | default: 0 }}" max="{{ c.max | default: 1 }}" step="{{ c.step | default: 1 }}" value="{{ c.default | default: c.min | default: 0 }}" aria-label="{{ c.label }}">
+        <output class="fg-axis-value">{{ c.default | default: c.min | default: 0 }}</output>
+      </label>
+      {%- elsif c.type == 'select' -%}
+      <label class="fg-control-select">{{ c.label }}
+        <select class="fg-axis" data-axis-target="{{ c.target }}"{% if c.name %} data-control="{{ c.name }}"{% endif %} aria-label="{{ c.label }}">
+          {%- for o in c.options -%}<option value="{{ o.value }}"{% if o.value == c.default %} selected{% endif %}>{{ o.label }}</option>{%- endfor -%}
+        </select>
+      </label>
+      {%- endif -%}
+      {%- endfor -%}
+    </div>
     {%- endif -%}
+    <div class="fg-controls-display">
+      <label class="fg-control-slider">Overlay opacity
+        <input class="fg-opacity" type="range" min="0" max="100" step="5" value="{{ opacity }}" aria-label="Overlay opacity">
+        <output class="fg-opacity-value">{{ opacity }}%</output>
+      </label>
+      {%- if reveal %}
+      <label class="fg-control-toggle"><input class="fg-reveal-toggle" type="checkbox" checked> {{ g.reveal_label | default: 'Reveal the image under the pointer' }}</label>
+      {%- endif -%}
+    </div>
   </div>
   <div class="fg-panels" id="{{ uid }}-panels" role="tabpanel" aria-labelledby="{{ uid }}-tab-1">
     <div class="fg-grid{% if row_labels == '' %} fg-grid--unlabelled{% endif %}">
@@ -80,10 +116,12 @@ Anything not supplied is skipped, so a minimal gallery needs only
       {%- for row in rows -%}
       {%- if row_labels != '' %}<span class="fg-row-label">{{ row.label }}</span>{% endif -%}
       {%- for column in columns -%}
-      {%- capture overlay_src -%}{%- if column.layer -%}{{ first.overlay | default: g.overlay | replace: tok_layer, column.layer | replace: tok_row, row.id | replace: tok_item, first.id | relative_url }}{%- endif -%}{%- endcapture -%}
-      <div class="fg-stack" data-row="{{ row.id }}"{% if column.layer %} data-layer="{{ column.layer }}"{% endif %}{% if column.tiles %} data-tiles="{{ column.tiles }}"{% endif %}>
+      {%- assign layer_value = column.layer | default: layer_control.default | default: layer_control.min -%}
+      {%- assign has_layer = column.layer | default: layer_control -%}
+      {%- capture overlay_src -%}{%- if has_layer -%}{{ first.overlay | default: g.overlay | replace: tok_layer, layer_value | replace: tok_row, row.id | replace: tok_item, first.id | relative_url }}{%- endif -%}{%- endcapture -%}
+      <div class="fg-stack" data-row="{{ row.id }}"{% if has_layer %} data-layer="{{ layer_value }}"{% endif %}{% if column.tiles %} data-tiles="{{ column.tiles }}"{% endif %}>
         <img class="fg-base" src="{{ first.src | relative_url }}" alt="{{ first.label | escape }}" loading="lazy" decoding="async">
-        {%- if column.layer %}<img class="fg-overlay" src="{{ overlay_src }}" alt="{{ column.alt | default: column.label }} overlay{% if row.label != '' %} for {{ row.label }}{% endif %}" loading="lazy" decoding="async"{% if column.rendering %} data-rendering="{{ column.rendering }}"{% endif %}>{% endif -%}
+        {%- if has_layer %}<img class="fg-overlay" src="{{ overlay_src }}" alt="{{ column.alt | default: column.label }} overlay{% if row.label != '' %} for {{ row.label }}{% endif %}" loading="lazy" decoding="async"{% if column.rendering %} data-rendering="{{ column.rendering }}"{% endif %}>{% endif -%}
       </div>
       {%- endfor -%}
       {%- endfor -%}

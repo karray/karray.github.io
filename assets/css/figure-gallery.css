@@ -29,6 +29,8 @@
      the panel and fade, opening a window onto the photograph. Every value
      is either a fraction of the grid or an absolute depth, so the same
      numbers give the same gesture on a 7x7 and on a 14x14 map. */
+  --fg-tile-bleed: 1.04;     /* tile overlap that hides subpixel seams */
+  --fg-swap: .45s;           /* the old map fading into the next one */
   --fg-reach: .46;           /* share of the map the pointer disturbs */
   --fg-depth: 230px;         /* how far the tile under the pointer falls */
   --fg-spread: 45;           /* how far it slides clear, as a % of a tile */
@@ -206,14 +208,31 @@
 
 .fg-controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: .4rem 1.4rem;
-  align-items: center;
+  flex-direction: column;
+  gap: .6rem;
   margin: .8rem 0 1rem;
   font-size: .83rem;
 }
 
-.fg-control-slider {
+/* content controls (what is being shown) sit apart from display controls
+   (how it is shown) - the post's own point that opacity/reveal change the
+   rendering, not the calculation, gets a visual home here too */
+.fg-controls-content,
+.fg-controls-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.6rem;
+  align-items: center;
+}
+
+.fg-controls-display {
+  padding-top: .55rem;
+  border-top: 1px dashed var(--fg-line);
+  color: var(--fg-muted);
+}
+
+.fg-control-slider,
+.fg-control-select {
   display: flex;
   gap: .55rem;
   align-items: center;
@@ -223,11 +242,28 @@
   white-space: nowrap;
 }
 
+.fg-controls-display .fg-control-slider {
+  font-weight: 400;
+}
+
 .fg-control-slider input[type=range] {
   flex: 1 1 5rem;
   min-width: 5rem;
   min-height: 40px;
   accent-color: var(--fg-accent);
+}
+
+.fg-control-select select {
+  flex: 1 1 auto;
+  min-height: 40px;
+  max-width: 100%;
+  padding: .3rem .5rem;
+  border: 1px solid var(--fg-line);
+  border-radius: 6px;
+  background: var(--fg-raised);
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
 }
 
 .fg-control-slider output {
@@ -390,8 +426,10 @@
   background-image: var(--fg-map);
   background-size: calc(var(--fg-n) * 100%) calc(var(--fg-n) * 100%);
   background-repeat: no-repeat;
-  /* a hairline overlap: tile edges land on fractional pixels otherwise */
-  transform: scale(1.04);
+  /* a hairline overlap: tile edges land on fractional pixels otherwise.
+     Carried by every tile state, and by the overlay image below, so the
+     map never changes size as one hands over to the other. */
+  transform: scale(var(--fg-tile-bleed));
   transition:
     transform var(--fg-tile-move) cubic-bezier(.3, .9, .3, 1),
     opacity var(--fg-tile-move) ease;
@@ -414,6 +452,47 @@
 /* seeding the state a tile starts from must not be animated itself */
 .fg-tiles.fg-instant .fg-tile {
   transition: none;
+}
+
+/* --------------------------------------------------------- swapping --- */
+
+/* The panel's previous contents, held on top while the next ones are put
+   together underneath, then dissolved away. Switching image or stage must
+   not blink the map back to the bare photograph on the way. */
+.fg-ghost {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  transition: opacity var(--fg-swap) ease;
+}
+
+/* the whole sheet at once: two maps of the same scene crossfading read as
+   one map changing its values, which cell-by-cell swapping does not */
+.fg-ghost.fg-going {
+  opacity: 0;
+}
+
+.fg-ghost > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.fg-ghost :is(.fg-ghost-base, .fg-ghost-map) {
+  object-fit: contain;
+}
+
+/* it stands in for the overlay image, so it carries the same rendering */
+.fg-ghost .fg-ghost-map {
+  opacity: var(--fg-overlay-opacity);
+  image-rendering: pixelated;
+}
+
+.fg-ghost .fg-ghost-map[data-rendering="auto"] {
+  image-rendering: auto;
 }
 
 /* --------------------------------------------------------- arrival --- */
@@ -471,6 +550,7 @@
   .fg-thumb img,
   .fg-thumb-label,
   .fg-stack .fg-overlay,
+  .fg-ghost,
   .fg-tile {
     transition: none;
   }

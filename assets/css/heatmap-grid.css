@@ -1,0 +1,339 @@
+/* Reusable heatmap grid: a fixed set of independent image+heatmap cards
+   laid out as a plain grid - no dock, no row/column axes (see
+   figure-gallery.css for that variant). Every rule is scoped to .hg so the
+   component can be dropped into any post without touching the surrounding
+   page styles. Per-instance theming: override the custom properties below
+   via `style="--hg-accent: #155799"` on the figure. */
+
+.hg {
+  --hg-accent: #14685f;
+  --hg-ink: #23362c;
+  --hg-muted: #5b6d63;
+  --hg-surface: #fafbf8;
+  --hg-raised: #fff;
+  --hg-line: #d9e2dc;
+  --hg-shadow: 18 44 34;
+
+  /* grid */
+  --hg-card-min: 200px;
+  --hg-gap: 1.1rem;
+  --hg-overlay-opacity: 1;
+
+  /* the reveal gesture: the heatmap is cut into tiles that fall back
+     through the card and fade, opening a window onto the photograph.
+     Every value is either a fraction of the grid or an absolute depth, so
+     the same numbers give the same gesture on a 7x7 and on a 14x14 map. */
+  --hg-tile-bleed: 1.04;     /* tile overlap that hides subpixel seams */
+  --hg-reach: .46;           /* share of the map the pointer disturbs */
+  --hg-depth: 230px;         /* how far the tile under the pointer falls */
+  --hg-spread: 45;           /* how far it slides clear, as a % of a tile */
+  --hg-perspective: 620px;   /* viewing distance the depth shrinks against */
+  --hg-tile-move: .14s;      /* one tile's trip out or back */
+  --hg-wave: 420ms;          /* the press wave's trip across the map */
+
+  /* arrival */
+  --hg-settle-hold: 50ms;   /* beat before a card's own wave starts */
+  --hg-settle-step: 90ms;   /* one card behind the one to its left */
+  --hg-settle-wave: 420ms;  /* the wave's trip from the top left corner */
+  --hg-settle-move: .2s;    /* one tile dropping into place */
+
+  margin: 2rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--hg-line);
+  border-radius: 14px;
+  background: var(--hg-surface);
+  color: var(--hg-ink);
+  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-sizing: border-box;
+}
+
+.hg * {
+  box-sizing: border-box;
+}
+
+.hg-kicker {
+  margin: 0 0 .9rem;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--hg-muted);
+}
+
+.hg figcaption {
+  margin-top: 1rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--hg-line);
+  text-align: left;
+  color: var(--hg-muted);
+  font-size: .8rem;
+}
+
+/* ------------------------------------------------------------ controls --- */
+
+.hg-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.6rem;
+  align-items: center;
+  margin: 0 0 1.1rem;
+  font-size: .83rem;
+  color: var(--hg-muted);
+}
+
+.hg-control-slider,
+.hg-control-toggle {
+  display: flex;
+  gap: .55rem;
+  align-items: center;
+  flex: 1 1 15rem;
+  min-width: 12rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.hg-control-toggle {
+  flex: 0 0 auto;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.hg-control-slider input[type=range] {
+  flex: 1 1 5rem;
+  min-width: 5rem;
+  min-height: 40px;
+  accent-color: var(--hg-accent);
+}
+
+.hg-control-slider output {
+  color: var(--hg-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 2.6rem;
+  text-align: right;
+}
+
+.hg-control-toggle input[type=checkbox] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--hg-accent);
+}
+
+.hg :is(input, select, button):focus-visible {
+  outline: 3px solid var(--hg-accent);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- grid --- */
+
+.hg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--hg-card-min), 1fr));
+  gap: var(--hg-gap);
+}
+
+/* An author-set column count is a layout the figure is *meant* to read in -
+   three maps abreast, say - so it holds even where the cards would rather
+   wrap. The track minimum drops to 0 for it: a fixed count that refuses to
+   shrink would push the grid wider than the figure. Narrow screens fall
+   back to wrapping below, where holding the count would only shrink every
+   card past reading size. */
+.hg-grid[data-cols] {
+  grid-template-columns: repeat(var(--hg-cols), minmax(0, 1fr));
+}
+
+.hg-card {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.hg-stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  /* a grid can be dozens of cards; the ones off screen should cost
+     nothing to keep there. The box still comes from the aspect ratio, so
+     the grid's layout is unaffected. */
+  content-visibility: auto;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #eef1ec;
+  box-shadow: 0 1px 2px rgb(var(--hg-shadow) / .15), 0 0 0 1px rgb(var(--hg-shadow) / .1) inset;
+  transition: box-shadow .25s ease;
+}
+
+/* The card must not move under the pointer: the reveal gesture reads as a
+   window opening onto the photograph, and a card that shifts at the same
+   moment reads as the map itself sliding. Hover is carried by the shadow
+   alone. */
+.hg-card:hover .hg-stack,
+.hg-card:focus-within .hg-stack {
+  box-shadow: 0 14px 26px -14px rgb(var(--hg-shadow) / .5), 0 0 0 1px rgb(var(--hg-shadow) / .16) inset;
+}
+
+.hg-stack img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.hg-stack .hg-overlay {
+  opacity: var(--hg-overlay-opacity);
+  transition: opacity .15s ease;
+}
+
+/* maps are shown at their own resolution: a 7x7 map stays 7 visible
+   blocks. `rendering: auto` on an item opts back into smooth scaling. */
+.hg-stack .hg-overlay {
+  image-rendering: pixelated;
+}
+
+.hg-stack .hg-overlay[data-rendering="auto"] {
+  image-rendering: auto;
+}
+
+.hg-card-label {
+  margin: 0;
+  padding: 0 .1rem;
+  color: var(--hg-muted);
+  font-size: .78rem;
+  text-align: center;
+}
+
+/* ------------------------------------------------------- reveal tiles --- */
+
+/* The tile layer replaces the overlay image once the script has built it;
+   nothing here knows the grid size - the script sets --hg-n and the
+   per-tile background offsets, and every distance below is a scale, a
+   depth, or a share of the map. */
+
+.hg-stack.hg-tiled .hg-overlay {
+  opacity: 0;
+}
+
+.hg-tiles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  grid-template: repeat(var(--hg-n), 1fr) / repeat(var(--hg-n), 1fr);
+  opacity: var(--hg-overlay-opacity);
+  image-rendering: pixelated;
+}
+
+.hg-tiles[data-rendering="auto"] {
+  image-rendering: auto;
+}
+
+/* Tiles shrink in place and slide outwards. The shrink is written as a
+   plain 2D scale rather than a perspective divide - the two are the same
+   number for a tile projected about its own centre, and the 2D form keeps
+   the tile out of a 3D rendering context. */
+.hg-tile {
+  background-image: var(--hg-map);
+  background-size: calc(var(--hg-n) * 100%) calc(var(--hg-n) * 100%);
+  background-repeat: no-repeat;
+  /* a hairline overlap: tile edges land on fractional pixels otherwise.
+     Carried by every tile state, and by the overlay image below, so the
+     map never changes size as one hands over to the other. */
+  transform: scale(var(--hg-tile-bleed));
+  transition:
+    transform var(--hg-tile-move) cubic-bezier(.3, .9, .3, 1),
+    opacity var(--hg-tile-move) ease;
+}
+
+/* press and release: one delay per tile, written once for the whole
+   gesture, normalised so the wave takes the same time at any resolution */
+.hg-tiles.hg-wave .hg-tile {
+  transition-delay: calc(var(--d, 0) * var(--hg-wave));
+}
+
+/* arrival: the same wave, slower, run from the top left corner */
+.hg-tiles.hg-settling .hg-tile {
+  transition-duration: var(--hg-settle-move);
+  transition-delay:
+    calc(var(--hg-settle-hold) + var(--hg-i, 0) * var(--hg-settle-step)
+      + var(--d, 0) * var(--hg-settle-wave));
+}
+
+/* seeding the state a tile starts from must not be animated itself */
+.hg-tiles.hg-instant .hg-tile {
+  transition: none;
+}
+
+/* --------------------------------------------------------- arrival --- */
+
+/* A card is held back until it scrolls into view, then builds itself out
+   of its tiles in a wave from the top left corner - the same engine as
+   the reveal, run slower. Only armed by the script, so a page without it
+   shows every heatmap immediately. */
+
+.hg-stack.hg-armed :is(.hg-overlay, .hg-tiles) {
+  opacity: 0;
+}
+
+.hg-help {
+  margin: .9rem 0 0;
+  font-size: .78rem;
+  color: var(--hg-muted);
+}
+
+/* --------------------------------------------------------- adaptations --- */
+
+/* the reveal window is a pointer affordance; touch-only devices get the
+   opacity slider instead */
+@media (hover: none) {
+  .hg-control-toggle:has(.hg-reveal-toggle) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .hg {
+    padding: 1rem;
+  }
+
+  .hg-grid,
+  .hg-grid[data-cols] {
+    --hg-card-min: 150px;
+    grid-template-columns: repeat(auto-fit, minmax(var(--hg-card-min), 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .hg-stack,
+  .hg-stack .hg-overlay,
+  .hg-tile {
+    transition: none;
+  }
+
+  /* the script does not re-arm here; this is the backstop */
+  .hg-stack.hg-armed .hg-tiles,
+  .hg-stack.hg-armed:not(.hg-tiled) .hg-overlay {
+    opacity: var(--hg-overlay-opacity);
+  }
+}
+
+@media print {
+
+  .hg-controls {
+    display: none;
+  }
+
+  /* a map still waiting to scroll into view must not print blank */
+  .hg-stack.hg-armed .hg-tiles,
+  .hg-stack.hg-armed:not(.hg-tiled) .hg-overlay {
+    opacity: var(--hg-overlay-opacity);
+  }
+
+  .hg {
+    break-inside: avoid;
+  }
+}

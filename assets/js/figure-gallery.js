@@ -34,8 +34,16 @@
   const PRESSED = 2.4;
   /* long enough for the wave to cross the map and for every tile to land */
   const SETTLE = 900;
+  /* long enough for the old map to have faded out; must outlast --fg-swap */
+  const SWAP = 900;
 
-  const REST = ["scale(1.04)", 1];
+  /* Every tile state carries the bleed (--fg-tile-bleed): tiles overlap by
+     that much at rest and all through the gesture, so a subpixel seam can
+     never open between two of them. The overlay image carries the same
+     scale in CSS - the map has to be the same size whether it is being
+     drawn as one image or as a grid of tiles, or handing over between the
+     two on hover would resize it. */
+  const REST = (bleed) => [`scale(${bleed})`, 1];
 
   class FigureGallery {
     constructor(root) {
@@ -91,17 +99,8 @@
       const item = this.thumbs[this.index];
 
       this.stacks.forEach((stack) => {
-        const base = stack.querySelector(".fg-base");
-        const overlay = stack.querySelector(".fg-overlay");
-        if (base) base.src = item.dataset.src;
-        if (overlay) {
-          const src = this.resolve(item, stack);
-          if (src) overlay.src = src;
-        }
-      });
-      this.maps.forEach((map) => {
-        this.repoint(map);
-        this.arm(map);
+        const map = this.byStack.get(stack);
+        this.change(stack, map, item.dataset.src, map ? this.resolve(item, stack) : null);
       });
 
       this.thumbs.forEach((thumb, i) => {
@@ -255,6 +254,128 @@
         opacity.addEventListener("input", apply);
         apply();
       }
+
+      /* a content control (range or select) is just another source for
+         `{row}`/`{layer}`: write its value onto every stack and crossfade,
+         rather than replaying the scroll-in arrival animation switching the
+         dock item uses. A page script can still listen on the same element
+         (via its own data-control lookup) for its own readouts. */
+      this.root.querySelectorAll("[data-axis-target]").forEach((el) => {
+        const target = el.dataset.axisTarget;
+        const output = el.closest("label")?.querySelector(".fg-axis-value");
+        const event = el.tagName === "SELECT" ? "change" : "input";
+        el.addEventListener(event, () => {
+          this.stacks.forEach((stack) => { stack.dataset[target] = el.value; });
+          if (output) output.textContent = el.value;
+          this.restage();
+        });
+      });
+    }
+
+    /* Swap every panel's overlay for the current item without the dock's
+       arrival choreography: a plain, immediate crossfade, so scrubbing a
+       slider doesn't restart a staggered tile animation on every tick. */
+    restage() {
+      const item = this.thumbs[this.index];
+      this.maps.forEach((map) => {
+        const src = this.resolve(item, map.stack);
+        if (src) this.change(map.stack, map, null, src);
+      });
+    }
+
+    /* Changing the image or the stage under a panel that is already showing
+       a map: the old map stays where it is, the new one is assembled
+       underneath it, and only once the new one is ready is the old
+       dissolved away. A map must never blink back to the bare photograph on
+       its way to the next one. A panel with nothing to show yet is armed
+       instead, so its first map still arrives with the settle animation. */
+    change(stack, map, baseSrc, overlaySrc) {
+      const base = stack.querySelector(".fg-base");
+      const overlay = stack.querySelector(".fg-overlay");
+      const setBase = () => { if (base && baseSrc) base.src = baseSrc; };
+
+      if (!map || !map.arrived) {
+        setBase();
+        if (overlay && overlaySrc) overlay.src = overlaySrc;
+        if (map) {
+          this.repoint(map);
+          this.arm(map);
+        }
+        return;
+      }
+
+      /* a gesture still in flight belongs to the map being replaced */
+      clearTimeout(map.timer);
+      if (map.frame) {
+        cancelAnimationFrame(map.frame);
+        map.frame = 0;
+      }
+      map.held = false;
+      map.busy = false;
+
+      const ghost = this.ghost(stack, map);
+      const pending = [];
+      setBase();
+      if (base && baseSrc) pending.push(base);
+      if (overlay && overlaySrc) {
+        overlay.src = overlaySrc;
+        pending.push(overlay);
+      }
+      this.ready(pending, () => {
+        this.repoint(map);
+        /* nothing to cut up (a map too small, or one that failed to load):
+           the overlay image has to come back, or the panel would sit blank
+           under a ghost that is about to go */
+        if (!this.build(map)) this.swap(map, false);
+        /* The old map goes as one sheet, so the two read as a single map
+           changing its values rather than as cells being swapped out one
+           by one. Nothing dips: its replacement is already complete and
+           opaque underneath by the time the fade starts. */
+        ghost.classList.add("fg-going");
+        setTimeout(() => ghost.remove(), SWAP);
+      });
+    }
+
+    /* The panel's current contents, lifted out and held on top. The live
+       tile layer is moved into it rather than copied, so what the reader
+       goes on seeing is exactly what was already on screen. */
+    ghost(stack, map) {
+      /* scrubbing a control can outrun the dissolve; the one still going
+         has already been replaced on screen, so it just goes */
+      const stale = stack.querySelector(".fg-ghost");
+      if (stale) stale.remove();
+      const ghost = document.createElement("div");
+      ghost.className = "fg-ghost";
+      const base = stack.querySelector(".fg-base");
+      if (base && base.getAttribute("src")) {
+        const copy = base.cloneNode();
+        copy.className = "fg-ghost-base";
+        ghost.append(copy);
+      }
+      if (map.layer) {
+        ghost.append(map.layer);
+        map.layer = null;
+        map.tiles = [];
+        map.n = 0;
+        map.live.clear();
+      } else if (map.overlay.getAttribute("src")) {
+        const copy = map.overlay.cloneNode();
+        copy.className = "fg-ghost-map";
+        ghost.append(copy);
+      }
+      stack.append(ghost);
+      return ghost;
+    }
+
+    ready(imgs, done) {
+      let left = imgs.length;
+      if (!left) return done();
+      const tick = () => { if (!--left) done(); };
+      imgs.forEach((img) => {
+        if (img.complete && img.naturalWidth) return tick();
+        img.addEventListener("load", tick, { once: true });
+        img.addEventListener("error", tick, { once: true });
+      });
     }
 
     /* ------------------------------------------------------------- maps */
@@ -266,7 +387,9 @@
         depth: px(style.getPropertyValue("--fg-depth"), 230),
         spread: px(style.getPropertyValue("--fg-spread"), 45),
         perspective: px(style.getPropertyValue("--fg-perspective"), 620),
+        bleed: px(style.getPropertyValue("--fg-tile-bleed"), 1.04),
       };
+      this.atRest = REST(this.geo.bleed);
     }
 
     /* Reveal gesture. The map is cut into tiles that fall back through the
@@ -306,6 +429,7 @@
         this.maps.push(map);
         this.listen(map);
       });
+      this.byStack = new Map(this.maps.map((map) => [map.stack, map]));
 
       this.settleIn();
     }
@@ -369,9 +493,15 @@
       this.swap(map, false);
     }
 
-    /* the pointer often comes straight back, so wait before tearing down */
+    /* Once a map has arrived, the tile layer is what the reader is looking
+       at, and it stays that way for as long as the panel is on screen.
+       Handing back to the overlay image whenever the pointer rests would
+       move every cell edge by the bleed and back again - the image has no
+       way to reproduce a per-tile overlap - so the swap is worth having
+       exactly once, off screen, where `gone` does it. */
     rested(map, delay = 1500) {
       clearTimeout(map.idle);
+      if (this.gone) return;
       map.idle = setTimeout(() => {
         if (map.at || map.held || map.busy) return;
         this.strip(map);
@@ -389,7 +519,7 @@
 
     rest(map) {
       if (!map.layer) return;
-      map.tiles.forEach((tile) => this.put(tile, REST[0], REST[1]));
+      map.tiles.forEach((tile) => this.put(tile, this.atRest[0], this.atRest[1]));
       map.live.clear();
     }
 
@@ -399,7 +529,7 @@
        rendering context or the compositing that comes with it. */
     shrink(z) {
       const p = this.geo.perspective;
-      return (1.04 * p) / (p + z);
+      return (this.geo.bleed * p) / (p + z);
     }
 
     /* Recede. `u` is how far a tile sits from the pointer as a share of the
@@ -457,7 +587,7 @@
           map.live.delete(i);
         }
       }
-      map.live.forEach((i) => this.put(tiles[i], REST[0], REST[1]));
+      map.live.forEach((i) => this.put(tiles[i], this.atRest[0], this.atRest[1]));
       map.live = next;
     }
 
@@ -487,7 +617,7 @@
            runs in reverse, so the ones that left last return first */
         tiles[i].style.setProperty("--d", (out ? norm : 1 - norm).toFixed(3));
 
-        let state = out ? this.cleared(dx / (d || 1), dy / (d || 1)) : REST;
+        let state = out ? this.cleared(dx / (d || 1), dy / (d || 1)) : this.atRest;
         if (back) {
           const bx = c - back.cx;
           const by = r - back.cy;
@@ -522,6 +652,10 @@
     release(map) {
       if (!map.held) return;
       map.held = false;
+      if (!map.layer) {
+        map.busy = false;
+        return;
+      }
       this.wave(map, false);
       /* stay busy until the return wave has landed, so a stray pointermove
          cannot fight it, then drop the stagger for a snappy hover again */
@@ -597,7 +731,6 @@
       const cols = Math.max(1, parseInt(getComputedStyle(this.root).getPropertyValue("--fg-cols"), 10) || 1);
       /* once a map has arrived the classes have to go, or the filled
          animation would outrank the tile layer hiding the image below it */
-      this.byStack = new Map(this.maps.map((map) => [map.stack, map]));
       this.seen = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
@@ -605,6 +738,21 @@
           this.arrive(this.byStack.get(entry.target));
         });
       }, { threshold: 0.4 });
+
+      /* the panels the reader has scrolled past are where the tile layer's
+         cost is worth reclaiming: a hundred or two paint chunks apiece,
+         many panels deep, for maps nobody is looking at. Coming back it is
+         rebuilt silently, and far enough ahead of the panel being on screen
+         that the reader never catches the swap - a panel in view is always
+         showing its tiles, so hovering one never hands over. */
+      this.gone = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const map = this.byStack.get(entry.target);
+          if (!map) return;
+          if (entry.isIntersecting) this.build(map);
+          else this.strip(map);
+        });
+      }, { rootMargin: "300px" });
       this.maps.forEach((map, i) => map.stack.style.setProperty("--fg-i", i % cols));
     }
 
@@ -654,14 +802,16 @@
       void layer.offsetWidth;
       layer.classList.remove("fg-instant");
       stack.classList.remove("fg-armed");
-      tiles.forEach((tile) => this.put(tile, REST[0], REST[1]));
+      tiles.forEach((tile) => this.put(tile, this.atRest[0], this.atRest[1]));
 
+      map.arrived = true;
       const last = getComputedStyle(tiles[tiles.length - 1]);
       const ms = (parseFloat(last.transitionDelay) || 0) + (parseFloat(last.transitionDuration) || 0);
       map.settle = setTimeout(() => {
         layer.classList.remove("fg-settling");
         this.rested(map);
       }, ms * 1000 + 150);
+      if (this.gone) this.gone.observe(stack);
     }
   }
 

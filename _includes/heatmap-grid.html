@@ -1,0 +1,67 @@
+{%- comment -%}
+Reusable heatmap grid: a fixed set of images, each shown with exactly one
+heatmap overlay, laid out as a plain grid - no dock, no row/column axes.
+For a gallery where the reader switches between many variations of a
+single photo, use figure-gallery.html instead.
+
+  {% include heatmap-grid.html id="lrp-samples" data=site.data.galleries.lrp_samples %}
+
+The `data` object (usually a file under _data/galleries/) accepts:
+
+  items      required. [{label, src, overlay, alt?, tiles?, rendering?}]
+             - one card each. `overlay` is that card's heatmap image;
+             `tiles` fixes the reveal grid instead of taking it from the
+             map's own resolution, `rendering: auto` scales it smoothly
+             instead of nearest-neighbour.
+  columns    fixed number of grid columns, held at every width down to
+             the narrow-screen breakpoint, where the cards wrap instead.
+             Omitted, they always wrap to fit (--hg-card-min).
+  kicker, caption, help     text, all optional.
+  opacity    initial overlay opacity in percent (default 100).
+  reveal     `false` drops the reveal gesture and its control. The gesture
+             cuts each heatmap into tiles that fall away around the
+             pointer; tune it per instance with --hg-reach and --hg-depth.
+  style      extra CSS custom properties for this instance.
+
+Anything not supplied is skipped, so a minimal grid needs only `items`.
+{%- endcomment -%}
+{%- assign g = include.data -%}
+{%- assign uid = include.id | default: g.id | default: 'heatmap-grid' | slugify -%}
+{%- assign items = g.items -%}
+{%- assign kicker = include.kicker | default: g.kicker -%}
+{%- assign caption = include.caption | default: g.caption -%}
+{%- assign help = include.help | default: g.help -%}
+{%- assign opacity = g.opacity | default: 100 -%}
+{%- assign reveal = true -%}{%- if g.reveal == false -%}{%- assign reveal = false -%}{%- endif -%}
+{%- assign style = include.style | default: g.style -%}
+{%- unless heatmap_grid_assets -%}
+<link rel="stylesheet" href="{{ '/assets/css/heatmap-grid.css' | relative_url }}">
+<script src="{{ '/assets/js/heatmap-grid.js' | relative_url }}" defer></script>
+{%- assign heatmap_grid_assets = true -%}
+{%- endunless -%}
+<figure class="hg" id="{{ uid }}" data-hg style="--hg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
+  {%- if kicker %}<p class="hg-kicker">{{ kicker }}</p>{% endif -%}
+  <div class="hg-controls">
+    <label class="hg-control-slider">Overlay opacity
+      <input class="hg-opacity" type="range" min="0" max="100" step="5" value="{{ opacity }}" aria-label="Overlay opacity">
+      <output class="hg-opacity-value">{{ opacity }}%</output>
+    </label>
+    {%- if reveal %}
+    <label class="hg-control-toggle"><input class="hg-reveal-toggle" type="checkbox" checked> {{ g.reveal_label | default: 'Reveal the image under the pointer' }}</label>
+    {%- endif -%}
+  </div>
+  <div class="hg-grid"{% if g.columns %} data-cols style="--hg-cols: {{ g.columns }};"{% endif %}>
+    {%- for item in items -%}
+    <div class="hg-card">
+      <div class="hg-stack"{% if item.tiles %} data-tiles="{{ item.tiles }}"{% endif %}>
+        <img class="hg-base" src="{{ item.src | relative_url }}" alt="{{ item.alt | default: item.label | escape }}" loading="lazy" decoding="async">
+        {%- if item.overlay %}<img class="hg-overlay" src="{{ item.overlay | relative_url }}" alt="{{ item.alt | default: item.label | escape }} heatmap" loading="lazy" decoding="async"{% if item.rendering %} data-rendering="{{ item.rendering }}"{% endif %}>{% endif -%}
+      </div>
+      {%- if item.label %}<p class="hg-card-label">{{ item.label }}</p>{% endif -%}
+    </div>
+    {%- endfor -%}
+  </div>
+  {%- if help %}<p class="hg-help">{{ help }}</p>{% endif -%}
+  <noscript><p class="hg-help">Showing {{ items | size }} heatmaps. Enable JavaScript for the interactive reveal.</p></noscript>
+  {%- if caption %}<figcaption>{{ caption }}</figcaption>{% endif -%}
+</figure>
