@@ -9,6 +9,8 @@ description: High-norm tokens, attention sinks and a background that votes for t
 
 In the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), the label-free maps of three plain vision transformers came out bright almost everywhere. Only a handful of tokens stood out, and they were the darkest spots of all. They sat in the sky above two dogs and on the white background of an image with six objects. Inside the network, however, these same tokens held by far the largest values. Why would a network put its largest activations into a patch of sky?
 
+<!--more-->
+
 The effect itself is not new. Darcet et al. found such tokens in several large vision transformers and proposed a remedy, extra tokens called registers [<a href="#darcet2024vision" data-ref="darcet2024vision">Darcet et al.</a>]. What is less settled is why the tokens appear in the first place. This post collects the explanations proposed since then and checks them against what the label-free maps showed. It then adds one more, based on how a classifier treats an image as a bag of patches.
 
 ## What the Maps Showed
