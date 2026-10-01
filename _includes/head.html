@@ -5,6 +5,15 @@
   {%- seo -%}
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/css/icons.min.css'  }}">
+  {%- comment -%}
+  A page's own stylesheets, from its `styles:` front matter. They come after
+  the site's, so a post can override it, and they are here rather than in the
+  body because a post that styles its own header needs them before the first
+  paint.
+  {%- endcomment -%}
+  {%- for stylesheet in page.styles %}
+  <link rel="stylesheet" href="{{ stylesheet | relative_url }}">
+  {%- endfor %}
   <link rel="canonical" href="https://karay.me{{ page.url | replace:'index.html','' }}" />
 
   {%- feed_meta -%}

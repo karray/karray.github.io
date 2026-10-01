@@ -1,0 +1,132 @@
+#masthead.lafam-header {
+
+  --lh-side: .45;
+  --lh-height: min(calc(100vw / (3 + 2 * var(--lh-side))), 56vh);
+
+  --lh-margin: calc(50% - 1.5 * var(--lh-height));
+  --header-height: var(--lh-height);
+
+  background-color: #000004;
+  background-image:
+
+    linear-gradient(180deg, rgb(0 0 4 / .45), rgb(0 0 4 / 0) 30%,
+      rgb(0 0 4 / 0) 62%, rgb(0 0 4 / .55)),
+    url("../../img/posts/lafam/header/shadows.webp"),
+
+    linear-gradient(90deg,
+      #000004,
+      #110a30 calc(var(--lh-margin) * .14),
+      #2a0b57 calc(var(--lh-margin) * .38),
+      #460b6a calc(var(--lh-margin) * .64),
+      #5f136e calc(var(--lh-margin) * .86),
+      #7a1d6d var(--lh-margin),
+      #7a1d6d calc(100% - var(--lh-margin)),
+      #5f136e calc(100% - var(--lh-margin) * .86),
+      #460b6a calc(100% - var(--lh-margin) * .64),
+      #2a0b57 calc(100% - var(--lh-margin) * .38),
+      #110a30 calc(100% - var(--lh-margin) * .14),
+      #000004);
+  background-size: 100% 100%, auto var(--lh-height), 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+#masthead.lafam-header.is-docked {
+  background-image: linear-gradient(90deg,
+      #000004, #280b54 14%, #57106e 36%, #57106e 64%, #280b54 86%, #000004);
+  background-size: 100% 100%;
+}
+
+#masthead.lafam-header .masthead__hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#masthead.lafam-header .lh {
+  position: relative;
+  z-index: 0;
+  flex: 0 0 auto;
+  width: 100%;
+
+  height: var(--lh-height);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+
+  --fg-reach: .23;
+
+  --fg-settle-hold: 0.5s;
+  --fg-settle-step: 260ms;
+  --fg-settle-wave: 520ms;
+  --fg-settle-move: .34s;
+}
+
+#masthead.lafam-header .lh:not([data-fg-ready]) :is(.fg-overlay, .fg-tiles) {
+  opacity: 0;
+}
+
+#masthead.lafam-header .lh .fg-grid {
+  width: 100%;
+  height: 100%;
+
+  gap: 0;
+
+  grid-template-columns: repeat(3, var(--lh-height));
+  grid-template-rows: 1fr;
+}
+
+#masthead.lafam-header .lh .fg-stack {
+
+  aspect-ratio: auto;
+  height: 100%;
+
+  content-visibility: visible;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+#masthead.lafam-header .masthead__heading {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(1rem, 4vw, 4rem);
+}
+
+#masthead.lafam-header .masthead__hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 62% 34% at 50% 50%,
+      rgb(0 0 4 / .74),
+      rgb(0 0 4 / .45) 52%,
+      rgb(0 0 4 / 0) 86%);
+}
+
+#masthead.lafam-header .masthead__heading h1 {
+  margin: 0;
+  text-align: center;
+
+  font-size: clamp(1.05rem, 2.5vw, 2.9rem);
+  line-height: 1.16;
+  letter-spacing: -.015em;
+  text-wrap: balance;
+  text-shadow: 0 2px 20px rgb(0 0 4 / .8), 0 1px 3px rgb(0 0 4 / .6);
+}
+
+@media (max-width: 720px) {
+  #masthead.lafam-header {
+    --lh-side: 0;
+  }
+
+  #masthead.lafam-header .masthead__heading h1 {
+    font-size: clamp(.9rem, 3.3vw, 1.5rem);
+    line-height: 1.2;
+  }
+}

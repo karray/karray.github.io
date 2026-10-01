@@ -1,0 +1,25 @@
+<header id="masthead" class="masthead{% if include.class %} {{ include.class }}{% endif %}" data-masthead>
+  <div class="masthead__hero">
+    {% include headers/{{ include.art }} %}
+    {%- if include.heading %}
+    <div class="wrapper masthead__heading">
+      <h1 class="p-name" itemprop="name headline">{{ include.heading | escape }}</h1>
+    </div>
+    {%- endif %}
+  </div>
+  <div class="masthead__bar">
+    <div class="wrapper masthead__bar-inner">
+      <a class="masthead__avatar" href="{{ '/' | relative_url }}">
+        <img src="{{ '/assets/img/me.jpg' | relative_url }}" alt="Aray Karjauv">
+      </a>
+      <span class="masthead__brand">{{ include.brand }}</span>
+      {%- if include.heading %}
+      <span class="masthead__title" aria-hidden="true">{{ include.heading | escape }}</span>
+      {%- endif %}
+      {%- if include.link_url %}
+      <a class="masthead__link" href="{{ include.link_url | relative_url }}">{{ include.link_text }}</a>
+      {%- endif %}
+    </div>
+  </div>
+</header>
+<script src="{{ '/assets/js/masthead.js' | relative_url }}"></script>

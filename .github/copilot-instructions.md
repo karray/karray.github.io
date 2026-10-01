@@ -69,7 +69,7 @@ The anchor format is: `{lastName}{year}{firstTitleWord}` slugified.
 
 ### Dynamic Header Behavior
 
-Posts use a shrinking header that becomes fixed on scroll. CSS classes: `.dynamic-header`, `.fixed-header`, `.hidden-header`. Logic in [assets/js/posts.js](assets/js/posts.js).
+Every page header is rendered by [\_includes/masthead.html](_includes/masthead.html): full height at the top, shrinking to a bar while scrolling down, hidden when scrolling further, shown again when scrolling up. The shrinking is a CSS scroll-driven animation in [\_sass/masthead.scss](_sass/masthead.scss); [assets/js/masthead.js](assets/js/masthead.js) only toggles `.is-docked` and `.is-hidden`. The artwork comes from `_includes/headers/`: `home.html` for the home page, `lights.html` for posts by default, and a post can set its own with `header:` (plus `header_class:` and `styles:`) in its front matter.
 
 ## Interactive Demos (`examples/`)
 
@@ -84,7 +84,7 @@ The `examples/lafam/` directory contains a browser-based ML demo:
 
 - Import order in `main.scss`: base minima → custom partials
 - Breakpoint variable: `$brakepoint: 350px` (note: typo preserved for compatibility)
-- Header animations use `.light` divs for floating effect (see `header_background.scss`)
+- Header animations use `.light` divs for floating effect (see `_includes/headers/lights.html` and `masthead.scss`)
 
 ## Staticman Comments
 

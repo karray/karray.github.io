@@ -1,0 +1,228 @@
+:root {
+    --header-bar: max(5vmin, 40px);
+    scroll-padding-top: var(--header-bar);
+}
+
+.masthead {
+    --header-height: 60vmin;
+    position: sticky;
+    top: calc(var(--header-bar) - var(--header-height));
+    z-index: 10;
+    height: var(--header-height);
+    overflow: clip;
+    color: #fff;
+    background-color: #159957;
+    background-image: linear-gradient(120deg, #155799, #159957);
+
+    .light {
+        position: absolute;
+        width: 0px;
+        background-color: white;
+        box-shadow: #e9f1f1 0px 0px 20px 2px;
+        opacity: 0;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+        margin: auto;
+    }
+
+    .x1 {
+        animation: falling 4s infinite linear;
+        transform: scale(1.0);
+    }
+
+    .x2 {
+        animation: falling 7s infinite linear;
+        transform: scale(1.6);
+        left: 15%;
+    }
+
+    .x3 {
+        animation: falling 2.5s infinite linear;
+        transform: scale(.5);
+        left: -15%;
+    }
+
+    .x4 {
+        animation: falling 4.5s infinite linear;
+        transform: scale(1.2);
+        left: -34%;
+    }
+
+    .x5 {
+        animation: falling 8s infinite linear;
+        transform: scale(2.2);
+        left: -57%;
+    }
+
+    .x6 {
+        animation: falling 3s infinite linear;
+        transform: scale(.8);
+        left: -81%;
+    }
+
+    .x7 {
+        animation: falling 5.3s infinite linear;
+        transform: scale(3.2);
+        left: 37%;
+    }
+
+    .x8 {
+        animation: falling 4.7s infinite linear;
+        transform: scale(1.7);
+        left: 62%;
+    }
+
+    .x9 {
+        animation: falling 4.1s infinite linear;
+        transform: scale(0.9);
+        left: 85%;
+    }
+
+    @keyframes falling {
+        0% {
+            top: -100vh;
+            opacity: 0;
+        }
+
+        25% {
+            opacity: 1;
+        }
+
+        50% {
+            top: 0vh;
+            opacity: .8;
+        }
+
+        75% {
+            opacity: 1;
+        }
+
+        100% {
+            top: 100vh;
+            opacity: 0;
+        }
+    }
+}
+
+.masthead__hero {
+    position: relative;
+    height: 100%;
+}
+
+.masthead__heading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+
+    h1 {
+        margin: 0;
+        text-align: center;
+        @include relative-font-size(2.625);
+        letter-spacing: -1px;
+        line-height: 1;
+
+        @include media-query($on-laptop) {
+            @include relative-font-size(2.25);
+        }
+    }
+}
+
+.masthead__bar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: var(--header-bar);
+    opacity: 0;
+    visibility: hidden;
+}
+
+.masthead__bar-inner {
+    display: flex;
+    align-items: center;
+    gap: .5em;
+    height: 100%;
+    font-size: max(2.5vmin, 20px);
+    font-weight: 100;
+    white-space: nowrap;
+}
+
+.masthead__avatar {
+    display: flex;
+    flex: none;
+    height: 100%;
+    padding-right: .25em;
+
+    img {
+        height: 100%;
+        padding: 5px 0;
+        box-sizing: border-box;
+        border-radius: 50%;
+    }
+}
+
+.masthead__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.masthead__link,
+.masthead__link:visited {
+    margin-left: auto;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 400;
+    text-decoration: none;
+}
+
+.masthead.is-docked {
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .1);
+
+    .masthead__hero {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    .masthead__bar {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+.masthead.is-hidden {
+    transform: translateY(calc(-1 * var(--header-bar) - 1rem));
+}
+
+.masthead.is-ready {
+    transition: transform .3s, box-shadow .3s;
+
+    .masthead__hero,
+    .masthead__bar {
+        transition: opacity .2s, visibility .2s;
+    }
+}
+
+@supports (animation-timeline: scroll()) {
+    .masthead__hero {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        height: var(--header-height);
+        animation: masthead-shrink linear both;
+        animation-timeline: scroll(root);
+        animation-range: 0 calc(var(--header-height) - var(--header-bar));
+    }
+
+    @keyframes masthead-shrink {
+        to {
+            height: var(--header-bar);
+        }
+    }
+}

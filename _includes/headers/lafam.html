@@ -1,0 +1,24 @@
+{%- unless figure_gallery_assets -%}
+<link rel="stylesheet" href="{{ '/assets/css/figure-gallery.css' | relative_url }}">
+<script src="{{ '/assets/js/figure-gallery.js' | relative_url }}" defer></script>
+{%- assign figure_gallery_assets = true -%}
+{%- endunless -%}
+{%- assign photo = '/assets/img/posts/lafam/figures/images/misc.png' | prepend: site.baseurl -%}
+{%- assign maps = '/assets/img/posts/lafam/figures/heatmaps' | prepend: site.baseurl -%}
+{%- assign encoder = 'MaxViTBaseIN1K' -%}
+{%- assign image = 'misc' -%}
+{%- assign layers = 'lafam,anyup,lrp' | split: ',' -%}
+<figure class="fg lh" data-fg data-reveal="continuous" style="--fg-cols: 3;" role="img"
+  aria-label="One photograph shown under three heatmaps from the same encoder, produced by averaging, AnyUp, and LRP.">
+  <div class="fg-grid fg-grid--unlabelled">
+    {%- for layer in layers -%}
+    {%- assign rendering = 'auto' -%}
+    {%- if layer == 'lafam' -%}{%- assign rendering = 'pixelated' -%}{%- endif -%}
+    <div class="fg-stack" data-row="{{ image }}" data-layer="{{ layer }}" data-tiles="14">
+      <img class="fg-base" src="{{ photo }}" alt="" decoding="async" fetchpriority="high">
+      <img class="fg-overlay" src="{{ maps }}/{{ layer }}_{{ encoder }}_{{ image }}.png" alt="" decoding="async" data-rendering="{{ rendering }}">
+    </div>
+    {%- endfor -%}
+  </div>
+  <noscript><style>#masthead.lafam-header .lh:not([data-fg-ready]) .fg-overlay { opacity: 1; }</style></noscript>
+</figure>

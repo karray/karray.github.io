@@ -1,0 +1,33 @@
+kicker: Spider web · a watermark in the corner
+columns: 3
+opacity: 100
+caption: >-
+  Top, MaxViT: the averaged map barely reacts to the watermark, but LRP puts
+  so much relevance on it that the rest of the map turns dark, until the map
+  is scaled without the watermark. Bottom, CLIP ConvNeXt: the watermark's cell
+  is the brightest of the averaged map, and leaving that cell out of LRP's
+  starting amount makes the rest of the map visible.
+
+items:
+  - label: MaxViT · Averaging
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    overlay: /assets/img/posts/lafam/figures/watermark/maxvit_avg.png
+  - label: MaxViT · LRP
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    overlay: /assets/img/posts/lafam/figures/watermark/maxvit_lrp.png
+    rendering: auto
+  - label: MaxViT · LRP, scaled without the watermark
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    overlay: /assets/img/posts/lafam/figures/watermark/maxvit_lrp_rescaled.png
+    rendering: auto
+  - label: CLIP ConvNeXt · Averaging
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    overlay: /assets/img/posts/lafam/figures/watermark/clip_convnext_avg.png
+  - label: CLIP ConvNeXt · LRP
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    overlay: /assets/img/posts/lafam/figures/watermark/clip_convnext_lrp.png
+    rendering: auto
+  - label: CLIP ConvNeXt · LRP without the watermark cell
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    overlay: /assets/img/posts/lafam/figures/watermark/clip_convnext_lrp_nocell.png
+    rendering: auto

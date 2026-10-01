@@ -4,34 +4,9 @@
 {%- include head.html -%}
 
 <body>
-  <div id="about" class="header-background dynamic-header" data-collapsible-header>
-    <div class="wrapper about-card">
-      <div class="me-wrapper">
-        <img src="{{'/assets/img/me.jpg' | relative_url}}" alt="Aray Karjauv" id='me' />
-      </div>
-      <div id="my-infobox">
-        <div id="dummy-description"></div>
-        <div id="description">
-          <div class="my-name"></div>
-          <p class="about-me">Research Associate in Machine Learning at Technical University of Berlin</p>
-          <div>
-            <a href="/about" class="about-me-link">About me</a>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class='light x1'></div>
-    <div class='light x2'></div>
-    <div class='light x3'></div>
-    <div class='light x4'></div>
-    <div class='light x5'></div>
-    <div class='light x6'></div>
-    <div class='light x7'></div>
-    <div class='light x8'></div>
-    <div class='light x9'></div>
-  </div>
+  {% include masthead.html art="home.html" brand="Aray's Blog" link_url="/about" link_text="About me" %}
 
-  <main class="page-content dynamic-content" aria-label="Content">
+  <main class="page-content" aria-label="Content">
     <div class="wrapper">
       <div class="home">
         {%- if page.title -%}
@@ -67,8 +42,6 @@
     </div>
   </main>
   <!-- {%- include footer.html -%} -->
-  <script src="{{ '/assets/js/header-controller.js' | relative_url }}"></script>
-  <script src="{{ '/assets/js/home-extras.js' | relative_url }}"></script>
 </body>
 
 </html>

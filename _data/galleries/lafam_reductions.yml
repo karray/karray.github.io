@@ -1,0 +1,61 @@
+kicker: Real images · plain vision transformers
+dock_label: Choose an image to compare
+overlay: /assets/img/posts/lafam/figures/reductions/{layer}_{row}_{item}.png
+opacity: 100
+reveal_label: Reveal the image under the pointer
+style: "--fg-cell-min: 3.5rem;"
+
+help: >-
+  Pick an image from the dock, then read across a row. The first map applies
+  a ReLU and averages over the channels, as in the gallery above. The second
+  first subtracts each channel's average over the image. The third refines
+  the centered map with AnyUp, and the fourth shows LRP. Move over a map and
+  it falls away around the pointer; press and hold to clear the whole map,
+  and let go to bring it back.
+
+caption: >-
+  The three plain vision transformers whose ReLU maps fail. All maps are computed from one image alone,
+  without labels. The Averaging-type maps are
+  stretched between their own minimum and maximum, and the LRP maps are scaled
+  by their maximum, so brightness compares positions within a panel and not
+  across panels.
+
+columns:
+  - label: ReLU, then average
+    layer: relu
+  - label: Centered first
+    layer: centered
+  - label: AnyUp
+    layer: anyup
+    rendering: auto
+  - label: LRP
+    layer: lrp
+    rendering: auto
+
+items:
+  - id: dog_cat
+    label: Dog and cat
+    src: /assets/img/posts/lafam/figures/images/dog_cat.jpeg
+  - id: dog_dog
+    label: Two dogs
+    src: /assets/img/posts/lafam/figures/images/dog_dog.jpeg
+  - id: fish_person
+    label: Fish and person
+    src: /assets/img/posts/lafam/figures/images/fish_person.png
+  - id: misc
+    label: Six objects
+    src: /assets/img/posts/lafam/figures/images/misc.png
+  - id: spider_web
+    label: Spider web
+    src: /assets/img/posts/lafam/figures/images/spider_web.png
+
+rows:
+  - id: ViTB16
+    label: ViT-B/16
+    note: supervised
+  - id: CLIPViTB16
+    label: CLIP ViT-B/16
+    note: image–text
+  - id: DINOv2ViTB14
+    label: DINOv2 ViT-B/14
+    note: self-supervised
