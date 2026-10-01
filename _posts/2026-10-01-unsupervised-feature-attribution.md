@@ -331,7 +331,7 @@ Centering compares each channel with its own average in the image instead of wit
 </p>
 </details>
 
-AnyUp works well on the centered features. It turns the token grid into object silhouettes, much as it does for the CNNs, and its maps show the objects at least as clearly as the centered maps they come from. LRP does not use this reduction at all, so it needs no remedy. For these three encoders, its maps show the objects, with the same patch-sized blocks as the other plain ViTs.
+AnyUp works well on the centered features. It turns the token grid into object silhouettes, much as it does for the CNNs, and its maps show the objects at least as clearly as the centered maps they come from. LRP starts from the same positive activity as the plain average, yet for these three encoders its maps still show the objects, with the same patch-sized blocks as the other plain ViTs.
 
 ## Limitations
 
