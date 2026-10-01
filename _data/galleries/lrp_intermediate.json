@@ -1,0 +1,71 @@
+{
+  "kicker": "02 · Depth changes what the map shows",
+  "opacity": 100,
+  "reveal": true,
+  "controls": [
+    {
+      "name": "model",
+      "target": "row",
+      "type": "select",
+      "label": "Model",
+      "default": "resnet",
+      "options": [
+        {"value": "resnet", "label": "ResNet50 (supervised)"},
+        {"value": "dino_resnet", "label": "ResNet50 (DINO)"},
+        {"value": "convnext", "label": "ConvNeXt-B (supervised)"},
+        {"value": "dinov3_convnext", "label": "ConvNeXt-B (DINOv3)"}
+      ]
+    },
+    {
+      "name": "depth",
+      "target": "layer",
+      "type": "range",
+      "label": "Depth",
+      "min": 0,
+      "max": 4,
+      "default": 0
+    }
+  ],
+  "rows": [
+    {
+      "id": "resnet",
+      "label": ""
+    }
+  ],
+  "columns": [
+    {
+      "label": "Relevance at this depth"
+    }
+  ],
+  "overlay": "/assets/img/posts/lrp-without-labels/intermediate_{row}_{item}_{layer}.png",
+  "items": [
+    {
+      "id": "dog_cat",
+      "label": "Dog and cat",
+      "src": "/assets/img/posts/lrp-without-labels/dog_cat.png"
+    },
+    {
+      "id": "dog_dog",
+      "label": "Two dogs",
+      "src": "/assets/img/posts/lrp-without-labels/dog_dog.png"
+    },
+    {
+      "id": "fish_person",
+      "label": "Fish and person",
+      "src": "/assets/img/posts/lrp-without-labels/fish_person.png"
+    },
+    {
+      "id": "spider_web",
+      "label": "Spider web",
+      "src": "/assets/img/posts/lrp-without-labels/spider_web.png"
+    },
+    {
+      "id": "misc",
+      "label": "Six-object montage",
+      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+    }
+  ],
+  "help": "Choose an image with the dock, a checkpoint from the dropdown, then scrub the depth slider from right after the stem (0) to the last stage before pooling (4, where the uniform initial relevance itself lives). Hover to reveal the input, or adjust opacity.",
+  "caption": "Positive channel mean at each probe, clipped and scaled independently per depth; black means small or nonpositive, not necessarily zero. Same uniform initial relevance for every checkpoint.",
+  "style": "--fg-cell-max: 320px;"
+}

@@ -1,0 +1,63 @@
+{
+  "kicker": "03 · A checkerboard made of two branches",
+  "opacity": 100,
+  "reveal": true,
+  "controls": [
+    {
+      "name": "model",
+      "target": "row",
+      "type": "select",
+      "label": "Model",
+      "default": "resnet",
+      "options": [
+        {"value": "resnet", "label": "ResNet50 (supervised)"},
+        {"value": "dino_resnet", "label": "ResNet50 (DINO)"}
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "resnet",
+      "label": ""
+    }
+  ],
+  "columns": [
+    {"label": "Unsplit · Main", "layer": "reference_main"},
+    {"label": "Unsplit · Shortcut", "layer": "reference_shortcut"},
+    {"label": "Unsplit · Sum", "layer": "reference_sum"},
+    {"label": "Split · Main", "layer": "magnitude_main"},
+    {"label": "Split · Shortcut", "layer": "magnitude_shortcut"},
+    {"label": "Split · Sum", "layer": "magnitude_sum"}
+  ],
+  "overlay": "/assets/img/posts/lrp-without-labels/checkerboard_{row}_{item}_{layer}.png",
+  "items": [
+    {
+      "id": "dog_cat",
+      "label": "Dog and cat",
+      "src": "/assets/img/posts/lrp-without-labels/dog_cat.png"
+    },
+    {
+      "id": "dog_dog",
+      "label": "Two dogs",
+      "src": "/assets/img/posts/lrp-without-labels/dog_dog.png"
+    },
+    {
+      "id": "fish_person",
+      "label": "Fish and person",
+      "src": "/assets/img/posts/lrp-without-labels/fish_person.png"
+    },
+    {
+      "id": "spider_web",
+      "label": "Spider web",
+      "src": "/assets/img/posts/lrp-without-labels/spider_web.png"
+    },
+    {
+      "id": "misc",
+      "label": "Six-object montage",
+      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+    }
+  ],
+  "help": "Choose an image with the dock and a checkpoint from the dropdown. “Unsplit” and “Split” use identical incoming relevance — only how the residual is divided between branches differs. Hover over a map to reveal the original; on a touch screen, tap or hold it.",
+  "caption": "Absolute channel-summed relevance at layer4.0's 14× 14 input; independent full-range scales. Main and shortcut always add up exactly to the sum.",
+  "style": "--fg-cell-max: 190px;"
+}

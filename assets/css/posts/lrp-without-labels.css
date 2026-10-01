@@ -1,0 +1,20 @@
+/* LRP-specific controls and numerical annotations. Overlay, dock, reveal,
+   keyboard navigation and responsive panels come from figure-gallery.css. */
+.lrp-widget { margin: 2rem 0; }
+.lrp-controls { display: flex; flex-wrap: wrap; gap: .7rem 1rem; margin-bottom: 1rem; }
+.lrp-controls label { display: flex; flex-direction: column; gap: .3rem; max-width: 100%; font: .85rem/1.5 system-ui,sans-serif; }
+.lrp-controls select { max-width: 100%; padding: .4rem; font: inherit; }
+.lrp-controls input { min-height: 30px; accent-color: #14685f; }
+.lrp-readout { font-size: .86rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lrp-note { font-size: .8rem; color: #4b606e; }
+.lrp-bias { padding: 1rem; border-left: 3px solid #b44439; }
+.lrp-bias p { margin-bottom: 0; font-size: .88rem; }
+.lrp-error { color: #922b24; }
+.lrp-widget .fg-grid.fg-grid--unlabelled { grid-template-columns: repeat(var(--fg-cols), minmax(0, var(--fg-cell-max))); min-width: 0; }
+/* The long post title stays in normal flow, including when posts.js toggles
+   its shared scroll classes. This affects only this post's stylesheet. */
+#post-header, #post-header.fixed-header { position: relative!important; top: 0!important; height: auto!important; min-height: 0; padding: 2.5rem 0; transition: none; }
+#post-header .wrapper, #post-header.fixed-header .wrapper { display: block; height: auto; width: auto; }
+#post-header .wrapper .post-title, #post-header.fixed-header .wrapper .post-title { white-space: normal!important; font-size: clamp(1.7rem,4vw,2.8rem)!important; line-height: 1.2; font-weight: 500!important; margin: 0!important; transition: none!important; text-align: left; }
+#post-header .wrapper #me-block, #post-header.fixed-header .wrapper #me-block { display: none!important; }
+main.dynamic-content { margin-top: 0; }

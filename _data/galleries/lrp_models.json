@@ -1,0 +1,59 @@
+{
+  "opacity": 100,
+  "reveal": true,
+  "controls": [
+    {
+      "name": "model",
+      "target": "row",
+      "type": "select",
+      "label": "Model"
+    }
+  ],
+  "rows": [
+    {
+      "id": "dino_vit",
+      "label": ""
+    }
+  ],
+  "columns": [
+    {
+      "label": "Signed relevance",
+      "layer": "signed"
+    },
+    {
+      "label": "Positive channels only",
+      "layer": "positive"
+    }
+  ],
+  "overlay": "/assets/img/posts/lrp-without-labels/{row}_{item}_{layer}.png",
+  "items": [
+    {
+      "id": "dog_cat",
+      "label": "Dog and cat",
+      "src": "/assets/img/posts/lrp-without-labels/dog_cat.png"
+    },
+    {
+      "id": "dog_dog",
+      "label": "Two dogs",
+      "src": "/assets/img/posts/lrp-without-labels/dog_dog.png"
+    },
+    {
+      "id": "fish_person",
+      "label": "Fish and person",
+      "src": "/assets/img/posts/lrp-without-labels/fish_person.png"
+    },
+    {
+      "id": "spider_web",
+      "label": "Spider web",
+      "src": "/assets/img/posts/lrp-without-labels/spider_web.png"
+    },
+    {
+      "id": "misc",
+      "label": "Six-object montage",
+      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+    }
+  ],
+  "kicker": "01 \u00b7 Same starting budget, different networks",
+  "help": "Choose an image with the dock (arrow keys also work). Lower the opacity to see the photograph beneath the recorded relevance. These controls change the display, not the calculation. Hover over a map to reveal the original; on a touch screen, tap or hold it.",
+  "caption": "One unit divided equally across every spatial output coordinate. Independent full-maximum color scales; numerical amounts below."
+}

@@ -1,0 +1,36 @@
+{
+  "opacity": 100,
+  "reveal": true,
+  "rows": [
+    {
+      "id": "montage",
+      "label": ""
+    }
+  ],
+  "columns": [
+    {
+      "label": "WSquare",
+      "layer": "wsquare"
+    },
+    {
+      "label": "ZPlus",
+      "layer": "zplus"
+    }
+  ],
+  "overlay": "/assets/img/posts/lrp-without-labels/{item}_{layer}.png",
+  "items": [
+    {
+      "id": "dinov2_vit",
+      "label": "DINOv2 ViT-B/14",
+      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+    },
+    {
+      "id": "dinov3_vit",
+      "label": "DINOv3 ViT-B/16",
+      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+    }
+  ],
+  "kicker": "04 \u00b7 Same incoming amounts, different final step",
+  "help": "Choose a model using the dock. Both maps are signed (blue negative, red positive). The opacity control reveals the same input under each map. Hover over a map to reveal the original; on a touch screen, tap or hold it.",
+  "caption": "Paired runs with identical incoming patch relevance. Each map uses its own symmetric full-range color scale."
+}

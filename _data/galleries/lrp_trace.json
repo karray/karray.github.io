@@ -1,0 +1,60 @@
+{
+  "kicker": "05 \u00b7 Follow the amount backward through MAE",
+  "opacity": 100,
+  "reveal": true,
+  "controls": [
+    {
+      "name": "allocation",
+      "target": "row",
+      "type": "select",
+      "label": "Initial allocation",
+      "default": "all_mean",
+      "options": [
+        {"value": "all_mean", "label": "Full embedding mean"},
+        {"value": "positive_mean", "label": "Mean of strictly positive values"}
+      ]
+    },
+    {
+      "name": "stage",
+      "target": "layer",
+      "type": "range",
+      "label": "Backward stage",
+      "min": 0,
+      "max": 8,
+      "default": 7
+    }
+  ],
+  "rows": [
+    {
+      "id": "all_mean",
+      "label": ""
+    }
+  ],
+  "columns": [
+    {
+      "label": "Relevance map",
+      "tiles": 14
+    }
+  ],
+  "overlay": "/assets/img/posts/lrp-without-labels/mae_{item}_{row}_{layer}.png",
+  "items": [
+    {
+      "id": "misc",
+      "label": "Six-object montage",
+      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+    },
+    {
+      "id": "dog_cat",
+      "label": "Dog and cat",
+      "src": "/assets/img/posts/lrp-without-labels/dog_cat.png"
+    },
+    {
+      "id": "fish_person",
+      "label": "Fish and person",
+      "src": "/assets/img/posts/lrp-without-labels/fish_person.png"
+    }
+  ],
+  "help": "Choose an image, then change the backward stage above. Hover to reveal the input, or adjust opacity. Reveal tiles are a display effect, not a patch selection.",
+  "caption": "Blue negative / white zero / red positive; independent full-range scales. Coarse maps retain their native 14 \u00d7 14 resolution without smoothing.",
+  "style": "--fg-cell-max: 360px;"
+}
