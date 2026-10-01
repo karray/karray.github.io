@@ -1,279 +1,259 @@
 ---
 layout: post
-title: "Following relevance through a network with no labels"
-description: "An interactive journey through label-free LRP, from promising object maps to a stubborn patch grid."
-permalink: /drafts/lrp-without-labels/
-tags: [LRP, Explainability, Self-Supervised Learning, Vision Transformers]
+title: Following Relevance Through Modern Vision Models
+styles:
+  - /assets/css/posts/label-free-lrp.css
+tags: XAI, LRP, CNN, ViT, Self-Supervised Learning
+description: How we wrote LRP rules for modern vision encoders without labels, what broke along the way, and what it tells us about how these models work inside.
 ---
 
-A vision model can recognize a surprising amount about a photograph without ever having been taught the word *cat*. But ask where that knowledge lives in the image, and things get awkward. There may be no cat score to explain. Just a long list of numbers: an embedding.
+{%- comment -%}
+DRAFT for review. Interactive figures: assets/js/posts/label-free-lrp.js (flow explorer and toys) and
+_data/galleries/lrp_{rules,residual,stems_rules}.json (generated with the numbers by
+lrp/temp/lrp_post/export_interactive.py). TODO markers flag open points.
+{%- endcomment -%}
 
-Layer-wise relevance propagation, or **LRP**, gives us a way to follow amounts assigned to those numbers back toward the pixels. It sounds like a plumbing problem. Choose where to pour; follow the flow. In practice, some pipes split, some subtract, and some lead to places that are not pixels at all.
-
-This is the story of making that work across modern vision models—and of one model whose patch grid refused to go away.
+Which pixels does a vision model rely on when nobody has told it what to look for? Layer-wise relevance propagation (LRP) can answer this. It sends the model's output back through the network, layer by layer, until it arrives at the pixels. For a classic CNN, this works out of the box. For the encoders in use today, which are built from LayerNorm, GELU, attention and residual connections, it does not. Without the right rules, the maps dissolve into noise. Worse, some of them look perfectly reasonable while a quarter of the relevance has vanished on the way.
 
 <!--more-->
 
-<link rel="stylesheet" href="{{ '/assets/css/posts/lrp-without-labels.css' | relative_url }}">
-<div id="lrp-article" data-source="{{ '/assets/downloads/lrp-without-labels/data.json' | relative_url }}"></div>
+We wrote the missing rules for ConvNeXt, Swin, MaxViT and vision transformers trained with and without labels. This post follows the relevance through these models one building block at a time. For each block, a small interactive figure shows what goes wrong without a rule and what the rule does instead. Along the way, we point to published work that arrived at the same or better solutions. The rules and all examples are available in the [companion notebook](https://github.com/karray/deep-unboxing) {%- comment -%}TODO: link to 02_... once it exists{%- endcomment -%}.
 
-## First, something to look at
+## Pouring Relevance Back
 
-Start with the dog and cat. Switch between DINOv1, DINOv2, DINOv3 and MAE. These are recorded explanations, not a simulation running in your browser. None starts from a class label or a selected object. Each starts with **one unit, divided equally across every spatial feature coordinate** at the chosen output.
+Think of the output of a network as an amount of water that we pour back through it. At every layer, the water is divided among the units that fed into the current one, and a unit that contributed more receives more. When the water reaches the image, the amount on each pixel tells us how much that pixel contributed. This amount is called relevance, and the procedure is layer-wise relevance propagation [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>].
 
-<div class="lrp-widget" id="lrp-gallery">
-{% include figure-gallery.html id="lrp-model-maps" data=site.data.galleries.lrp_models %}
-<p class="lrp-readout" data-role="scale"></p>
-<p class="lrp-readout" data-role="ledger" aria-live="polite">Loading recorded amounts…</p>
-<p class="lrp-note">Signed colors: blue negative, white zero, red positive. Positive-only colors: black zero to yellow/white at the maximum. Each panel scales independently. Positive-only display hides negative channels; it does not change propagation. Signed pixel totals include all RGB channels, before cancellation.</p>
-</div>
+The figure below shows this inside two real encoders. On the left is where the relevance starts, the feature grid at the end of the network. To its right is the same relevance after it has been passed back to ever earlier layers, until it arrives at the pixels.
 
-Recognizable objects appear in several maps. Some maps favor background or isolated spots. MAE often draws a conspicuous grid. Those are observations to investigate, rather than a beauty contest with an obvious winner. A model might really use a background cue. A high-norm token—an unusually large feature vector—might really dominate its representation. An explanation should let us discover that.
+{% include posts/label-free-lrp-stack.html %}
 
-The explorer includes supervised models and CLIP as comparisons. CLIP learns from image–text pairs; it is not an image-only self-supervised method. Architecture, training data, objective and propagation rules differ across these checkpoints. This gallery does not isolate the effect of any one of them. [Recorded configurations and amounts]({{ '/assets/downloads/lrp-without-labels/backbone-heatmaps.json' | relative_url }}).
+The bands between the layers show how much relevance passes from one depth to the next. They narrow on the way, because part of the relevance stays with constants inside the network. We come back to this at the end of the post.
 
-## You do not need a cat score
+You can also choose where the relevance starts. Hover a cell to see where its relevance goes, or click several cells to follow only them. In ConvNeXt, most of the relevance stays close to where it started, and about 70% of it lands on the starting cell and its eight neighbours. In the DINOv1 ViT, only 40 to 50% stays this close. The rest travels to other parts of the image.
 
-LRP's original formulation focused on explaining classifier decisions: begin with a prediction and redistribute it backward through the network. [Bach and colleagues, 2015](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130140).
+How the water is divided at each layer is decided by a rule. Each kind of layer needs a rule that fits what it computes, and choosing them well is most of the work [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>]. This is where our trouble began.
 
-But the backward calculation can begin inside the network. A layer contains numbers; we assign relevance to some or all of them; the rules redistribute those amounts toward the input. There need not be a class, prompt, reference image or similarity score. The experiments here use that flexibility explicitly.
-
-An **embedding** is a vector of learned measurements. A spatial encoder gives us one such vector at each location. In a vision transformer, the image starts as patches, and each patch becomes a vector called a **token**. Later layers exchange information between tokens, so a token's original location does not mean its contents describe only that patch.
-
-For our MAE checkpoint, the output contains 196 spatial tokens with 768 coordinates each. Three possible starting choices are:
-
-- **One unit spread uniformly:** give each of the 150,528 coordinates the same amount. This asks how the chosen rules route an equal allocation across the representation.
-- **The full embedding mean:** give each coordinate its value divided by 150,528. Positive and negative values both participate; their total is the embedding mean.
-- **The mean of positive values:** use only positive coordinates, dividing by the number of strictly positive values. The total is their mean, not necessarily one.
-
-These are different questions. Equal allocation does not mean equal influence after propagation. Averaging coordinates does not turn an embedding into a named concept. And selecting only positive values changes the starting explanation; it does not repair negative relevance after the fact.
-
-You can also begin with a particular channel or an intermediate layer. That makes the starting point more specific, but calling a channel “the cat concept” would require additional evidence.
+One more choice concerns the start. LRP was designed to explain a prediction, so it usually starts from a class score. A self-supervised encoder has no class score. We start from its features instead and use only their positive part. In the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we averaged the same positive features into a coarse map, and LRP traces that map back to the pixels.
 
 <details markdown="1">
-<summary>What does “one unit” actually mean?</summary>
+<summary>Why only the positive part of the features?</summary>
 
-It is a chosen total, not a physical measurement or a hidden probability. If the initial tensor has $N$ entries, uniform allocation means $R_i=1/N$ and $\sum_i R_i=1$. For the raw mean, $R_i=z_i/N$. For the positive-only mean, $R_i=\max(z_i,0)/\#\{z_j>0\}$, with zero allocation if that count is zero.
-
-The MAE experiments initialize all spatial tokens and exclude the special CLS token. CLS can still receive relevance during propagation and needs separate accounting. We never select object-shaped patch subsets for the examples in this post.
-
-The water analogy works for positive amounts and splits. With signed amounts, think of a ledger with credits and debits. A small net total can conceal large opposing flows.
+The features of most modern encoders are signed. If we started from the raw values, positive and negative values would largely cancel. In ConvNeXt, Swin and the plain ViTs, the sum of all feature values keeps only 1 to 5% of their total magnitude, and for several of these models it is negative for almost every image. ResNets do not have this problem, because their features pass through a ReLU and are never negative. Using the positive part avoids the cancellation and gives inactive features no relevance at all.
 
 </details>
 
-## Every kind of junction needs a rule
+## Adding the Rules One at a Time
 
-A network's ordinary backward pass computes derivatives: how a small change in one number affects another. LRP's backward pass redistributes an amount. Those operations can share implementation machinery, but they do not answer the same question.
+Two libraries provide ready-made LRP rules for PyTorch, and both come from the group at Fraunhofer HHI and TU Berlin that introduced LRP. [zennit](https://github.com/chr5tphr/zennit) covers convolutional networks such as VGG and ResNet [<a href="#anders2021software" data-ref="anders2021software">Anders et al.</a>]. [LXT](https://github.com/rachtibat/LRP-eXplains-Transformers), the implementation of AttnLRP, covers language models and the original vision transformer [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. Their rules for the layers with weights, the convolutions and linear layers, carry over to other models. Our encoders combine these layers with LayerNorm, GELU, attention and residual connections in their own ways, and none of them was covered.
 
-Consider a residual connection, which adds a transformed signal to a shortcut. If the incoming relevance is handed in full to both branches, we have copied it. A real split must decide how much each branch receives. Equal halves? Shares based on contribution magnitudes? Signed proportions? Each is an assumption about attribution.
+So we started where the libraries stop. We gave the weighted layers their usual rules and left everything else alone. An operation without a rule passes relevance back the same way it passes a gradient. The first step in the figure below shows the result. For all three models, the map is noise.
 
-This matters even when the picture looks fine. In our matched ResNet controls, splitting equally at 16 joins gives the same map shape as duplicating at every join, after dividing the duplicate map by **65,536**. Independently scaling the colors hides the difference. A familiar silhouette cannot tell us whether the bookkeeping is sensible. [Residual controls]({{ '/assets/downloads/lrp-without-labels/backbone-validation.json' | relative_url }}).
+{% include figure-gallery.html id="lrp-rules" data=site.data.galleries.lrp_rules %}
 
-For ConvNeXt, getting the machinery right meant explicitly handling timm's GELU activation, residual additions and learned layer scales, as well as choosing rules for mixing layers and the input projection. The GELU omission was real, but fixing it alone made only a modest difference in the measured selectivity. There was no single magic missing hook.
+Over the next sections, we add the missing rules one at a time, in the same order as the slider.
 
-Transformers add more junctions: attention mixes tokens using weights computed from those same tokens; normalization centers and rescales features; positional embeddings and special tokens introduce context beyond image pixels. Work such as [AttnLRP](https://proceedings.mlr.press/v235/achtibat24a.html) develops rules for transformer operations and enables analysis of internal representations. Our experiments also explore alternatives; the gallery should not be read as a reproduction of one published rule set across every architecture.
+### Residual Connections
+
+Most modern blocks do not replace their input. They compute an update and add it to the input, which is called a residual connection. Going backward, the relevance of the sum has to be shared between the input, which arrives through the skip path, and the update.
+
+The gradient of an addition passes the full amount to both sides. An addition without a rule therefore copies the relevance instead of dividing it. The figure below shows a single addition. In the first row, both sides receive the full amount, and the total doubles.
+
+<figure class="lrp-fig">
+  <p class="lrp-kicker">One residual connection</p>
+  <div data-lrp-toy="residual" data-rules="copy,equal,proportional" data-presets="false"><p class="lrp-small">This figure needs JavaScript.</p></div>
+  <figcaption>Move the sliders to change the two values that are added. The rows show how much relevance each side receives when the output holds a relevance of 1. Purple bars are negative.</figcaption>
+</figure>
+
+With every block copying, the amounts grow quickly. In the DINOv1 ViT, the pixels receive more than a thousand times the starting amount. We therefore rewrite every addition so that it can receive a rule. In the second step of the gallery above, every addition splits the relevance between its two sides. The amounts become plausible, but the maps are still noise. In Swin, they even grow to millions at this step, until LayerNorm receives its rule as well. Which split to choose turned out to be a question of its own, and we return to it later.
+
+### LayerNorm
+
+LayerNorm takes the values of a token, subtracts their mean and divides them by their spread. Adding the same number to every input therefore changes nothing at the output. Because of this, the gradient of LayerNorm always sums to zero over its inputs. Relevance that passes through LayerNorm without a rule is split into positive and negative parts that cancel exactly. Try it below. However you set the inputs, the total in the last column stays at zero.
+
+<figure class="lrp-fig">
+  <p class="lrp-kicker">One LayerNorm</p>
+  <div data-lrp-toy="layernorm"><p class="lrp-small">This figure needs JavaScript.</p></div>
+  <figcaption>Six input values are normalized. The positive outputs receive a relevance of 1 in total, in proportion to their size, just like the start of our explanations. The two right columns show what each input receives with our rule and without any rule. The buttons shift or stretch all inputs at once, which leaves the output unchanged.</figcaption>
+</figure>
+
+Every block of our encoders contains at least one LayerNorm. Each of them turns the relevance into a balanced mix of positive and negative amounts, which is why the maps looked like noise. Our rule holds the spread fixed during the backward pass, while the forward pass stays exactly the same. LayerNorm then behaves like a linear layer, and relevance passes through it with the usual rule for linear layers. In the third step of the gallery, the objects appear in all three models. Conservative propagation proposed this treatment for transformers [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>], and AttnLRP uses an equivalent rule [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
+
+### Activation Functions
+
+Activation functions such as GELU change each value on its own. The usual LRP treatment passes relevance through them unchanged, which AttnLRP calls the identity rule [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. Without a rule, the relevance is multiplied by the slope of the function, as a gradient would be. For most inputs, the slope of GELU is below one, so some relevance is lost at every activation.
+
+<figure class="lrp-fig">
+  <p class="lrp-kicker">One activation function</p>
+  <div data-lrp-toy="activation"><p class="lrp-small">This figure needs JavaScript.</p></div>
+  <figcaption>The GELU curve and its slope at the chosen input (dashed). The bars show the relevance that one value passes back when it holds a relevance of 1.</figcaption>
+</figure>
+
+zennit applies the identity rule to the activation functions it knows. The ConvNeXt we used implements GELU with its own class, which zennit does not recognize. Nothing fails, and in the fourth step of the gallery the ConvNeXt map barely changes. Yet the amount reaching the pixels rises from 0.48 to 0.66 for the dog and the cat. Without the rule, a quarter of the relevance disappeared without a trace. This was the first lesson of the project. A plausible map is no proof that every layer was handled.
+
+### Attention
+
+Attention lets every token collect information from the other tokens. Each token takes a weighted average of what the other tokens send, and the weights are computed from the tokens themselves. Without a rule, relevance follows the gradient. Each source token then receives relevance in proportion to its weight, no matter how much it actually sent. The rest flows into the computation of the weights, in positive and negative amounts that cancel. We hold the weights fixed during the backward pass instead, so that relevance follows what each token actually sent.
+
+<figure class="lrp-fig">
+  <p class="lrp-kicker">One attention step</p>
+  <div data-lrp-toy="attention"><p class="lrp-small">This figure needs JavaScript.</p></div>
+  <figcaption>An output token averages the values of four source tokens. Each source has a value (what it sends) and a score, and the scores are turned into weights that sum to 1. The output holds a relevance of 1. The two right columns show what each source receives with the weights held fixed and without any rule.</figcaption>
+</figure>
+
+This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, holding the weights fixed changed the maps only slightly, as the last step of the gallery shows.
+
+Attention also explains a difference you can see in the first figure. A convolution only combines neighbouring cells, so relevance in ConvNeXt stays close to where it started. Attention connects every token with every other one, so in the ViT, relevance can jump across the image within a single block.
+
+### Smaller Pieces
+
+A few smaller parts needed attention as well. Some blocks multiply their update by a learned constant (layer scale), and MaxViT gates its channels with squeeze-and-excitation. Both simply pass relevance on. Batch normalization can be folded into the convolution before it, which turns two layers into one and leaves the forward pass unchanged. zennit calls such rewrites canonizers. Folding is only exact when the convolution feeds nothing else, so we check that before merging.
+
+{%- comment -%}TODO: cite canonization / batch-norm folding work (e.g. Motzkus et al. 2022; Hui and Binder 2019) after verifying.{%- endcomment -%}
 
 <details markdown="1">
-<summary>The practical work behind “supporting a model”</summary>
+<summary>All rules at a glance</summary>
 
-| Operation | What needed an explicit decision or check |
+<div class="lrp-scroll" markdown="1">
+
+| | ResNets | ConvNeXt | Swin | MaxViT | Plain ViTs |
+|---|---|---|---|---|---|
+| first layer | z+ | WSquare | WSquare | WSquare | z+ |
+| layers inside blocks | z+ | Gamma | Gamma | Gamma | Gamma |
+| activations, layer scale, gates | pass | pass | pass | pass | pass |
+| LayerNorm | — | spread held fixed | spread held fixed | spread held fixed | spread held fixed |
+| attention | — | — | weights held fixed | weights held fixed | weights held fixed |
+| residual split | equal | proportional | proportional | magnitude | magnitude |
+
+</div>
+
+The Gamma rule favors positive contributions and makes maps less noisy. AttnLRP recommends it for the linear layers of vision transformers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. The first-layer rules and the residual splits are discussed below.
+
+</details>
+
+## How We Checked Our Rules
+
+Since a broken rule can still produce a plausible map, we relied on a few simple checks rather than on the pictures. They are worth running for any model one adds.
+
+- The model's output must not change when the rules are installed. Every rewrite only changes the backward pass.
+- Every layer must receive a rule. Counting the layers that have no rule catches cases like the GELU above.
+- The amount reaching the pixels should be plausible. It should not exceed the starting amount by orders of magnitude.
+- After the explanation, the model must be restored exactly, so that later predictions are not affected.
+
+We run LRP on the CPU. It takes a few seconds per image and gives identical numbers on every machine.
+
+{%- comment -%}TODO: these checks come from the research code; add them to notebook 02 (and xai_utils) so the claim holds for the published package.{%- endcomment -%}
+
+## Who Gets the Credit at a Residual Connection
+
+At a residual connection, the output is the sum of two parts. One part is the input passed along unchanged, the skip. The other is what the block adds, the update. Going backward, LRP must decide how much of the relevance each part receives. There are several reasonable answers, and they behave very differently.
+
+- An **equal** split gives each part half, regardless of the numbers.
+- A **proportional** split gives each part what it contributed. This is the standard LRP treatment of an addition, and it is what LXT and AttnLRP do implicitly. A part that worked against the output receives negative relevance.
+- A **magnitude** split divides by size and ignores the sign. We introduced it for MaxViT and the ViTs, after the proportional split made some of their maps unstable in our early experiments.
+- A **γ split** works like the proportional one, but gives extra weight to the part whose sign agrees with the output. It was proposed by Berend et al. while we were writing this post [<a href="#berend2026reslrp" data-ref="berend2026reslrp">Berend et al.</a>].
+
+<figure class="lrp-fig">
+  <p class="lrp-kicker">Four ways to split</p>
+  <div data-lrp-toy="residual" data-rules="equal,proportional,magnitude,gamma"><p class="lrp-small">This figure needs JavaScript.</p></div>
+  <figcaption>The same residual connection as before, now with the four splits. The γ split uses γ = 1. The buttons set typical cases.</figcaption>
+</figure>
+
+When both parts push in the same direction, the rules agree, except for the equal split. When the update works against the skip, they disagree. The proportional split keeps the information that the update worked against the output, but its numbers grow without bound as the two parts cancel. The magnitude split never grows, but it credits the opposing update as if it had helped. The γ split keeps the sign and is guaranteed to stay bounded. Berend et al. identify such cancellation inside transformer blocks as a main reason why LRP maps of ViTs become noisy.
+
+{% include figure-gallery.html id="lrp-residual" data=site.data.galleries.lrp_residual %}
+
+In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it is absorbed. Very little reaches the pixels, as little as 0.04 for the DINOv1 ViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees. The magnitude and γ splits keep more of it on the animals. The γ split passes on more relevance than the magnitude split and is a little more detailed.
+
+We chose our rules by looking at maps like these and by checking that small changes to the input did not change the maps much. We did not test which rule is more faithful to the model, and on a handful of images we would not want to claim one. For anyone who wants to choose between them, Berend et al. compare the γ split with the standard rules on several faithfulness measures.
+
+<details markdown="1">
+<summary>A few numbers behind the maps</summary>
+
+On eight ImageNet images per model, we measured three things for each rule. The first is how much relevance reaches the pixels. The second is how much the map changes when the input moves by a tiny amount. The third is whether the map follows its start, which we tested by starting only from the feature cells inside the object box and then only from those outside.
+
+The equal split delivered the least relevance (0.00 to 0.12 for most models) and its maps barely depended on where they started. The proportional split delivered the most (up to 0.97) and followed its start most closely, and it stayed stable on these images. The magnitude and γ splits were the most stable. The γ split followed its start almost as closely as the proportional one. The maps of the supervised ViT barely depended on their start under any rule.
+
+</details>
+
+## Where the Relevance Goes
+
+In the first figure, the bands narrow on the way to the pixels. How much arrives differs a lot between models.
+
+| Model | Relevance at the pixels |
 |---|---|
-| Convolution / linear projection | How activations and weights divide the incoming amount; how bias is accounted for |
-| GELU / other nonlinearities | An explicit matching rule, including timm-specific types |
-| Residual addition | Split the amount rather than accidentally copying it |
-| LayerNorm | Centering, learned scale and bias, and how to handle the input-dependent variance |
-| Attention | Whether and how to attribute the attention weights as well as the values being mixed |
-| Position / prefix tokens | Which amounts go to image content and which go to context |
-| Reshape / window operations | Preserve exact spatial alignment and cover the actual implementation |
+| ResNet-50 | 0.02 |
+| ConvNeXt | 0.53 |
+| Swin | 0.54 |
+| MaxViT | 0.13 |
+| ViT-B/16 | 0.85 |
+| DINOv1 ViT | 0.15 |
+| DINOv3 ViT | 0.30 |
+| MAE | 0.30 |
 
-A “composite” is simply this collection of rules. Forward-equivalence checks ensure that installing it leaves predictions unchanged; cleanup checks ensure the model is restored afterward. Neither establishes that its attribution assumptions are correct.
+{%- comment -%}Median over 8 ImageNet images, tutorial rules, start = 1. Source: lrp/temp/lrp_post/NOTES.md.{%- endcomment -%}
 
-The ConvNeXt classifier study improved a development-set top-K overlap measure from 0.518 for the original ResNet reference to 0.702. The masks were predictions from another model, rule choices used the same examples, and only about 0.65 of a unit reached pixels. These are useful debugging results, not a held-out faithfulness benchmark. [Detailed source report]({{ '/assets/downloads/lrp-without-labels/convnext-findings.md' | relative_url }}).
+The rest stays inside the network. Most layers add a constant, the bias, to their output. The bias is not an input, yet part of the output is due to it, so the rules leave part of the relevance with it. Small stabilizing terms in the rules keep a little more. In transformers, the class token and the register tokens take their share as well, because they are learned parameters rather than parts of the image.
 
-</details>
+Is this a flaw? AttnLRP argues that it is not. Following the original LRP paper, it treats a bias as an extra input whose value is always one, so that its relevance is "preserved, rather than lost" [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. One could force all relevance onto the pixels, by spreading the bias's share over the inputs or by leaving the bias out of the rules. AttnLRP shows that both options can make the results numerically unstable or flip their signs. In our own tests, leaving out the bias kept all of the relevance in a ResNet but produced invalid numbers in ConvNeXt. We accept that part of the relevance stays inside the network and report how much reaches the pixels.
 
-## What happens in between is not just a blurrier version of the ends
+Position embeddings are the one place where our rules currently err in the other direction. A ViT adds them to the patch tokens with a plain addition, so the patches receive the share that belongs to the positions. Bakish et al. show that position embeddings carry relevance of their own and that ignoring them violates conservation [<a href="#bakish2025revisiting" data-ref="bakish2025revisiting">Bakish et al.</a>].
 
-Every map so far has been an input-level pixel map or a starting embedding. None of them show what relevance looks like partway through the network. For a stack of convolutions, that turns out to matter: one architecture carries a real, structural checkerboard through its intermediate stages, and another does not. To check that this is about the architecture and not about how the relevance got started, everything below uses the same uniform, label-free allocation as the rest of this post—on a supervised **and** a self-supervised checkpoint of each architecture.
+## The Last Step to the Pixels
 
-Choose any of the five images, then switch between ResNet50 and ConvNeXt-B, each supervised and each trained with DINO, at each stage output from right after the stem to the last stage before pooling.
+The first layer of many modern encoders cuts the image into small patches and turns each patch into a feature vector, four by four pixels in ConvNeXt and Swin and sixteen by sixteen in a ViT. Its rule decides how a patch's relevance is spread over its pixels, and with that, most of the fine detail in the map.
 
-<div class="lrp-widget" id="lrp-intermediate">
-{% include figure-gallery.html id="lrp-intermediate-maps" data=site.data.galleries.lrp_intermediate %}
-<p data-role="scale" class="lrp-readout"></p>
-<p class="lrp-readout" data-role="stage" aria-live="polite"></p>
-<p class="lrp-readout" data-role="amount"></p>
-<p class="lrp-note">Positive channel mean, clipped and scaled independently at each depth: black means small or nonpositive relevance, not necessarily zero. Depth 4 is where the uniform initial relevance itself lives—every map there is flat by construction; the interesting question is what a network does to it on the way back to depth 0.</p>
-</div>
+- **z+** spreads relevance according to the positive contributions of the actual pixel values.
+- **WSquare** spreads it according to the squared weights alone and ignores the pixel values. It is recommended for inputs without natural bounds [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>].
+- **Gamma** is the rule we use inside the blocks.
 
-A **phase ratio** compares the strongest and weakest of the four spatial phases a stride-2 layer produces (even/even, even/odd, odd/even, odd/odd); 1.0 means no imbalance. Both ResNet checkpoints start close to **9** right after the stem and stay above **4.7** through the middle stages—supervised and self-supervised alike. Both ConvNeXt checkpoints never leave **1.0–1.2**. Training objective does not decide which architecture shows this; the architecture does. [Recorded stage statistics]({{ '/assets/downloads/lrp-without-labels/intermediate-stages.npz' | relative_url }}).
+{% include figure-gallery.html id="lrp-stems" data=site.data.galleries.lrp_stems_rules %}
 
-### Two branches, opposite phase
+Look closely at the maps, and the borders between the patches become visible. WSquare paints visible edges along them, because it gives every patch the same pattern regardless of its content. z+ shows fewer edges, and Gamma almost none. The number under each map measures this as the contrast between neighbouring pixels across a patch border and within a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with z+ and 0.97 with Gamma. Swin and the DINOv1 ViT behave the same way. The rules in our table are the ones we settled on early, WSquare for ConvNeXt, Swin and MaxViT and z+ for the ViTs. These measurements suggest that Gamma deserves a closer look.
 
-ResNet's imbalance has a mechanism, not just a measurement. Every stage transition (for example `layer4.0`) adds a **main branch**, a 3 × 3 stride-2 convolution, to a **shortcut**, a 1 × 1 stride-2 convolution. Isolate each branch's relevance at the transition it feeds, again on any image and for both the supervised and the DINO checkpoint, and compare an unsplit residual against one split by activation magnitude:
+MAE is the exception. Its maps keep a strong grid under every first-layer rule, and Gamma does not remove it. The grid was also visible in the previous post, where it dominated MAE's maps. Where it comes from is a question of its own, and we look at it in a separate post.
 
-<div class="lrp-widget" id="lrp-checkerboard">
-{% include figure-gallery.html id="lrp-checkerboard-maps" data=site.data.galleries.lrp_checkerboard %}
-<p data-role="scale" class="lrp-readout"></p>
-<p class="lrp-readout" data-role="result" aria-live="polite"></p>
-<p class="lrp-note">Absolute channel-summed relevance; independent full-range scales.</p>
-</div>
+## What We Did Not Solve
 
-The main branch's 3 × 3 windows are centered on even positions, so an odd/odd position sits inside four overlapping windows against one for even/even. The shortcut's 1 × 1 window cannot overlap at all—it returns relevance **only** at even/even positions; the other three quarters of positions get exactly zero from it, a genuine disconnection rather than noise, not something a different rule could route around. Both patterns are structural, not content-dependent: they show up identically under unit activations and uniform incoming relevance, with no photograph involved. [Structure-only controls for both checkpoints]({{ '/assets/downloads/lrp-without-labels/intermediate-findings.md' | relative_url }}).
+Several questions remain open.
 
-The visible checkerboard is their weighted sum, and here is a wrinkle worth being honest about: this post's own production rule for splitting a ResNet residual—**equal**, a fixed 50/50—turns out not to change that sum at all. Dividing both branches by the same constant leaves their *relative* weighting exactly where it was; it is mathematically indistinguishable from not splitting. Only a rule that treats the branches asymmetrically moves anything. Switching to a **magnitude**-weighted split—each branch's share proportional to its own activation size at that position—lowers the even/even share from **0.571** to **0.429** on the supervised checkpoint and from **0.560** to **0.374** on the DINO checkpoint. Real, and the same direction for both training regimes, but a rule this post does not actually use anywhere else. [Full numbers and reproduction]({{ '/assets/downloads/lrp-without-labels/intermediate-findings.md' | relative_url }}).
+- Only part of the relevance reaches the pixels, and how much differs a lot between models and rules.
+- The maps depend on the rules. The residual split alone changes how much relevance arrives and where it goes.
+- In plain ViTs, the maps barely depend on where the relevance starts. For the supervised ViT, this held under every residual rule we tried. If the start hardly matters, it is not obvious what exactly such a map explains.
+- We did not measure faithfulness. Readers who need it will find established measures in the work of Achtibat et al. and Berend et al.
 
-ConvNeXt has no equivalent mechanism: every strided layer there has kernel size equal to stride, so each position is covered exactly once.
+## Use It Yourself
 
-<details markdown="1">
-<summary>Is this worth fixing?</summary>
+All rules live in a small package that comes with the notebook. Explaining an encoder takes a few lines.
 
-Not yet decided, and not obviously wrong as it stands: the shortcut genuinely never reads three quarters of the positions, and the rule genuinely gives shared positions more. The final pixel maps stay clean regardless (patch-edge ratio close to 1.0); this only matters when an intermediate map is read directly. Options under consideration, from least to most intrusive: report the two branches separately; normalize the displayed map by the phase pattern measured under unit activations, which changes the display but not the relevance; or replace the shortcut with average-pooling followed by a 1 × 1 convolution (the ResNet-D layout)—an untested surrogate that would need its own prediction checks. Hierarchical vision transformers with their own strided downsampling, such as Swin, have not been checked for an analogous effect.
+```python
+from xai_utils.models import load_model
+from xai_utils.lrp import explain
 
-This is the same kind of artifact [Odena and colleagues](https://distill.pub/2016/deconv-checkerboard/) describe for transposed convolutions—the operation a strided convolution's backward pass performs—though AttnLRP's paper uses the word "checkerboard" for something unrelated: the token-sized blocks of an attention-rollout map, not this uneven-overlap pattern.
+model = load_model("dino_vit")              # one of the thirteen encoders
+x = model.transform(image)[None]            # a 224x224 PIL image -> (1, 3, 224, 224)
+relevance = explain(model, x)               # (3, 224, 224), one map per colour channel
+heatmap = relevance.clamp(min=0).mean(0)    # positive part, averaged over the colours
+```
 
-</details>
+To add a new model, one writes a canonizer for each of its blocks that makes the residual additions explicit and holds the attention weights and the LayerNorm spread fixed. The checks above then show whether anything was missed.
 
-## The last step can stamp a pattern onto every patch
+## Conclusion
 
-Going backward from one patch token to a 16 × 16 patch means distributing its amount among 256 pixels and their color channels. We do not simply enlarge a square on a screen. The input projection and its attribution rule decide how to fill it.
+{%- comment -%}TODO: write once the sections are agreed. Open questions grounded in the figures: why ViT maps
+barely depend on their start; which residual split to trust; where the grids come from (next post).{%- endcomment -%}
 
-One rule, **WSquare**, distributes according to squared projection weights. Once the incoming relevance is fixed, this local distribution does not depend on the image values. It can repeatedly stamp a learned template inside patches. **ZPlus** also uses the input activations, so its distribution can change with the local image.
+## References
 
-Compare the two input-projection rules side by side, then switch models using the image dock below. The incoming patch relevance is identical in each paired experiment; only the final redistribution changes.
+{%- capture references -%}
+Bach, S., Binder, A., Montavon, G., Klauschen, F., Müller, K.-R., & Samek, W. | 2015 | On Pixel-Wise Explanations for Non-Linear Classifier Decisions by Layer-Wise Relevance Propagation;
+Montavon, G., Binder, A., Lapuschkin, S., Samek, W., & Müller, K.-R. | 2019 | Layer-Wise Relevance Propagation: An Overview;
+Anders, C. J., Neumann, D., Samek, W., Müller, K.-R., & Lapuschkin, S. | 2021 | Software for Dataset-wide XAI: From Local Explanations to Global Insights with Zennit, CoRelAy, and ViRelAy;
+Ali, A., Schnake, T., Eberle, O., Montavon, G., Müller, K.-R., & Wolf, L. | 2022 | XAI for Transformers: Better Explanations through Conservative Propagation;
+Achtibat, R., et al. | 2024 | AttnLRP: Attention-Aware Layer-Wise Relevance Propagation for Transformers;
+Bakish, Y., Zimerman, I., Chefer, H., & Wolf, L. | 2025 | Revisiting LRP: Positional Attribution as the Missing Ingredient for Transformer Explainability;
+Berend, J., Achtibat, R., Schäffer, D., Binder, A., Samek, W., Lapuschkin, S., & Dreyer, M. | 2026 | ResLRP: The Role of Residual Cancellation in Attribution Instability in Vision Transformers;
+{%- endcapture -%}
 
-<div class="lrp-widget" id="lrp-stem">
-{% include figure-gallery.html id="lrp-projection-maps" data=site.data.galleries.lrp_stems %}
-<p data-role="scale" class="lrp-readout"></p>
-<p data-role="result" aria-live="polite"></p>
-</div>
+{% include reference.html ref=references %}
 
-On this montage, the fraction of within-patch map energy captured by one repeated template drops from **99.6% to 82.8%** for DINOv2 and **99.3% to 84.0%** for DINOv3. That explains a visible change in texture. It does not prove that ZPlus identifies the right pixels, and it does not eliminate all patch structure. [Paired measurements]({{ '/assets/downloads/lrp-without-labels/backbone-validation.json' | relative_url }}).
-
-There is also unfinished business upstream: different DINOv2 output-channel allocations produced strongly correlated pixel maps. A detailed-looking map can lose distinctions that were present in the representation. Better texture and better specificity are separate achievements.
-
-## MAE: the grid has an accomplice
-
-[Masked autoencoders](https://arxiv.org/abs/2111.06377) learn by reconstructing missing image patches. Here we use the trained encoder on the complete image, with no random masking and no decoder. [DINO](https://arxiv.org/abs/2104.14294), by contrast, uses self-distillation; its authors reported emergent spatial structure in self-supervised ViTs. Different learning objectives make different representations plausible. They do not, by themselves, explain our attribution results.
-
-MAE's projection weights provide a more concrete clue. A patch's outermost rows and columns occupy **23.44%** of its area, but contain **54.30%** of MAE's squared projection weights. The tested DINOv1 and supervised ViT checkpoints are near the area fraction: **22.55%** and **23.15%**.
-
-This boundary preference also appears outside LRP. Native gradient energy concentrates at patch edges; matched perturbations to boundary pixels change MAE's embeddings more than equally sized, equal-energy interior perturbations in the tested pairs. The grid has a model-dependent component. We have not established which part of training caused it. [Boundary investigation and limits]({{ '/assets/downloads/lrp-without-labels/mae-findings.md' | relative_url }}).
-
-But where does the grid enter the explanation? Follow an actual backward trace. Start at the final embedding, then move toward the pixels. Compare the last two stages: the pixel map and those same pixel amounts added back together within each original patch.
-
-<div class="lrp-widget" id="lrp-trace">
-<p data-role="stage" aria-live="polite"></p>
-{% include figure-gallery.html id="lrp-backward-maps" data=site.data.galleries.lrp_trace %}
-<p data-role="scale" class="lrp-readout"></p>
-<p class="lrp-readout" data-role="amount"></p>
-<p class="lrp-note">Blue is negative, red positive. Each stage has its own symmetric full-range color scale. Coarse panels are actual 14 × 14 channel sums enlarged without smoothing; they are not pixel explanations or selected-patch masks.</p>
-<div class="lrp-bias"><strong>Why is the full mean negative?</strong><p data-role="bias" aria-live="polite"></p></div>
-</div>
-
-Across these six cases, the incoming patch amounts and the pixel amounts summed back within their patches correlate **0.994–0.9999**. Much of the conspicuous fine grid arises *inside* the patches. Coarse structure can survive while the pixel redistribution looks unhelpful. That still leaves the coarse ranking itself to validate. [Recorded stage diagnosis]({{ '/assets/downloads/lrp-without-labels/mae-diagnosis.json' | relative_url }}).
-
-### A negative mean is not automatically “evidence against the object”
-
-MAE's final normalization includes a learned bias. Averaged over coordinates, that bias is **−0.03298339**, the same for every image. On the dog/cat input, the image-dependent term is about **+0.02331165**. Add the bias and the full embedding mean is **−0.00967174**.
-
-The negative total does not mean the dog and cat are negative concepts. It partly reflects where the model places the origin of its feature coordinates. The exact output decomposition above exposes that offset. We keep the initial relevance unchanged and account for parameter contributions separately; we do not flip the finished heatmap to make it look nicer.
-
-For positive-only means, the set of participating coordinates changes with the image. Their bias contribution need not be a constant spatial offset. Switch the allocation in the trace to see the measured decomposition change. [Exact normalization decomposition]({{ '/assets/downloads/lrp-without-labels/mae-norm.json' | relative_url }}).
-
-<details markdown="1">
-<summary>Why not rescale embeddings to −1…+1 first?</summary>
-
-That defines another allocation. It may be useful if its meaning fits the question, but it is not neutral housekeeping. In our three MAE examples, a global min–max transform changed the fraction of positive coordinates from roughly 46–47% to **0.362%, 99.351% and 99.759%**. One extreme coordinate can move the zero point for almost everything else.
-
-Similarly, stabilizing a denominator can change the attribution rather than merely compute it more accurately. Increasing the final normalization stabilizer improved MAE's numerical robustness, yet made different channel explanations more alike and weakened one patch-replacement test. Stability is necessary; it is not sufficient. [Normalization experiments]({{ '/assets/downloads/lrp-without-labels/mae-findings.md' | relative_url }}).
-
-</details>
-
-## Could we just take the shortcut?
-
-A transformer has a residual stream carrying information around its attention and feature-mixing blocks. It was tempting to route relevance through that stream and bypass the difficult operations.
-
-We tried seven backward configurations on three images and both embedding means: 42 cases. Identity-only routing, skipping attention, skipping feature mixing, equal splits and other alternatives all retained the pixel grid. The forward network was identical; these were changes to the attribution assumptions, not models with layers removed.
-
-There is a reason the shortcut cannot settle the question. Preserving an amount on one branch tells us nothing about whether assigning zero to the other branch is justified. And none of those routes avoids the final step from patch features into pixels.
-
-Other tempting improvements failed for different reasons. Selecting object-like patch groups largely reproduced the selection itself. Averaging explanations from shifted images reduced grid visibility, but explained multiple altered inputs and did not establish better faithfulness. Changing the pixel rule to respect physical RGB bounds improved invariance to coordinate conventions, yet kept the grid. These are informative failures, not grounds for declaring every future MAE explanation impossible. [Investigation summary]({{ '/assets/downloads/lrp-without-labels/mae-findings.md' | relative_url }}).
-
-## A pretty map still owes us an explanation
-
-One useful check is to alter highly ranked regions and measure what happens to the representation. On three images and three unit allocations, replacing the 20 highest-ranked patches with normalized zeros changed MAE's selected output coordinates **less than random patches**: the median top/random effect ratio was **0.915**, with none of nine cases above one. DINOv1 reached **1.314**, with all nine above one.
-
-That is evidence against calling the tested MAE patch ranking successful. It is not a universal victory for DINO. Replacement is a particular intervention, and both models were weak under a different, small-noise patch test. Even MAE's apparent advantage for high-ranked pixels mostly vanished when random controls matched their position within the patch. The control had to account for the very grid we were investigating. [Methods and intervention results]({{ '/assets/downloads/lrp-without-labels/mae-findings.md' | relative_url }}).
-
-I now keep three questions separate when inspecting a map:
-
-1. **Does the implementation do what its rules say?** Check operation coverage, spatial alignment, forward equivalence and accounting.
-2. **Is the result numerically dependable?** Check small perturbations, precision changes and large opposing flows.
-3. **Does it distinguish and explain the representation we started from?** Compare allocations and test predictions with interventions suited to the claim.
-
-Closing a ledger does not answer all three. In the DINOv2 montage example, only about **0.142** of the initial unit reaches the pixels; prefix tokens receive about **0.008**, and signed local rule gaps account for about **0.850**. Accounting for the difference is useful. Calling the pixel map “one unit conserved” would be wrong.
-
-<details markdown="1">
-<summary>How to read the evidence—and reproduce the figures</summary>
-
-All examples here are development data, not a held-out benchmark. The model explorer uses five images and 13 checkpoints. The MAE trace uses three of those images with two raw-mean allocations. It should not be compared numerically with the gallery's uniform-unit allocation. The intermediate-depth and checkerboard galleries reuse all five images and this post's uniform initial relevance, on four and two of the gallery's own checkpoints respectively.
-
-The input is an RGB image resized with Lanczos to a short side of 224 and center-cropped to 224 × 224. Model normalization is checkpoint-specific. Signed pixel views sum RGB relevance; positive-only views average positive RGB channels. Every map uses its full maximum for display scaling, without percentile clipping. The opacity slider only blends the rendering with the photograph.
-
-The downloadable evidence contains measured results, source-report snapshots, raw stage arrays and provenance, so the numerical claims can be checked independently of the pictures. These files are not extra visualization code. Only the compact interactive data is fetched by the page; the detailed reports are optional downloads. See the [file guide]({{ '/assets/downloads/lrp-without-labels/README.md' | relative_url }}).
-
-Download the [interactive data]({{ '/assets/downloads/lrp-without-labels/data.json' | relative_url }}), [input hashes and provenance]({{ '/assets/downloads/lrp-without-labels/provenance.json' | relative_url }}), [recorded model configurations]({{ '/assets/downloads/lrp-without-labels/backbone-heatmaps.json' | relative_url }}) and [export script]({{ '/assets/downloads/lrp-without-labels/export.py' | relative_url }}). The six MAE stage arrays are included as NumPy archives; [the montage/full-mean example is here]({{ '/assets/downloads/lrp-without-labels/mae_misc_all_mean.npz' | relative_url }}). The script extracts recorded arrays and renders them; it does not invent heatmaps or rerun training.
-
-The intermediate-depth and checkerboard figures are the one pair generated directly from this post's own inference, rather than from an archived research snapshot: [this export script]({{ '/assets/downloads/lrp-without-labels/export_intermediate.py' | relative_url }}) runs the same uniform-relevance seeding and composite rules used everywhere else on this page, for four checkpoints spanning both training regimes. See [raw stage arrays]({{ '/assets/downloads/lrp-without-labels/intermediate-stages.npz' | relative_url }}) and the [detailed source report]({{ '/assets/downloads/lrp-without-labels/intermediate-findings.md' | relative_url }}).
-
-The research snapshot is commit `3db2f80`. The archived [experiment guide]({{ '/assets/downloads/lrp-without-labels/experiments.md' | relative_url }}) describes inference reproduction in that repository. Downloaded Markdown reports are source snapshots; their internal relative links refer to the research repository, not this website.
-
-</details>
-
-## What I would use today
-
-I would use these maps to inspect representations, form hypotheses and find suspicious behavior—including background dependence and outliers. I would always keep the starting allocation, signed amounts and propagation rules attached to the picture.
-
-For the tested MAE checkpoint, I would keep the patch-level and pixel-level diagnostics side by side. The former helps locate where a pattern changes; the latter reveals how the projection distributes it. Neither currently earns a claim of validated object-level pixel attribution.
-
-LRP without labels is possible. What disappears is the need for a classifier's answer. What remains is the responsibility to say what amount we started with, how we moved it, and why we trust the resulting trail.
-
-<script src="{{ '/assets/js/posts/lrp-without-labels.js' | relative_url }}" defer></script>
-
-{% comment %}
-Parked from the LaFAM post (1,000-image ImageNet box comparison: one val image
-per class, 224 centre crop, union of boxes; ResNet-50 supervised / SimCLR /
-SwAV; box AUROC = P(inside pixel > outside pixel), ties half, per image).
-The LaFAM post keeps only the conclusion that box/mask localization metrics
-penalise fine-grained maps. Fold into this post where it fits, or drop.
-
-| Encoder    | LaFAM nearest | LaFAM bilinear | LRP uniform seed | LRP activation seed | LaFAM AnyUp |
-| Supervised | 79.25 | 80.66 | 67.27 | 74.79 | 80.23 |
-| SimCLR     | 80.83 | 83.20 | 65.67 | 78.37 | 82.41 |
-| SwAV       | 79.74 | 82.18 | 63.63 | 73.77 | 80.99 |
-Pointing (sup/SimCLR/SwAV): LRP uniform 37.4/49.7/51.8, activation 59.9/80.3/64.8.
-Mass inside boxes: activation-seeded LRP has the highest for supervised (68.81).
-Median time (RTX 3060 Ti, FP32, single image): LaFAM ~3 ms, AnyUp ~40 ms, LRP ~70 ms.
-
-- The seed matters: activation-proportional instead of uniform seed raises box
-  AUROC by ~8-13 points - larger than any gap between the LaFAM variants.
-- Uniform seed gives relevance to inactive units: 44-92% of the final feature
-  values are zero, depending on the encoder.
-- Smoothing inflates the score: on 200 images (every fifth), Gaussian blur
-  sigma=16 raises activation-seeded LRP 74.95->79.99 (sup), 78.82->84.07
-  (SimCLR), 74.27->79.14 (SwAV); averaging back to 7x7 + bilinear gives about
-  the same (79.93 / 83.70 / 78.83).
-- Pooled-embedding target (explicit GAP layer inside LRP, then mean): supervised
-  uniform-seed 67.37 -> 71.49; no consistent gain for the SSL encoders. Its
-  forward scalar equals the spatial mean, but the extra redistribution rule
-  changes the map.
-- Excluding a 16 px zone around box edges (169 images) does not close the gap:
-  activation-seeded LRP stays ~8-14 points below bilinear LaFAM.
-- Negative clipping is not the cause: keeping the signed channel mean changes
-  uniform-seed LRP by <0.15 points; absolute relevance does not close the gap.
-- Toy case (square outline): blurring the perfect map raises box AUROC 71.9 ->
-  98.0 while silhouette AUROC falls 100 -> 89.3.
-Conclusion then: fine relevance maps and coarse box coverage answer different
-questions, and the exact LRP definition (seed, rules) matters.
-{% endcomment %}
+<script src="{{ '/assets/js/posts/label-free-lrp.js' | relative_url }}" defer></script>

@@ -45,6 +45,8 @@
       this.pointer = null;
       this.frame = 0;
       this.maps = [];
+      this.notes = [...root.querySelectorAll(".fg-cell-note")];
+      try { this.noteText = JSON.parse(root.dataset.notes || "{}"); } catch { this.noteText = {}; }
 
       this.geometry();
       this.bindDock();
@@ -96,6 +98,7 @@
       });
       if (focus) item.focus();
 
+      this.annotate();
       if (this.title) this.title.textContent = item.dataset.label || "";
       if (this.count) this.count.textContent = `${this.index + 1} / ${total}`;
       if (this.panels) this.panels.setAttribute("aria-labelledby", item.id);
@@ -234,11 +237,24 @@
         const target = el.dataset.axisTarget;
         const output = el.closest("label")?.querySelector(".fg-axis-value");
         const event = el.tagName === "SELECT" ? "change" : "input";
+        let labels = null;
+        try { labels = el.dataset.labels ? JSON.parse(el.dataset.labels) : null; } catch { labels = null; }
         el.addEventListener(event, () => {
           this.stacks.forEach((stack) => { stack.dataset[target] = el.value; });
-          if (output) output.textContent = el.value;
+          if (output) output.textContent = labels ? labels[Number(el.value)] ?? el.value : el.value;
           this.restage();
+          this.annotate();
         });
+      });
+    }
+
+    annotate() {
+      if (!this.notes.length) return;
+      const item = this.thumbs[this.index];
+      this.notes.forEach((note, i) => {
+        const stack = this.stacks[i];
+        const key = stack ? `${stack.dataset.row || ""}|${stack.dataset.layer || ""}|${item?.dataset.item || ""}` : "";
+        note.textContent = this.noteText[key] || "";
       });
     }
 

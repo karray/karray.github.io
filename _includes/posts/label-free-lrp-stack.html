@@ -1,0 +1,31 @@
+{%- comment -%}
+The stacked-layers figure of the LRP post: the image dock of the shared figure gallery (for its look and
+keyboard handling) around the relevance explorer in assets/js/posts/label-free-lrp.js.
+{%- endcomment -%}
+{%- assign items = site.data.galleries.lrp_rules.items -%}
+{%- unless figure_gallery_assets -%}
+<link rel="stylesheet" href="{{ '/assets/css/figure-gallery.css' | relative_url }}">
+<script src="{{ '/assets/js/figure-gallery.js' | relative_url }}" defer></script>
+{%- assign figure_gallery_assets = true -%}
+{%- endunless -%}
+<figure class="fg lrp-stackfig" id="lrp-flow" data-fg>
+  <p class="fg-kicker">Follow the relevance back through the network</p>
+  <div class="fg-dock" role="tablist" aria-label="Choose an image">
+    {%- for item in items -%}
+    {%- assign selected = forloop.first -%}
+    <button type="button" class="fg-thumb" id="lrp-flow-tab-{{ forloop.index }}" role="tab"
+      aria-selected="{{ selected }}" tabindex="{% if selected %}0{% else %}-1{% endif %}"
+      {% if selected %}data-selected="true" {% endif %}data-item="{{ item.id }}" data-label="{{ item.label | escape }}"
+      data-src="{{ item.src | relative_url }}">
+      <img src="{{ item.src | relative_url }}" alt="" loading="lazy" decoding="async">
+      <span class="fg-thumb-label">{{ item.label }}</span>
+    </button>
+    {%- endfor -%}
+  </div>
+  <p class="fg-now" aria-live="polite"><strong class="fg-title">{{ items[0].label }}</strong><span class="fg-count">1 / {{ items | size }}</span></p>
+  <div data-lrp-stack data-base="{{ '/assets/data/label-free-lrp/flow/' | relative_url }}"
+    data-models='[{"id": "convnext", "label": "ConvNeXt Base (supervised)"}, {"id": "dino_vit", "label": "DINOv1 ViT-B/16 (self-supervised)"}]'>
+    <p class="fg-note">This figure needs JavaScript.</p>
+  </div>
+  <figcaption>The left panel is the feature grid at the end of the network, where the relevance starts, scaled between its minimum and maximum like the averaged maps of the previous post. For the ViT, each cell groups two by two tokens. Hover a cell to preview its relevance, click cells to follow only them. The layers to its right show the relevance after it has been passed back to each depth, positive part only. The bands between them have the height of the amount of relevance that passes from one depth to the next. Everything was computed in advance with the rules described in this post. Since these rules pass relevance on in fixed proportions, the relevance of several start cells is simply the sum of their individual maps, which the page adds up as you click.</figcaption>
+</figure>

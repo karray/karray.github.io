@@ -1,0 +1,164 @@
+{
+ "kicker": "Adding the rules one at a time",
+ "opacity": 100,
+ "reveal": true,
+ "controls": [
+  {
+   "name": "model",
+   "target": "row",
+   "type": "select",
+   "label": "Model",
+   "default": "convnext",
+   "options": [
+    {
+     "value": "convnext",
+     "label": "ConvNeXt Base"
+    },
+    {
+     "value": "swin",
+     "label": "Swin Base"
+    },
+    {
+     "value": "dino_vit",
+     "label": "DINOv1 ViT-B/16"
+    }
+   ]
+  },
+  {
+   "name": "rules",
+   "target": "layer",
+   "type": "range",
+   "label": "Rules",
+   "min": 0,
+   "max": 4,
+   "default": 0,
+   "labels": [
+    "weighted layers only",
+    "+ residual split",
+    "+ LayerNorm",
+    "+ activations",
+    "+ attention"
+   ]
+  }
+ ],
+ "rows": [
+  {
+   "id": "convnext",
+   "label": ""
+  }
+ ],
+ "columns": [
+  {
+   "label": "Relevance at the pixels",
+   "rendering": "auto"
+  }
+ ],
+ "overlay": "/assets/img/posts/label-free-lrp/rules/{row}_{item}_{layer}.png",
+ "items": [
+  {
+   "id": "dog_cat",
+   "label": "Dog and cat",
+   "src": "/assets/img/posts/lafam/figures/images/dog_cat.jpeg"
+  },
+  {
+   "id": "dog_dog",
+   "label": "Two dogs",
+   "src": "/assets/img/posts/lafam/figures/images/dog_dog.jpeg"
+  },
+  {
+   "id": "fish_person",
+   "label": "Fish and person",
+   "src": "/assets/img/posts/lafam/figures/images/fish_person.png"
+  },
+  {
+   "id": "misc",
+   "label": "Six objects",
+   "src": "/assets/img/posts/lafam/figures/images/misc.png"
+  },
+  {
+   "id": "spider_web",
+   "label": "Spider web",
+   "src": "/assets/img/posts/lafam/figures/images/spider_web.png"
+  }
+ ],
+ "notes": {
+  "convnext|0|dog_cat": "1.3e-05 reaches the pixels",
+  "convnext|1|dog_cat": "0.01 reaches the pixels",
+  "convnext|2|dog_cat": "0.48 reaches the pixels",
+  "convnext|3|dog_cat": "0.66 reaches the pixels",
+  "convnext|4|dog_cat": "0.66 reaches the pixels",
+  "convnext|0|dog_dog": "2.2e-05 reaches the pixels",
+  "convnext|1|dog_dog": "0.03 reaches the pixels",
+  "convnext|2|dog_dog": "0.52 reaches the pixels",
+  "convnext|3|dog_dog": "0.68 reaches the pixels",
+  "convnext|4|dog_dog": "0.68 reaches the pixels",
+  "convnext|0|fish_person": "1.5e-05 reaches the pixels",
+  "convnext|1|fish_person": "0.0086 reaches the pixels",
+  "convnext|2|fish_person": "0.43 reaches the pixels",
+  "convnext|3|fish_person": "0.61 reaches the pixels",
+  "convnext|4|fish_person": "0.61 reaches the pixels",
+  "convnext|0|misc": "2.6e-05 reaches the pixels",
+  "convnext|1|misc": "0.10 reaches the pixels",
+  "convnext|2|misc": "0.42 reaches the pixels",
+  "convnext|3|misc": "0.56 reaches the pixels",
+  "convnext|4|misc": "0.56 reaches the pixels",
+  "convnext|0|spider_web": "0.00011 reaches the pixels",
+  "convnext|1|spider_web": "0.05 reaches the pixels",
+  "convnext|2|spider_web": "0.25 reaches the pixels",
+  "convnext|3|spider_web": "0.35 reaches the pixels",
+  "convnext|4|spider_web": "0.35 reaches the pixels",
+  "swin|0|dog_cat": "0.0025 reaches the pixels",
+  "swin|1|dog_cat": "1.5e+07 reaches the pixels",
+  "swin|2|dog_cat": "0.50 reaches the pixels",
+  "swin|3|dog_cat": "0.77 reaches the pixels",
+  "swin|4|dog_cat": "0.69 reaches the pixels",
+  "swin|0|dog_dog": "0.0045 reaches the pixels",
+  "swin|1|dog_dog": "4e+06 reaches the pixels",
+  "swin|2|dog_dog": "0.41 reaches the pixels",
+  "swin|3|dog_dog": "0.62 reaches the pixels",
+  "swin|4|dog_dog": "0.62 reaches the pixels",
+  "swin|0|fish_person": "0.0017 reaches the pixels",
+  "swin|1|fish_person": "1.7e+07 reaches the pixels",
+  "swin|2|fish_person": "0.43 reaches the pixels",
+  "swin|3|fish_person": "0.62 reaches the pixels",
+  "swin|4|fish_person": "0.58 reaches the pixels",
+  "swin|0|misc": "0.0048 reaches the pixels",
+  "swin|1|misc": "5.8e+05 reaches the pixels",
+  "swin|2|misc": "0.37 reaches the pixels",
+  "swin|3|misc": "0.50 reaches the pixels",
+  "swin|4|misc": "0.52 reaches the pixels",
+  "swin|0|spider_web": "0.0049 reaches the pixels",
+  "swin|1|spider_web": "2.1e+08 reaches the pixels",
+  "swin|2|spider_web": "0.26 reaches the pixels",
+  "swin|3|spider_web": "0.40 reaches the pixels",
+  "swin|4|spider_web": "0.37 reaches the pixels",
+  "dino_vit|0|dog_cat": "1.6e+03 reaches the pixels",
+  "dino_vit|1|dog_cat": "0.28 reaches the pixels",
+  "dino_vit|2|dog_cat": "0.18 reaches the pixels",
+  "dino_vit|3|dog_cat": "0.21 reaches the pixels",
+  "dino_vit|4|dog_cat": "0.22 reaches the pixels",
+  "dino_vit|0|dog_dog": "3.5e+03 reaches the pixels",
+  "dino_vit|1|dog_dog": "0.31 reaches the pixels",
+  "dino_vit|2|dog_dog": "0.14 reaches the pixels",
+  "dino_vit|3|dog_dog": "0.15 reaches the pixels",
+  "dino_vit|4|dog_dog": "0.17 reaches the pixels",
+  "dino_vit|0|fish_person": "1.6e+03 reaches the pixels",
+  "dino_vit|1|fish_person": "0.46 reaches the pixels",
+  "dino_vit|2|fish_person": "0.15 reaches the pixels",
+  "dino_vit|3|fish_person": "0.17 reaches the pixels",
+  "dino_vit|4|fish_person": "0.17 reaches the pixels",
+  "dino_vit|0|misc": "2.4e+03 reaches the pixels",
+  "dino_vit|1|misc": "0.30 reaches the pixels",
+  "dino_vit|2|misc": "0.18 reaches the pixels",
+  "dino_vit|3|misc": "0.19 reaches the pixels",
+  "dino_vit|4|misc": "0.21 reaches the pixels",
+  "dino_vit|0|spider_web": "2.5e+03 reaches the pixels",
+  "dino_vit|1|spider_web": "0.73 reaches the pixels",
+  "dino_vit|2|spider_web": "0.06 reaches the pixels",
+  "dino_vit|3|spider_web": "0.07 reaches the pixels",
+  "dino_vit|4|spider_web": "0.07 reaches the pixels"
+ },
+ "help": "Pick an image from the dock and a model from the menu, then move the slider to add the rules one at a time. The number under the map is how much of the starting amount of 1 arrives at the pixels.",
+ "caption": "Positive part of the relevance at the pixels, averaged over the colour channels and scaled to its own maximum. Each step keeps the rules of the steps before it. The last step is the full rule set of the tutorial.",
+ "style": "--fg-cell-max: 360px;"
+}

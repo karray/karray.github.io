@@ -338,6 +338,15 @@
   --fg-label-width: 2.8rem;
 }
 
+.fg-cell-note {
+  margin-top: -.3rem;
+  color: var(--fg-muted);
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  min-height: 1.2em;
+}
+
 .fg-stack {
   position: relative;
   width: 100%;

@@ -1,0 +1,245 @@
+{
+ "kicker": "Four ways to split relevance at a residual connection",
+ "opacity": 100,
+ "reveal": true,
+ "controls": [
+  {
+   "name": "model",
+   "target": "row",
+   "type": "select",
+   "label": "Model",
+   "default": "dino_vit",
+   "options": [
+    {
+     "value": "resnet50",
+     "label": "ResNet-50"
+    },
+    {
+     "value": "convnext",
+     "label": "ConvNeXt Base"
+    },
+    {
+     "value": "swin",
+     "label": "Swin Base"
+    },
+    {
+     "value": "maxvit",
+     "label": "MaxViT Base"
+    },
+    {
+     "value": "dino_vit",
+     "label": "DINOv1 ViT-B/16"
+    },
+    {
+     "value": "dinov3_vit",
+     "label": "DINOv3 ViT-B/16"
+    },
+    {
+     "value": "mae",
+     "label": "MAE ViT-B/16"
+    }
+   ]
+  }
+ ],
+ "rows": [
+  {
+   "id": "dino_vit",
+   "label": ""
+  }
+ ],
+ "columns": [
+  {
+   "label": "Equal",
+   "layer": "equal",
+   "rendering": "auto"
+  },
+  {
+   "label": "Proportional",
+   "layer": "activation",
+   "rendering": "auto"
+  },
+  {
+   "label": "Magnitude",
+   "layer": "magnitude",
+   "rendering": "auto"
+  },
+  {
+   "label": "\u03b3 (ResLRP)",
+   "layer": "gamma",
+   "rendering": "auto"
+  }
+ ],
+ "overlay": "/assets/img/posts/label-free-lrp/residual/{row}_{item}_{layer}.png",
+ "items": [
+  {
+   "id": "dog_cat",
+   "label": "Dog and cat",
+   "src": "/assets/img/posts/lafam/figures/images/dog_cat.jpeg"
+  },
+  {
+   "id": "dog_dog",
+   "label": "Two dogs",
+   "src": "/assets/img/posts/lafam/figures/images/dog_dog.jpeg"
+  },
+  {
+   "id": "fish_person",
+   "label": "Fish and person",
+   "src": "/assets/img/posts/lafam/figures/images/fish_person.png"
+  },
+  {
+   "id": "misc",
+   "label": "Six objects",
+   "src": "/assets/img/posts/lafam/figures/images/misc.png"
+  },
+  {
+   "id": "spider_web",
+   "label": "Spider web",
+   "src": "/assets/img/posts/lafam/figures/images/spider_web.png"
+  }
+ ],
+ "notes": {
+  "resnet50|equal|dog_cat": "0.03 reaches the pixels",
+  "resnet50|activation|dog_cat": "0.16 reaches the pixels",
+  "resnet50|magnitude|dog_cat": "0.10 reaches the pixels",
+  "resnet50|gamma|dog_cat": "0.14 reaches the pixels",
+  "resnet50|equal|dog_dog": "0.03 reaches the pixels",
+  "resnet50|activation|dog_dog": "0.17 reaches the pixels",
+  "resnet50|magnitude|dog_dog": "0.11 reaches the pixels",
+  "resnet50|gamma|dog_dog": "0.14 reaches the pixels",
+  "resnet50|equal|fish_person": "0.02 reaches the pixels",
+  "resnet50|activation|fish_person": "0.13 reaches the pixels",
+  "resnet50|magnitude|fish_person": "0.09 reaches the pixels",
+  "resnet50|gamma|fish_person": "0.11 reaches the pixels",
+  "resnet50|equal|misc": "0.04 reaches the pixels",
+  "resnet50|activation|misc": "0.24 reaches the pixels",
+  "resnet50|magnitude|misc": "0.15 reaches the pixels",
+  "resnet50|gamma|misc": "0.19 reaches the pixels",
+  "resnet50|equal|spider_web": "0.01 reaches the pixels",
+  "resnet50|activation|spider_web": "0.08 reaches the pixels",
+  "resnet50|magnitude|spider_web": "0.05 reaches the pixels",
+  "resnet50|gamma|spider_web": "0.06 reaches the pixels",
+  "convnext|equal|dog_cat": "0.12 reaches the pixels",
+  "convnext|activation|dog_cat": "0.66 reaches the pixels",
+  "convnext|magnitude|dog_cat": "0.49 reaches the pixels",
+  "convnext|gamma|dog_cat": "0.60 reaches the pixels",
+  "convnext|equal|dog_dog": "0.25 reaches the pixels",
+  "convnext|activation|dog_dog": "0.68 reaches the pixels",
+  "convnext|magnitude|dog_dog": "0.55 reaches the pixels",
+  "convnext|gamma|dog_dog": "0.64 reaches the pixels",
+  "convnext|equal|fish_person": "0.07 reaches the pixels",
+  "convnext|activation|fish_person": "0.61 reaches the pixels",
+  "convnext|magnitude|fish_person": "0.41 reaches the pixels",
+  "convnext|gamma|fish_person": "0.53 reaches the pixels",
+  "convnext|equal|misc": "0.22 reaches the pixels",
+  "convnext|activation|misc": "0.56 reaches the pixels",
+  "convnext|magnitude|misc": "0.46 reaches the pixels",
+  "convnext|gamma|misc": "0.53 reaches the pixels",
+  "convnext|equal|spider_web": "0.02 reaches the pixels",
+  "convnext|activation|spider_web": "0.35 reaches the pixels",
+  "convnext|magnitude|spider_web": "0.21 reaches the pixels",
+  "convnext|gamma|spider_web": "0.30 reaches the pixels",
+  "swin|equal|dog_cat": "0.05 reaches the pixels",
+  "swin|activation|dog_cat": "0.69 reaches the pixels",
+  "swin|magnitude|dog_cat": "0.37 reaches the pixels",
+  "swin|gamma|dog_cat": "0.50 reaches the pixels",
+  "swin|equal|dog_dog": "0.06 reaches the pixels",
+  "swin|activation|dog_dog": "0.62 reaches the pixels",
+  "swin|magnitude|dog_dog": "0.32 reaches the pixels",
+  "swin|gamma|dog_dog": "0.44 reaches the pixels",
+  "swin|equal|fish_person": "0.03 reaches the pixels",
+  "swin|activation|fish_person": "0.58 reaches the pixels",
+  "swin|magnitude|fish_person": "0.27 reaches the pixels",
+  "swin|gamma|fish_person": "0.40 reaches the pixels",
+  "swin|equal|misc": "0.06 reaches the pixels",
+  "swin|activation|misc": "0.52 reaches the pixels",
+  "swin|magnitude|misc": "0.25 reaches the pixels",
+  "swin|gamma|misc": "0.34 reaches the pixels",
+  "swin|equal|spider_web": "0.04 reaches the pixels",
+  "swin|activation|spider_web": "0.37 reaches the pixels",
+  "swin|magnitude|spider_web": "0.19 reaches the pixels",
+  "swin|gamma|spider_web": "0.26 reaches the pixels",
+  "maxvit|equal|dog_cat": "0.00049 reaches the pixels",
+  "maxvit|activation|dog_cat": "0.44 reaches the pixels",
+  "maxvit|magnitude|dog_cat": "0.21 reaches the pixels",
+  "maxvit|gamma|dog_cat": "0.35 reaches the pixels",
+  "maxvit|equal|dog_dog": "0.00062 reaches the pixels",
+  "maxvit|activation|dog_dog": "0.43 reaches the pixels",
+  "maxvit|magnitude|dog_dog": "0.22 reaches the pixels",
+  "maxvit|gamma|dog_dog": "0.35 reaches the pixels",
+  "maxvit|equal|fish_person": "0.00017 reaches the pixels",
+  "maxvit|activation|fish_person": "0.30 reaches the pixels",
+  "maxvit|magnitude|fish_person": "0.12 reaches the pixels",
+  "maxvit|gamma|fish_person": "0.22 reaches the pixels",
+  "maxvit|equal|misc": "0.00082 reaches the pixels",
+  "maxvit|activation|misc": "0.45 reaches the pixels",
+  "maxvit|magnitude|misc": "0.26 reaches the pixels",
+  "maxvit|gamma|misc": "0.39 reaches the pixels",
+  "maxvit|equal|spider_web": "5e-05 reaches the pixels",
+  "maxvit|activation|spider_web": "0.16 reaches the pixels",
+  "maxvit|magnitude|spider_web": "0.07 reaches the pixels",
+  "maxvit|gamma|spider_web": "0.12 reaches the pixels",
+  "dino_vit|equal|dog_cat": "0.04 reaches the pixels",
+  "dino_vit|activation|dog_cat": "0.68 reaches the pixels",
+  "dino_vit|magnitude|dog_cat": "0.22 reaches the pixels",
+  "dino_vit|gamma|dog_cat": "0.37 reaches the pixels",
+  "dino_vit|equal|dog_dog": "0.04 reaches the pixels",
+  "dino_vit|activation|dog_dog": "0.58 reaches the pixels",
+  "dino_vit|magnitude|dog_dog": "0.17 reaches the pixels",
+  "dino_vit|gamma|dog_dog": "0.28 reaches the pixels",
+  "dino_vit|equal|fish_person": "0.03 reaches the pixels",
+  "dino_vit|activation|fish_person": "0.63 reaches the pixels",
+  "dino_vit|magnitude|fish_person": "0.17 reaches the pixels",
+  "dino_vit|gamma|fish_person": "0.31 reaches the pixels",
+  "dino_vit|equal|misc": "0.05 reaches the pixels",
+  "dino_vit|activation|misc": "0.60 reaches the pixels",
+  "dino_vit|magnitude|misc": "0.21 reaches the pixels",
+  "dino_vit|gamma|misc": "0.33 reaches the pixels",
+  "dino_vit|equal|spider_web": "0.01 reaches the pixels",
+  "dino_vit|activation|spider_web": "0.27 reaches the pixels",
+  "dino_vit|magnitude|spider_web": "0.07 reaches the pixels",
+  "dino_vit|gamma|spider_web": "0.12 reaches the pixels",
+  "dinov3_vit|equal|dog_cat": "0.15 reaches the pixels",
+  "dinov3_vit|activation|dog_cat": "0.54 reaches the pixels",
+  "dinov3_vit|magnitude|dog_cat": "0.34 reaches the pixels",
+  "dinov3_vit|gamma|dog_cat": "0.43 reaches the pixels",
+  "dinov3_vit|equal|dog_dog": "0.12 reaches the pixels",
+  "dinov3_vit|activation|dog_dog": "0.49 reaches the pixels",
+  "dinov3_vit|magnitude|dog_dog": "0.30 reaches the pixels",
+  "dinov3_vit|gamma|dog_dog": "0.39 reaches the pixels",
+  "dinov3_vit|equal|fish_person": "0.12 reaches the pixels",
+  "dinov3_vit|activation|fish_person": "0.52 reaches the pixels",
+  "dinov3_vit|magnitude|fish_person": "0.31 reaches the pixels",
+  "dinov3_vit|gamma|fish_person": "0.41 reaches the pixels",
+  "dinov3_vit|equal|misc": "0.11 reaches the pixels",
+  "dinov3_vit|activation|misc": "0.45 reaches the pixels",
+  "dinov3_vit|magnitude|misc": "0.28 reaches the pixels",
+  "dinov3_vit|gamma|misc": "0.36 reaches the pixels",
+  "dinov3_vit|equal|spider_web": "0.07 reaches the pixels",
+  "dinov3_vit|activation|spider_web": "0.39 reaches the pixels",
+  "dinov3_vit|magnitude|spider_web": "0.21 reaches the pixels",
+  "dinov3_vit|gamma|spider_web": "0.29 reaches the pixels",
+  "mae|equal|dog_cat": "0.04 reaches the pixels",
+  "mae|activation|dog_cat": "0.63 reaches the pixels",
+  "mae|magnitude|dog_cat": "0.35 reaches the pixels",
+  "mae|gamma|dog_cat": "0.49 reaches the pixels",
+  "mae|equal|dog_dog": "0.04 reaches the pixels",
+  "mae|activation|dog_dog": "0.55 reaches the pixels",
+  "mae|magnitude|dog_dog": "0.32 reaches the pixels",
+  "mae|gamma|dog_dog": "0.45 reaches the pixels",
+  "mae|equal|fish_person": "0.03 reaches the pixels",
+  "mae|activation|fish_person": "0.56 reaches the pixels",
+  "mae|magnitude|fish_person": "0.32 reaches the pixels",
+  "mae|gamma|fish_person": "0.46 reaches the pixels",
+  "mae|equal|misc": "0.02 reaches the pixels",
+  "mae|activation|misc": "0.46 reaches the pixels",
+  "mae|magnitude|misc": "0.30 reaches the pixels",
+  "mae|gamma|misc": "0.42 reaches the pixels",
+  "mae|equal|spider_web": "0.02 reaches the pixels",
+  "mae|activation|spider_web": "0.39 reaches the pixels",
+  "mae|magnitude|spider_web": "0.27 reaches the pixels",
+  "mae|gamma|spider_web": "0.37 reaches the pixels"
+ },
+ "help": "Pick an image and a model, then compare the four splits side by side. Every other rule stays the same.",
+ "caption": "Positive part of the relevance at the pixels, scaled to its own maximum. The number under each map is the total amount of relevance, positive and negative, that arrives at the pixels from a start of 1.",
+ "style": "--fg-cell-max: 220px;"
+}
