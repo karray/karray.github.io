@@ -7,31 +7,27 @@ tags: XAI, LRP, CNN, ViT, Self-Supervised Learning
 description: How we wrote LRP rules for modern vision encoders without labels, what broke along the way, and what it tells us about how these models work inside.
 ---
 
-{%- comment -%}
-DRAFT for review. Interactive figures: assets/js/posts/label-free-lrp.js (flow explorer and toys) and
-_data/galleries/lrp_{rules,residual,stems_rules}.json (generated with the numbers by
-lrp/temp/lrp_post/export_interactive.py). TODO markers flag open points.
-{%- endcomment -%}
-
-Which pixels does a vision model rely on when nobody has told it what to look for? Layer-wise relevance propagation (LRP) can answer this. It sends the model's output back through the network, layer by layer, until it arrives at the pixels. For a classic CNN, this works out of the box. For the encoders in use today, which are built from LayerNorm, GELU, attention and residual connections, it does not. Without the right rules, the maps dissolve into noise. Worse, some of them look perfectly reasonable while a quarter of the relevance has vanished on the way.
+Layer-wise relevance propagation (LRP) is a powerful tool to understand what a neural network looks at when it makes a prediction. It sends the model's output back through the network, layer by layer, until it arrives at the pixels. The trick is to choose the right rules for each layer, so that the relevance is divided among the inputs in proportion to their contribution. Without the right rules, the maps dissolve into noise. This post investigates missing rules for modern vision encoders, and what we ca learn about them along the way.
 
 <!--more-->
 
-We wrote the missing rules for ConvNeXt, Swin, MaxViT and vision transformers trained with and without labels. This post follows the relevance through these models one building block at a time. For each block, a small interactive figure shows what goes wrong without a rule and what the rule does instead. Along the way, we point to published work that arrived at the same or better solutions. The rules and all examples are available in the [companion notebook](https://github.com/karray/deep-unboxing) {%- comment -%}TODO: link to 02_... once it exists{%- endcomment -%}.
+Think of the output of a network as an amount of water that we pour back through it. At every layer, the water is divided among the units that fed into the current one, and a unit that contributed more receives more. When the water reaches the image, the amount on each pixel tells us how much that pixel contributed. This amount is called relevance, and the procedure is layer-wise relevance propagation (LRP) [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>].
 
-## Pouring Relevance Back
+{%- comment -%}TODO: visualization for water analogy based on the original LRP illustration{%- endcomment -%}.
 
-Think of the output of a network as an amount of water that we pour back through it. At every layer, the water is divided among the units that fed into the current one, and a unit that contributed more receives more. When the water reaches the image, the amount on each pixel tells us how much that pixel contributed. This amount is called relevance, and the procedure is layer-wise relevance propagation [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>].
+In the previous post, we used LRP to explain self-supervised encoders without relying on labels. However, [zenit](https://github.com/zenit/zenit), a library for implementing LRP in PyTorch, only covers convolutional networks such as ResNet and VGG. We therefore had to write the missing rules for the blocks in ConvNeXt and transformer-based vision models.
+
+This post follows the relevance through these models one building block at a time. For each block, a small interactive figure shows what goes wrong without a rule and what the rule does instead. Along the way, we point to published work that arrived at the same or better solutions. The rules and all examples are available in the [companion notebook](https://github.com/karray/deep-unboxing) {%- comment -%}TODO: link to 02_... once it exists{%- endcomment -%}.
+
 
 The figure below shows this inside two real encoders. On the left is where the relevance starts, the feature grid at the end of the network. To its right is the same relevance after it has been passed back to ever earlier layers, until it arrives at the pixels.
 
 {% include posts/label-free-lrp-stack.html %}
 
-The bands between the layers show how much relevance passes from one depth to the next. They narrow on the way, because part of the relevance stays with constants inside the network. We come back to this at the end of the post.
 
-You can also choose where the relevance starts. Hover a cell to see where its relevance goes, or click several cells to follow only them. In ConvNeXt, most of the relevance stays close to where it started, and about 70% of it lands on the starting cell and its eight neighbours. In the DINOv1 ViT, only 40 to 50% stays this close. The rest travels to other parts of the image.
+Note that that the cat gets less relevance than the dog. The reason that the final relevance is relative and since the dog has a larger activation it gets more relevance, while cat's relevance is downscaled.
 
-How the water is divided at each layer is decided by a rule. Each kind of layer needs a rule that fits what it computes, and choosing them well is most of the work [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>]. This is where our trouble began.
+How the relevance is divided at each layer is decided by a rule. Each kind of layer needs a rule that fits what it computes, and choosing them well is most of the work [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>]. This is where our trouble began.
 
 One more choice concerns the start. LRP was designed to explain a prediction, so it usually starts from a class score. A self-supervised encoder has no class score. We start from its features instead and use only their positive part. In the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we averaged the same positive features into a coarse map, and LRP traces that map back to the pixels.
 
@@ -238,9 +234,10 @@ heatmap = relevance.clamp(min=0).mean(0)    # positive part, averaged over the c
 To add a new model, one writes a canonizer for each of its blocks that makes the residual additions explicit and holds the attention weights and the LayerNorm spread fixed. The checks above then show whether anything was missed.
 
 ## Conclusion
-
 {%- comment -%}TODO: write once the sections are agreed. Open questions grounded in the figures: why ViT maps
 barely depend on their start; which residual split to trust; where the grids come from (next post).{%- endcomment -%}
+todo
+
 
 ## References
 

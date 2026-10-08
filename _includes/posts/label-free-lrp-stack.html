@@ -1,7 +1,3 @@
-{%- comment -%}
-The stacked-layers figure of the LRP post: the image dock of the shared figure gallery (for its look and
-keyboard handling) around the relevance explorer in assets/js/posts/label-free-lrp.js.
-{%- endcomment -%}
 {%- assign items = site.data.galleries.lrp_rules.items -%}
 {%- unless figure_gallery_assets -%}
 <link rel="stylesheet" href="{{ '/assets/css/figure-gallery.css' | relative_url }}">
@@ -27,5 +23,6 @@ keyboard handling) around the relevance explorer in assets/js/posts/label-free-l
     data-models='[{"id": "convnext", "label": "ConvNeXt Base (supervised)"}, {"id": "dino_vit", "label": "DINOv1 ViT-B/16 (self-supervised)"}]'>
     <p class="fg-note">This figure needs JavaScript.</p>
   </div>
-  <figcaption>The left panel is the feature grid at the end of the network, where the relevance starts, scaled between its minimum and maximum like the averaged maps of the previous post. For the ViT, each cell groups two by two tokens. Hover a cell to preview its relevance, click cells to follow only them. The layers to its right show the relevance after it has been passed back to each depth, positive part only. The bands between them have the height of the amount of relevance that passes from one depth to the next. Everything was computed in advance with the rules described in this post. Since these rules pass relevance on in fixed proportions, the relevance of several start cells is simply the sum of their individual maps, which the page adds up as you click.</figcaption>
+  <figcaption>The left panel is the feature grid at the end of the network, where the relevance starts, scaled between its minimum and maximum. Hover a cell to preview its relevance, click cells to follow only them. The layers to its right show the relevance after it has been passed back to each depth, positive part only. The bands between them have the height of the amount of relevance that passes from one depth to the next. They narrow on the way, because part of the relevance stays with constants inside the network. In ConvNeXt, most of the relevance stays close to where it started, and about 70% of it lands on the starting cell and its eight neighbours. In the DINOv1 ViT, only 40 to 50% stays this close. The rest travels to other parts of the image. We come back to this at the end of the post. Everything was computed in advance with the rules described in this post. Since these rules pass relevance on in fixed proportions, the relevance of several start cells is simply the sum of their individual maps, which the page adds up as you click.
+  </figcaption>
 </figure>
