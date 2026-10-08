@@ -264,8 +264,11 @@
     return [name, name];
   };
   const SHOWN = ['below the final norm', 'below block 9', 'below block 5', 'below block 1', 'pixels'];
+  const OPACITY = 70;                               // default map opacity, in percent
   const M = 112;                                    // display resolution of the layer maps
-  const TILT = 30 * Math.PI / 180, DEPTH = 760;     // keep in sync with .lrp-plane in the CSS
+  const GAP = 40, BIG = 1.6, GROW = 1.4, NEAR = 0.3; // space for the bands; end panels vs. the depths; how much a hovered depth and its neighbours grow
+  const narrow = window.matchMedia('(max-width: 640px)');
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   const stackExplorer = (root, app) => {
     const base = app.dataset.base;
@@ -285,13 +288,17 @@
     const invertBtn = icon('Invert the selection', ['M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z', 'M12 4a8 8 0 0 1 0 16z'], [0, 1]);
     const resetBtn = icon('Reset: all cells, default scale and opacity', ['M4 12a8 8 0 1 0 2.4-5.7', 'M4 4v4.5h4.5']);
     const commonBox = h('input', { type: 'checkbox' });
-    const opacity = h('input', { type: 'range', min: 0, max: 100, step: 5, value: 100, 'aria-label': 'Map opacity' });
-    const opacityOut = h('output', { text: '100%' });
+    const opacity = h('input', { type: 'range', min: 0, max: 100, step: 5, value: OPACITY, 'aria-label': 'Map opacity' });
+    const opacityOut = h('output', { text: `${OPACITY}%` });
     const layer = (cls, size) => h('canvas', { class: `lrp-canvas ${cls}`, width: size, height: size });
     const startBase = layer('', 448), startHeat = layer('lrp-heat', 448), startMarks = layer('', 448);
     const startBox = h('div', { class: 'lrp-start', role: 'img', 'aria-label': 'The start. Hover a cell to preview it, click cells to select them.' }, startBase, startHeat, startMarks);
-    const lanes = h('div', { class: 'lrp-layers' });
+    const tools = h('div', { class: 'lrp-tools', role: 'toolbar', 'aria-label': 'Start cells' }, invertBtn, resetBtn);
+    const startCol = h('div', { class: 'lrp-col lrp-col--start' },
+      h('p', { class: 'lrp-layer-top', text: 'where it starts' }), startBox,
+      h('p', { class: 'lrp-layer-name' }, 'the features'), tools);
     const ribbons = svg('svg', { class: 'lrp-ribbons', 'aria-hidden': 'true' });
+    const row = h('div', { class: 'lrp-row' }, ribbons, startCol);
     const readout = h('p', { class: 'lrp-result', 'aria-live': 'polite' });
     const status = h('p', { class: 'lrp-small lrp-status' });
     app.append(
@@ -299,13 +306,7 @@
         h('label', { class: 'lrp-select' }, 'Model', modelSelect),
         h('label', { class: 'lrp-range' }, 'Map opacity', opacity, opacityOut),
         h('label', { class: 'lrp-check' }, commonBox, ' One colour scale for all depths')),
-      h('div', { class: 'lrp-stage' },
-        h('div', { class: 'lrp-startcol' },
-          h('p', { class: 'lrp-layer-top', text: 'where it starts' }), startBox,
-          h('div', { class: 'lrp-tools', role: 'toolbar', 'aria-label': 'Start cells' }, invertBtn, resetBtn),
-          h('p', { class: 'lrp-layer-name', text: 'the features' })),
-        h('div', { class: 'lrp-layerwrap' }, ribbons, lanes)),
-      readout, status);
+      row, readout, status);
 
     const load = (model, item) => {
       const key = `${model}_${item}`;
@@ -368,22 +369,19 @@
     };
 
     const off = document.createElement('canvas');
-    const photo = (canvas, img, dim = 0.38) => {
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = `rgba(10, 16, 12, ${dim})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    };
-    const paint = (canvas, values, n, { smooth = false, strength = 1.6, cap = 1, soft = false } = {}) => {
+    const photo = (canvas, img) => canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    // The maps are opaque, so the opacity slider blends between the plain photo (0) and the map alone (100).
+    // soft: colour by the square root, so that the weak spread of the plain ViTs stays visible.
+    const paint = (canvas, values, n, { smooth = false, soft = false } = {}) => {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (!values) return;
       off.width = n[1]; off.height = n[0];
       const octx = off.getContext('2d'), px = octx.createImageData(n[1], n[0]);
       for (let i = 0; i < values.length; i++) {
-        const t = clamp(values[i], 0, 1), rgb = hot(t);
+        const t = clamp(values[i], 0, 1), rgb = hot(soft ? Math.sqrt(t) : t);
         px.data[i * 4] = rgb[0] * 255; px.data[i * 4 + 1] = rgb[1] * 255; px.data[i * 4 + 2] = rgb[2] * 255;
-        px.data[i * 4 + 3] = Math.min(cap, (soft ? Math.sqrt(t) : t) * strength) * 255;
+        px.data[i * 4 + 3] = 255;
       }
       octx.putImageData(px, 0, 0);
       ctx.imageSmoothingEnabled = smooth;
@@ -393,52 +391,106 @@
     let layers = [], token = 0, queued = 0;
     const build = (meta) => {
       const names = meta.levels.length > 8 ? SHOWN : meta.levels.map((l) => l.name).filter((n) => n !== 'features');
-      lanes.replaceChildren();
+      layers.forEach((l) => l.col.remove());
       layers = names.map((name) => {
         const k = meta.levels.findIndex((l) => l.name === name);
-        const last = name === 'pixels', size = last ? 448 : 336;
-        const base = layer('', size), canvas = layer('lrp-heat', size);
-        const plane = h('div', { class: `lrp-plane${last ? ' lrp-plane--flat' : ''}` }, base, canvas);
+        const last = name === 'pixels';
+        const base = layer('', 448), canvas = layer('lrp-heat', 448);
+        const plane = h('div', { class: 'lrp-plane' }, base, canvas);
         const num = h('b');
-        lanes.append(h('div', { class: `lrp-layer${last ? ' lrp-layer--last' : ''}` },
+        const col = h('div', { class: 'lrp-col lrp-col--layer' },
           h('p', { class: 'lrp-layer-top', text: last ? 'where it lands' : '' }),
-          h('div', { class: 'lrp-plane-box' }, plane),
-          h('p', { class: 'lrp-layer-name' }, LEVEL(name)[0], num)));
-        return { k, lv: meta.levels[k], base, canvas, plane, num, last };
+          plane,
+          h('p', { class: 'lrp-layer-name' }, LEVEL(name)[0], num));
+        row.append(col);
+        return { k, lv: meta.levels[k], base, canvas, plane, num, col, last };
       });
+      fish.sizes = []; layout();
     };
 
-    // the projected left and right edges of a tilted plane, in the coordinates of the layer wrapper
-    const edges = (el, flat) => {
-      const box = el.parentElement.getBoundingClientRect(), wrap = lanes.parentElement.getBoundingClientRect();
-      const w = el.offsetWidth, cx = box.left - wrap.left + box.width / 2, cy = box.top - wrap.top + box.height / 2;
-      const side = (sx) => {
-        if (flat) return { x: cx + sx * w / 2, half: w / 2 };
-        const x = sx * w / 2, z = -x * Math.sin(TILT), f = DEPTH / (DEPTH - z);
-        return { x: cx + x * Math.cos(TILT) * f, half: (w / 2) * f };
-      };
-      return { left: side(-1), right: side(1), cy };
+    // The start and the pixels are the large panels at both ends. The depths between them are smaller, and the one
+    // under the pointer grows like a thumbnail in the dock, its neighbours a little, while the others give up the
+    // space, so the row keeps its width.
+    const fish = { zoom: -1, sizes: [], target: [], s0: 0, big: 0, frame: 0 };
+    const mids = () => layers.slice(0, -1);
+    const sizesFor = (zoom, n, s0) => {
+      const w = Array.from({ length: n }, (_, i) => (zoom < 0 ? 1 : 1 + GROW * (i === zoom ? 1 : Math.abs(i - zoom) === 1 ? NEAR : 0)));
+      const sum = w.reduce((a, b) => a + b, 0);
+      return w.map((x) => x / sum * n * s0);
     };
-    const drawRibbons = (amounts) => {
+    const apply = () => {
+      startCol.style.width = `${fish.big}px`;
+      layers.at(-1).col.style.width = `${fish.big}px`;
+      mids().forEach((l, i) => { l.col.style.width = `${fish.sizes[i]}px`; });
+      drawRibbons();
+    };
+    const step = () => {
+      fish.frame = 0;
+      let moving = false;
+      fish.sizes = fish.sizes.map((s, i) => {
+        const t = fish.target[i], next = calm.matches ? t : s + (t - s) * 0.24;
+        if (Math.abs(t - next) < 0.4) return t;
+        moving = true;
+        return next;
+      });
+      apply();
+      if (moving) fish.frame = requestAnimationFrame(step);
+    };
+    const layout = () => {
+      if (narrow.matches || !layers.length) {
+        [startCol, ...layers.map((l) => l.col)].forEach((c) => { c.style.width = ''; });
+        row.style.height = row.style.paddingBottom = ''; fish.zoom = -1;
+        drawRibbons();
+        return;
+      }
+      const n = mids().length;
+      fish.s0 = Math.min(150, (row.clientWidth - (n + 1) * GAP) / (n + 2 * BIG));
+      fish.big = BIG * fish.s0;
+      fish.target = sizesFor(fish.zoom, n, fish.s0);
+      if (fish.sizes.length !== n) fish.sizes = fish.target.slice();
+      // room for the largest panel any hover can produce, so the page below never moves
+      const top = Math.max(fish.big, ...mids().map((_, j) => Math.max(...sizesFor(j, n, fish.s0))));
+      const labels = startCol.offsetHeight - startBox.offsetHeight;   // the toolbar hangs below, outside the column
+      const pad = tools.offsetHeight + 14;             // the toolbar under the start
+      row.style.paddingBottom = `${pad}px`;
+      row.style.height = `${Math.ceil(top + labels + pad)}px`;
+      apply();
+    };
+    const zoomTo = (j) => {
+      if (j === fish.zoom || narrow.matches) return;
+      fish.zoom = j;
+      fish.target = sizesFor(j, mids().length, fish.s0);
+      if (!fish.frame) fish.frame = requestAnimationFrame(step);
+    };
+    row.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      if (startCol.contains(e.target) || layers.at(-1)?.col.contains(e.target)) { zoomTo(-1); return; }
+      const j = mids().findIndex((l) => { const r = l.col.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right; });
+      if (j >= 0) zoomTo(j);                          // in a gap keep the current one, so the row does not flicker
+    });
+    row.addEventListener('pointerleave', () => zoomTo(-1));
+
+    // bands between the panels, as high as the amount that passes there (the same scale for all of them)
+    const drawRibbons = () => {
       ribbons.replaceChildren();
-      if (getComputedStyle(ribbons).display === 'none' || !layers.length) return;
-      const wrap = lanes.parentElement.getBoundingClientRect(), s = startBox.getBoundingClientRect();
+      const amounts = state.amounts;
+      if (getComputedStyle(ribbons).display === 'none' || !layers.length || !amounts) return;
+      const wrap = row.getBoundingClientRect();
       ribbons.setAttribute('viewBox', `0 0 ${wrap.width} ${wrap.height}`);
-      const top = Math.max(1, ...amounts);
-      const startEdge = { x: s.right - wrap.left, half: s.height / 2, cy: s.top - wrap.top + s.height / 2 };
-      const ends = [startEdge, ...layers.map((l) => edges(l.plane, l.last))];
+      const boxes = [startBox, ...layers.map((l) => l.plane)].map((el) => el.getBoundingClientRect());
+      const k = 0.45 * Math.min(...boxes.map((b) => b.height)) / Math.max(1, ...amounts);
       const defs = svg('defs'), grad = svg('linearGradient', { id: 'lrp-ribbon', x1: 0, x2: 1, y1: 0, y2: 0 });
       grad.append(svg('stop', { offset: 0, 'stop-color': '#e2552b', 'stop-opacity': 0.5 }), svg('stop', { offset: 1, 'stop-color': '#f2a33a', 'stop-opacity': 0.5 }));
       defs.append(grad);
       ribbons.append(defs);
-      for (let i = 0; i < ends.length - 1; i++) {
-        const a = i === 0 ? startEdge : ends[i].right, b = i === 0 ? ends[1].left : ends[i + 1].left;
-        const ay = i === 0 ? startEdge.cy : ends[i].cy, by = ends[i + 1].cy;
-        const ha = a.half * 0.9 * clamp(amounts[i] / top, 0, 1), hb = b.half * 0.9 * clamp(amounts[i + 1] / top, 0, 1);
-        const mx = (a.x + b.x) / 2;
+      for (let i = 0; i < boxes.length - 1; i++) {
+        const a = boxes[i], b = boxes[i + 1];
+        const ax = a.right - wrap.left, bx = b.left - wrap.left, mx = (ax + bx) / 2;
+        const ay = a.top - wrap.top + a.height / 2, by = b.top - wrap.top + b.height / 2;
+        const ha = k * clamp(amounts[i], 0, Infinity), hb = k * clamp(amounts[i + 1], 0, Infinity);
         ribbons.append(svg('path', {
           class: 'lrp-ribbon',
-          d: `M${a.x},${ay - ha} C${mx},${ay - ha} ${mx},${by - hb} ${b.x},${by - hb} L${b.x},${by + hb} C${mx},${by + hb} ${mx},${ay + ha} ${a.x},${ay + ha} Z`,
+          d: `M${ax},${ay - ha} C${mx},${ay - ha} ${mx},${by - hb} ${bx},${by - hb} L${bx},${by + hb} C${mx},${by + hb} ${mx},${ay + ha} ${ax},${ay + ha} Z`,
         }));
       }
     };
@@ -466,7 +518,7 @@
       const start = toGrid(sumLevel(lv0, all), lv0.size, g);
       let lo = Infinity, hi = -Infinity;
       for (const v of start) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-      paint(startHeat, start.map((v) => (v - lo) / (hi - lo || 1)), g, { strength: 1, cap: 0.75 });
+      paint(startHeat, start.map((v) => (v - lo) / (hi - lo || 1)), g, {});
       const ctx = startMarks.getContext('2d'), cw = startMarks.width / g[1], ch = startMarks.height / g[0];
       ctx.clearRect(0, 0, startMarks.width, startMarks.height);
       const any = state.picked.some(Boolean), few = state.picked.filter(Boolean).length <= 12;
@@ -495,10 +547,11 @@
       const startAmount = amount(lv0, sel);
       const amounts = [1, ...layers.map((l) => amount(l.lv, sel) / startAmount)];
       layers.forEach((l, i) => {
-        paint(l.canvas, raw[i].map((v) => v / refs[i]), [M, M], { smooth: l.last, soft: true, strength: 1.25 });
+        paint(l.canvas, raw[i].map((v) => v / refs[i]), [M, M], { smooth: l.last, soft: true });
         l.num.textContent = fmt(amounts[i + 1]);
       });
-      drawRibbons(amounts);
+      state.amounts = amounts;
+      drawRibbons();
 
       const n = sel.filter(Boolean).length, share = startAmount / amount(lv0, all);
       const arrive = fmt(amounts[amounts.length - 1]);
@@ -542,7 +595,7 @@
     resetBtn.addEventListener('click', () => {
       if (state.picked) state.picked.fill(false);
       commonBox.checked = false; state.common = false;
-      setOpacity(100);
+      setOpacity(OPACITY);
       render();
     });
     commonBox.addEventListener('change', () => { state.common = commonBox.checked; render(); });
@@ -552,12 +605,13 @@
       const on = thumbs.find((t) => t.getAttribute('aria-selected') === 'true');
       if (on && on.dataset.item !== state.item) { state.item = on.dataset.item; render(); }
     }).observe(root.querySelector('.fg-dock'), { attributes: true, subtree: true, attributeFilter: ['aria-selected'] });
-    addEventListener('resize', () => { if (state.data) render(); }, { passive: true });
+    addEventListener('resize', () => { fish.sizes = []; layout(); }, { passive: true });
 
     if (!('DecompressionStream' in window)) {
       status.textContent = 'This browser cannot unpack the precomputed relevance. A recent version of any major browser can.';
       return;
     }
+    setOpacity(OPACITY);
     render();
   };
 
