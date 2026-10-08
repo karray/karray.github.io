@@ -13,7 +13,9 @@ Layer-wise relevance propagation (LRP) is a powerful tool to understand what a n
 
 Think of the output of a network as an amount of water that we pour back through it. At every layer, the water is divided among the units that fed into the current one, and a unit that contributed more receives more. When the water reaches the image, the amount on each pixel tells us how much that pixel contributed. This amount is called relevance, and the procedure is layer-wise relevance propagation (LRP) [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>].
 
-{%- comment -%}TODO: visualization for water analogy based on the original LRP illustration{%- endcomment -%}.
+The figure below does this for a small network that reads handwritten digits. Its left half computes the prediction, and its right half pours the score back to the pixels. You can draw your own digit on the input.
+
+{% include posts/label-free-lrp-water.html %}
 
 In the previous post, we used LRP to explain self-supervised encoders without relying on labels. However, [zenit](https://github.com/zenit/zenit), a library for implementing LRP in PyTorch, only covers convolutional networks such as ResNet and VGG. We therefore had to write the missing rules for the blocks in ConvNeXt and transformer-based vision models.
 
@@ -44,7 +46,7 @@ Two libraries provide ready-made LRP rules for PyTorch, and both come from the g
 
 So we started where the libraries stop. We gave the weighted layers their usual rules and left everything else alone. An operation without a rule passes relevance back the same way it passes a gradient. The first step in the figure below shows the result. For all three models, the map is noise.
 
-{% include figure-gallery.html id="lrp-rules" data=site.data.galleries.lrp_rules %}
+{% include figure-gallery.html id="lrp-rules" data=site.data.galleries.lrp_rules class="wide" %}
 
 Over the next sections, we add the missing rules one at a time, in the same order as the slider.
 
@@ -156,7 +158,7 @@ At a residual connection, the output is the sum of two parts. One part is the in
 
 When both parts push in the same direction, the rules agree, except for the equal split. When the update works against the skip, they disagree. The proportional split keeps the information that the update worked against the output, but its numbers grow without bound as the two parts cancel. The magnitude split never grows, but it credits the opposing update as if it had helped. The γ split keeps the sign and is guaranteed to stay bounded. Berend et al. identify such cancellation inside transformer blocks as a main reason why LRP maps of ViTs become noisy.
 
-{% include figure-gallery.html id="lrp-residual" data=site.data.galleries.lrp_residual %}
+{% include figure-gallery.html id="lrp-residual" data=site.data.galleries.lrp_residual class="wide" %}
 
 In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it is absorbed. Very little reaches the pixels, as little as 0.04 for the DINOv1 ViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees. The magnitude and γ splits keep more of it on the animals. The γ split passes on more relevance than the magnitude split and is a little more detailed.
 
@@ -202,7 +204,7 @@ The first layer of many modern encoders cuts the image into small patches and tu
 - **WSquare** spreads it according to the squared weights alone and ignores the pixel values. It is recommended for inputs without natural bounds [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>].
 - **Gamma** is the rule we use inside the blocks.
 
-{% include figure-gallery.html id="lrp-stems" data=site.data.galleries.lrp_stems_rules %}
+{% include figure-gallery.html id="lrp-stems" data=site.data.galleries.lrp_stems_rules class="wide" %}
 
 Look closely at the maps, and the borders between the patches become visible. WSquare paints visible edges along them, because it gives every patch the same pattern regardless of its content. z+ shows fewer edges, and Gamma almost none. The number under each map measures this as the contrast between neighbouring pixels across a patch border and within a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with z+ and 0.97 with Gamma. Swin and the DINOv1 ViT behave the same way. The rules in our table are the ones we settled on early, WSquare for ConvNeXt, Swin and MaxViT and z+ for the ViTs. These measurements suggest that Gamma deserves a closer look.
 

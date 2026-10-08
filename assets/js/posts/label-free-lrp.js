@@ -444,7 +444,8 @@
         return;
       }
       const n = mids().length;
-      fish.s0 = Math.min(150, (row.clientWidth - (n + 1) * GAP) / (n + 2 * BIG));
+      // as wide as the row allows, but short enough that the panels and the controls fit on one screen
+      fish.s0 = Math.min(0.28 * innerHeight, (row.clientWidth - (n + 1) * GAP) / (n + 2 * BIG));
       fish.big = BIG * fish.s0;
       fish.target = sizesFor(fish.zoom, n, fish.s0);
       if (fish.sizes.length !== n) fish.sizes = fish.target.slice();

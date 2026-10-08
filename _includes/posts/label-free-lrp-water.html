@@ -1,0 +1,15 @@
+{%- comment -%}
+The water figure of the LRP post: the classic LRP illustration as a live network. The forward pass and LRP run in
+assets/js/posts/label-free-lrp-water.js on a tiny CNN trained on MNIST (weights in assets/data/label-free-lrp/water.json).
+{%- endcomment -%}
+<figure class="lrp-fig lrp-water wide" data-lrp-water data-src="{{ '/assets/data/label-free-lrp/water.json' | relative_url }}">
+  <p class="lrp-kicker">Pouring relevance back through a small network</p>
+  <div class="lrpw-stage">
+    <svg class="lrpw-scene" viewBox="0 0 1200 490" role="img" aria-label="A small network drawn twice. On the left, the prediction flows from the image to ten class scores. On the right, the relevance flows back from the explained class to the pixels."></svg>
+    <canvas class="lrpw-pad" width="280" height="280" aria-label="Draw a digit on the input"></canvas>
+    <button class="lrpw-clear" type="button" title="Clear the input" aria-label="Clear the input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button>
+  </div>
+  <p class="lrpw-readout" aria-live="polite">This figure needs JavaScript.</p>
+  <figcaption>A small network with three feature maps, five smaller maps, eight units, five units and ten classes, trained on handwritten digits. The left half computes the prediction, and the right half pours the score of one class back through the same network. Draw your own digit on the input. Hover a class to explain its score instead, and click it to keep it. Hover a unit or a map on the left to follow it to the output and back, or on the right to see where its relevance goes on its way to the pixels. Red line widths are the real amounts, scaled up for small shares, and each map is coloured relative to its own maximum.</figcaption>
+</figure>
+<script src="{{ '/assets/js/posts/label-free-lrp-water.js' | relative_url }}" defer></script>
