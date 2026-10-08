@@ -2,37 +2,22 @@
  "kicker": "The last step to the pixels",
  "opacity": 100,
  "reveal": true,
- "controls": [
-  {
-   "name": "model",
-   "target": "row",
-   "type": "select",
-   "label": "Model",
-   "default": "convnext",
-   "options": [
-    {
-     "value": "convnext",
-     "label": "ConvNeXt Base"
-    },
-    {
-     "value": "swin",
-     "label": "Swin Base"
-    },
-    {
-     "value": "dino_vit",
-     "label": "DINOv1 ViT-B/16"
-    },
-    {
-     "value": "mae",
-     "label": "MAE ViT-B/16"
-    }
-   ]
-  }
- ],
  "rows": [
   {
    "id": "convnext",
-   "label": ""
+   "label": "ConvNeXt Base"
+  },
+  {
+   "id": "swin",
+   "label": "Swin Base"
+  },
+  {
+   "id": "dino_vit",
+   "label": "DINOv1 ViT-B/16"
+  },
+  {
+   "id": "mae",
+   "label": "MAE ViT-B/16"
   }
  ],
  "columns": [
@@ -142,7 +127,7 @@
   "mae|wsquare|spider_web": "patch edges 1.47\u00d7",
   "mae|gamma|spider_web": "patch edges 2.34\u00d7"
  },
- "help": "Pick an image and a model and compare the three rules for the first layer. Everything above the first layer is identical. Move the pointer over a map to see the image underneath.",
+ "help": "Pick an image and compare the three rules for the first layer across a row. Each row is one model, and everything above the first layer is identical. Move the pointer over a map to see the image underneath.",
  "caption": "Positive part of the relevance at the pixels, scaled to its own maximum. The number under each map compares how sharply the map changes across the borders of the first layer's patches with how it changes inside them. A value of 1 means no visible grid.",
  "style": "--fg-cell-max: 300px;"
 }

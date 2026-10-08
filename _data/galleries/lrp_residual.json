@@ -2,49 +2,34 @@
  "kicker": "Four ways to split relevance at a residual connection",
  "opacity": 100,
  "reveal": true,
- "controls": [
-  {
-   "name": "model",
-   "target": "row",
-   "type": "select",
-   "label": "Model",
-   "default": "dino_vit",
-   "options": [
-    {
-     "value": "resnet50",
-     "label": "ResNet-50"
-    },
-    {
-     "value": "convnext",
-     "label": "ConvNeXt Base"
-    },
-    {
-     "value": "swin",
-     "label": "Swin Base"
-    },
-    {
-     "value": "maxvit",
-     "label": "MaxViT Base"
-    },
-    {
-     "value": "dino_vit",
-     "label": "DINOv1 ViT-B/16"
-    },
-    {
-     "value": "dinov3_vit",
-     "label": "DINOv3 ViT-B/16"
-    },
-    {
-     "value": "mae",
-     "label": "MAE ViT-B/16"
-    }
-   ]
-  }
- ],
  "rows": [
   {
+   "id": "resnet50",
+   "label": "ResNet-50"
+  },
+  {
+   "id": "convnext",
+   "label": "ConvNeXt Base"
+  },
+  {
+   "id": "swin",
+   "label": "Swin Base"
+  },
+  {
+   "id": "maxvit",
+   "label": "MaxViT Base"
+  },
+  {
    "id": "dino_vit",
-   "label": ""
+   "label": "DINOv1 ViT-B/16"
+  },
+  {
+   "id": "dinov3_vit",
+   "label": "DINOv3 ViT-B/16"
+  },
+  {
+   "id": "mae",
+   "label": "MAE ViT-B/16"
   }
  ],
  "columns": [
@@ -239,7 +224,7 @@
   "mae|magnitude|spider_web": "0.27 reaches the pixels",
   "mae|gamma|spider_web": "0.37 reaches the pixels"
  },
- "help": "Pick an image and a model, then compare the four splits side by side. Every other rule stays the same.",
+ "help": "Pick an image, then compare the four splits across a row. Each row is one model, and every other rule stays the same.",
  "caption": "Positive part of the relevance at the pixels, scaled to its own maximum. The number under each map is the total amount of relevance, positive and negative, that arrives at the pixels from a start of 1.",
  "style": "--fg-cell-max: 220px;"
 }
