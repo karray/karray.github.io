@@ -1,3 +1,13 @@
+// The scrollbar width, for the page width of .wide and .bleed blocks (see _sass/widths.scss). Watching the root
+// catches a scrollbar that appears as the page grows, not only window resizes.
+(() => {
+  const root = document.documentElement;
+  const measure = () => root.style.setProperty("--scrollbar", `${window.innerWidth - root.clientWidth}px`);
+  measure();
+  window.addEventListener("resize", measure);
+  if ("ResizeObserver" in window) new ResizeObserver(measure).observe(root);
+})();
+
 (() => {
   const refRoot = document.getElementById("reference-list");
   if (!refRoot) return;

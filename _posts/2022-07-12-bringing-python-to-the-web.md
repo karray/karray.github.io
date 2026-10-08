@@ -13,11 +13,9 @@ Good news, you don’t have to! All you need is to add one JavaScript library to
 
 Take a look at this REPL example:
 
-{% capture example1 %}
+<div class="bleed bleed--text band band--brand"><div class="band-panel">
 {% include posts/2022-07-12-bringing-python-to-the-web/simple_example.html %}
-{% endcapture %}
-
-{%include full_width.html content=example1%}
+</div></div>
 
 {% include alert.html type='info' title='Note' message='This guide has been updated to Pyodide v0.21.3.' %}
 
@@ -345,11 +343,9 @@ This function will generate a plot and encode it as a Base64 string, which will 
 
 You should get the following result:
 
-{% capture example2 %}
+<div class="bleed bleed--text band band--brand"><div class="band-panel">
 {% include posts/2022-07-12-bringing-python-to-the-web/advanced_example.html %}
-{% endcapture %}
-
-{%include full_width.html content=example2%}
+</div></div>
 
 <!-- ![https://miro.medium.com/max/1400/1*byZ6FoML4TfhXT-Qn7RSjQ.png](https://miro.medium.com/max/1400/1*byZ6FoML4TfhXT-Qn7RSjQ.png) -->
 

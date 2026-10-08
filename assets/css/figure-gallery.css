@@ -6,6 +6,9 @@
   --fg-raised: #fff;
   --fg-line: #d9e2dc;
   --fg-shadow: 18 44 34;
+  --fg-ink-inverse: #fff;
+  --fg-cell-bg: #eef1ec;
+  --fg-sticky-bg: var(--fg-surface);
 
   --fg-thumb-min: 40px;
   --fg-thumb-selected: 62px;
@@ -37,7 +40,7 @@
   border-radius: 14px;
   background: var(--fg-surface);
   color: var(--fg-ink);
-  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: .9375rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
   box-sizing: border-box;
 
   isolation: isolate;
@@ -150,7 +153,7 @@
   max-width: 11rem;
   border-radius: 999px;
   background: var(--fg-ink);
-  color: #fff;
+  color: var(--fg-ink-inverse);
   font-size: .7rem;
   line-height: 1.5;
   white-space: nowrap;
@@ -313,7 +316,7 @@
   left: 0;
   z-index: 1;
   text-align: left;
-  background: linear-gradient(90deg, var(--fg-surface) 82%, rgb(250 251 248 / 0));
+  background: linear-gradient(90deg, var(--fg-sticky-bg) 82%, transparent);
   padding-right: .5rem;
 }
 
@@ -355,7 +358,7 @@
   content-visibility: auto;
   border-radius: 7px;
   overflow: hidden;
-  background: #eef1ec;
+  background: var(--fg-cell-bg);
   box-shadow: 0 0 0 1px rgb(var(--fg-shadow) / .1) inset;
 
   -webkit-user-select: none;
@@ -543,6 +546,35 @@
 
   padding: 0 0 0 .68rem;
 }
+
+/* on a glass band (.band--glass in _sass/widths.scss): matte glass with light ink */
+.band--glass .fg {
+  --fg-accent: var(--glass-accent, #8fe3d1);
+  --fg-ink: var(--glass-ink);
+  --fg-muted: var(--glass-muted);
+  --fg-surface: var(--glass-surface);
+  --fg-raised: var(--glass-raised);
+  --fg-line: var(--glass-line);
+  --fg-shadow: 0 0 0;
+  --fg-ink-inverse: #10302b;
+  --fg-cell-bg: var(--glass-track);
+  --fg-sticky-bg: transparent;
+  box-shadow: var(--glass-shadow);
+}
+
+/* on a light band (.band in _sass/widths.scss) the band is the card */
+.band:not(.band--glass) > .fg {
+  --fg-sticky-bg: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* the scroll shadows need an opaque surface to hide behind */
+.band--glass .fg-panels,
+.band:not(.band--glass) > .fg .fg-panels { background: none; }
 
 @media (hover: none) {
   .fg-control-toggle:has(.fg-reveal-toggle) {

@@ -22,7 +22,7 @@
 <script src="{{ '/assets/js/figure-gallery.js' | relative_url }}" defer></script>
 {%- assign figure_gallery_assets = true -%}
 {%- endunless -%}
-<figure class="fg" id="{{ uid }}" data-fg data-overlay="{{ g.overlay | prepend: site.baseurl }}"{% if g.notes %} data-notes='{{ g.notes | jsonify | escape }}'{% endif %} style="--fg-cols: {{ columns | size }}; --fg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
+<figure class="fg{% if include.class %} {{ include.class }}{% endif %}" id="{{ uid }}" data-fg data-overlay="{{ g.overlay | prepend: site.baseurl }}"{% if g.notes %} data-notes='{{ g.notes | jsonify | escape }}'{% endif %} style="--fg-cols: {{ columns | size }}; --fg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
   {%- if kicker %}<p class="fg-kicker">{{ kicker }}</p>{% endif -%}
   <div class="fg-dock" role="tablist" aria-label="{{ g.dock_label | default: 'Choose an image' }}">
     {%- for item in items -%}

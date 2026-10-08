@@ -1,0 +1,179 @@
+// Wider blocks in a post. Any element inside .post-content can opt in.
+//
+//   .wide          the page width less a margin on each side (--wide-gutter), up to --wide-max;
+//                  on phones it runs edge to edge
+//   .bleed         the full page width; its content sits at the wide width, so a figure inside a band needs no class
+//   .bleed--text   the same, with its content back at the text width
+//   .band          a background for a .bleed block (a band across the page)
+//   .band-panel    an optional box inside a band
+//   .band--glass   a dark band whose cards turn into matte glass with light ink; a figure maps its own colours to
+//                  the --glass-* properties (see .band--glass .fg in figure-gallery.css), and color-scheme turns
+//                  native controls dark
+//
+// In Markdown, put the class on the HTML element (<figure class="wide">) or add {: .wide} after a block.
+//
+// Theming: each part reads custom properties, so a post restyles them from its own stylesheet (the `styles:`
+// front matter) without touching this file. Set them on .post-content for the whole post, or inline on one
+// block (style="--band-bg: #123"). The presets below (.band--brand) are the same properties under a name.
+//
+//   --wide-max  --wide-gutter
+//   --band-bg  --band-ink  --band-pad  --band-border
+//   --band-panel-bg  --band-panel-border  --band-panel-radius  --band-panel-pad
+//   --glass-surface  --glass-raised  --glass-ink  --glass-muted  --glass-line  --glass-track  --glass-shadow
+//
+// The page width is 100vw minus the scrollbar; posts.js measures the scrollbar into --scrollbar. Before the
+// script runs the width is 100vw, and .page-content clips the few pixels that may stick out.
+:root {
+  --page-width: calc(100vw - var(--scrollbar, 0px));
+}
+
+// On post pages (the class is on <html>) the text grows on large screens, from 16px at 1440 to 21px at 1920 and 26px
+// at 2400 and wider. On phones and tablets it is 16 to 18px (the theme's 5vw made it 40px at 800px). The text column
+// takes 60% of the window, but at most 52 times the text size, which is about 120 characters a line. The root font
+// follows, so figures sized in rem grow with the text. The header bar and the footer share the cap, so they stay
+// aligned with the text.
+.post-layout {
+  --text-size: #{"clamp(16px, calc(1px + 1.0417vw), 26px)"};
+  --text-max: #{"min(max(calc(43 * var(--text-size)), 60vw), calc(52 * var(--text-size)))"};
+  font-size: var(--text-size);
+}
+
+.post-layout .wrapper {
+  max-width: calc(var(--text-max) + 2 * #{$spacing-unit});
+}
+
+.post-layout .page-content,
+.post-layout .page-content > .wrapper {
+  font-size: var(--text-size);
+}
+
+@media screen and (max-width: $on-laptop), screen and (orientation: portrait) {
+  .post-layout {
+    --text-size: #{"clamp(16px, 4.4vw, 18px)"};
+  }
+}
+
+// the theme sets the headings in pixels; above the laptop size they follow the text
+@media screen and (min-width: $on-laptop + 1) {
+  .post-layout .post-content {
+    h2 { font-size: calc(2 * var(--text-size)); }
+    h3 { font-size: calc(1.625 * var(--text-size)); }
+    h4 { font-size: calc(1.25 * var(--text-size)); }
+  }
+}
+
+.post-content {
+  --wide-max: #{"max(1400px, 75vw)"};   // the full width on laptops, three quarters of a very large screen
+  --wide-gutter: #{"clamp(16px, 3vw, 72px)"};
+
+  --band-bg: #f3f6f4;
+  --band-pad: 2.2rem;
+  --band-border: 0;
+
+  --band-panel-bg: transparent;
+  --band-panel-border: 0;
+  --band-panel-radius: 0.3rem;
+  --band-panel-pad: 20px;
+}
+
+.page-content {
+  overflow-x: clip;
+}
+
+// computed on the block itself, so a --wide-max or --wide-gutter set on it takes effect
+.post-content .wide,
+.post-content .bleed {
+  --wide-width: #{"min(var(--wide-max), calc(var(--page-width) - 2 * var(--wide-gutter)))"};
+}
+
+// two classes, so a figure's own card styles (one class, loaded later) do not undo the breakout
+.post-content .wide {
+  box-sizing: border-box;
+  width: auto;
+  max-width: none;
+  margin-left: calc(50% - var(--wide-width) / 2);
+  margin-right: calc(50% - var(--wide-width) / 2);
+}
+
+.post-content .bleed {
+  box-sizing: border-box;
+  width: auto;
+  max-width: none;
+  margin-left: calc(50% - var(--page-width) / 2);
+  margin-right: calc(50% - var(--page-width) / 2);
+  padding-left: calc((var(--page-width) - var(--wide-width)) / 2);
+  padding-right: calc((var(--page-width) - var(--wide-width)) / 2);
+}
+
+// padding percentages refer to the text column, so this puts the content back on it
+.post-content .bleed--text {
+  padding-left: calc(var(--page-width) / 2 - 50%);
+  padding-right: calc(var(--page-width) / 2 - 50%);
+}
+
+.post-content .band {
+  margin-bottom: 15px;
+  padding-top: var(--band-pad);
+  padding-bottom: var(--band-pad);
+  border-top: var(--band-border);
+  border-bottom: var(--band-border);
+  background: var(--band-bg);
+  color: var(--band-ink); // unset by default, so the text colour is inherited
+}
+
+// the band's padding sets the space, so the block inside drops its own outer margins
+.post-content .band > :nth-child(1 of :not(script, link, style)) {
+  margin-top: 0;
+}
+
+.post-content .band > :nth-last-child(1 of :not(script, link, style)) {
+  margin-bottom: 0;
+}
+
+.band-panel {
+  padding: var(--band-panel-pad);
+  border: var(--band-panel-border);
+  border-radius: var(--band-panel-radius);
+  background: var(--band-panel-bg);
+}
+
+// cards on a dark band: translucent white, light ink
+.post-content .band--glass {
+  --band-bg: linear-gradient(120deg, #155799, #159957);
+  --band-panel-bg: var(--glass-surface);
+  --band-panel-border: 1px solid var(--glass-line);
+  --glass-surface: rgba(255, 255, 255, 0.08);
+  --glass-raised: rgba(255, 255, 255, 0.12);
+  --glass-ink: rgba(255, 255, 255, 0.92);
+  --glass-muted: rgba(255, 255, 255, 0.68);
+  --glass-line: rgba(255, 255, 255, 0.2);
+  --glass-track: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 18px 50px rgba(0, 0, 0, 0.18);
+  color-scheme: dark;
+}
+
+// the site's blue-green gradient with a frosted panel
+.post-content .band--brand {
+  --band-bg: linear-gradient(120deg, #155799, #159957);
+  --band-ink: rgba(255, 255, 255, 0.7);
+  --band-pad: 30px;
+  --band-panel-bg: rgba(255, 255, 255, 0.08);
+  --band-panel-border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@media screen and (max-width: 640px), screen and (orientation: portrait) {
+  .post-content {
+    --wide-gutter: 0px;
+  }
+
+  // edge to edge, so a card loses its side borders and round corners
+  .post-content .wide {
+    border-left-width: 0;
+    border-right-width: 0;
+    border-radius: 0;
+  }
+
+  .post-content .bleed {
+    --wide-gutter: 15px;
+  }
+}
