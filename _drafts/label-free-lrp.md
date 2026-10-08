@@ -44,11 +44,11 @@ The features of most modern encoders are signed. If we started from the raw valu
 
 Two libraries provide ready-made LRP rules for PyTorch, and both come from the group at Fraunhofer HHI and TU Berlin that introduced LRP. [zennit](https://github.com/chr5tphr/zennit) covers convolutional networks such as VGG and ResNet [<a href="#anders2021software" data-ref="anders2021software">Anders et al.</a>]. [LXT](https://github.com/rachtibat/LRP-eXplains-Transformers), the implementation of AttnLRP, covers language models and the original vision transformer [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. Their rules for the layers with weights, the convolutions and linear layers, carry over to other models. Our encoders combine these layers with LayerNorm, GELU, attention and residual connections in their own ways, and none of them was covered.
 
-So we started where the libraries stop. We gave the weighted layers their usual rules and left everything else alone. An operation without a rule passes relevance back the same way it passes a gradient. The first step in the figure below shows the result. For all three models, the map is noise.
+So we started where the libraries stop. We gave the weighted layers their usual rules and left everything else alone. An operation without a rule passes relevance back the same way it passes a gradient. The first column of the figure below shows the result. For all three models, the map is noise.
 
 {% include figure-gallery.html id="lrp-rules" data=site.data.galleries.lrp_rules class="wide" %}
 
-Over the next sections, we add the missing rules one at a time, in the same order as the slider.
+The two middle columns each add a single rule, the residual split or the LayerNorm rule, and the last column has all the rules we ended up with. Over the next sections, we go through the missing rules one at a time.
 
 ### Residual Connections
 
@@ -62,7 +62,7 @@ The gradient of an addition passes the full amount to both sides. An addition wi
   <figcaption>Move the sliders to change the two values that are added. The rows show how much relevance each side receives when the output holds a relevance of 1. Purple bars are negative.</figcaption>
 </figure>
 
-With every block copying, the amounts grow quickly. In the DINOv1 ViT, the pixels receive more than a thousand times the starting amount. We therefore rewrite every addition so that it can receive a rule. In the second step of the gallery above, every addition splits the relevance between its two sides. The amounts become plausible, but the maps are still noise. In Swin, they even grow to millions at this step, until LayerNorm receives its rule as well. Which split to choose turned out to be a question of its own, and we return to it later.
+With every block copying, the amounts grow quickly. In the DINOv1 ViT, the pixels receive more than a thousand times the starting amount. We therefore rewrite every addition so that it can receive a rule. In the second column of the gallery above, every addition splits the relevance between its two sides, while LayerNorm still has no rule. In ConvNeXt and the ViT the amounts fall below the starting amount, but the maps are still noise. In Swin, they even grow to millions. Which split to choose turned out to be a question of its own, and we return to it later.
 
 ### LayerNorm
 
@@ -74,7 +74,7 @@ LayerNorm takes the values of a token, subtracts their mean and divides them by 
   <figcaption>Six input values are normalized. The positive outputs receive a relevance of 1 in total, in proportion to their size, just like the start of our explanations. The two right columns show what each input receives with our rule and without any rule. The buttons shift or stretch all inputs at once, which leaves the output unchanged.</figcaption>
 </figure>
 
-Every block of our encoders contains at least one LayerNorm. Each of them turns the relevance into a balanced mix of positive and negative amounts, which is why the maps looked like noise. Our rule holds the spread fixed during the backward pass, while the forward pass stays exactly the same. LayerNorm then behaves like a linear layer, and relevance passes through it with the usual rule for linear layers. In the third step of the gallery, the objects appear in all three models. Conservative propagation proposed this treatment for transformers [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>], and AttnLRP uses an equivalent rule [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
+Every block of our encoders contains at least one LayerNorm. Each of them turns the relevance into a balanced mix of positive and negative amounts, which is why the maps looked like noise. Our rule holds the spread fixed during the backward pass, while the forward pass stays exactly the same. LayerNorm then behaves like a linear layer, and relevance passes through it with the usual rule for linear layers. The third column of the gallery gives LayerNorm its rule, while every addition still copies. In the ViT, the objects appear, but more than a hundred thousand times the starting amount reaches the pixels. Each map is scaled to its own maximum, which hides this. In ConvNeXt the pixels receive hundreds of times the starting amount, in Swin trillions of times, and both maps stay noise. Only with both rules, in the last column, do the objects appear in all three models. Conservative propagation proposed this treatment for transformers [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>], and AttnLRP uses an equivalent rule [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
 
 ### Activation Functions
 
@@ -86,7 +86,7 @@ Activation functions such as GELU change each value on its own. The usual LRP tr
   <figcaption>The GELU curve and its slope at the chosen input (dashed). The bars show the relevance that one value passes back when it holds a relevance of 1.</figcaption>
 </figure>
 
-zennit applies the identity rule to the activation functions it knows. The ConvNeXt we used implements GELU with its own class, which zennit does not recognize. Nothing fails, and in the fourth step of the gallery the ConvNeXt map barely changes. Yet the amount reaching the pixels rises from 0.48 to 0.66 for the dog and the cat. Without the rule, a quarter of the relevance disappeared without a trace. This was the first lesson of the project. A plausible map is no proof that every layer was handled.
+zennit applies the identity rule to the activation functions it knows. The ConvNeXt we used implements GELU with its own class, which zennit does not recognize. Nothing fails, and once GELU gets its rule, the ConvNeXt map barely changes. Yet the amount reaching the pixels rises from 0.48 to 0.66 for the dog and the cat. Without the rule, a quarter of the relevance disappeared without a trace. This was the first lesson of the project. A plausible map is no proof that every layer was handled.
 
 ### Attention
 
@@ -98,7 +98,7 @@ Attention lets every token collect information from the other tokens. Each token
   <figcaption>An output token averages the values of four source tokens. Each source has a value (what it sends) and a score, and the scores are turned into weights that sum to 1. The output holds a relevance of 1. The two right columns show what each source receives with the weights held fixed and without any rule.</figcaption>
 </figure>
 
-This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, holding the weights fixed changed the maps only slightly, as the last step of the gallery shows.
+This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, holding the weights fixed changed the maps only slightly.
 
 Attention also explains a difference you can see in the first figure. A convolution only combines neighbouring cells, so relevance in ConvNeXt stays close to where it started. Attention connects every token with every other one, so in the ViT, relevance can jump across the image within a single block.
 
