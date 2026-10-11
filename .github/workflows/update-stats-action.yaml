@@ -14,6 +14,21 @@ jobs:
         run: |
           mkdir -p _data
 
+      - name: Define a safe fetch
+        run: |
+          # fetch_json URL FILE: replace FILE only if the response is valid JSON (keeps the old data otherwise)
+          cat > /tmp/fetch_json.sh <<'SH'
+          url="$1"; out="$2"; tmp="$(mktemp)"
+          for i in 1 2 3; do
+            if curl -s --compressed "$url" > "$tmp" && jq -e . "$tmp" > /dev/null 2>&1; then
+              mv "$tmp" "$out"; echo "updated $out"; exit 0
+            fi
+            echo "attempt $i: no valid JSON from $url"; sleep 5
+          done
+          rm -f "$tmp"; echo "::warning::kept the previous $out (no valid JSON from $url)"
+          SH
+          chmod +x /tmp/fetch_json.sh
+
       - name: Fetch waka stats
         run: |
           # fetch json using curl, if error, retry 3 times
@@ -32,19 +47,19 @@ jobs:
 
       - name: Fetch stackoverflow reputation
         run: |
-          curl -s "https://stackoverflow.com/users/flair/2329060.json" > _data/stackoverflow_reputation.json
+          /tmp/fetch_json.sh "https://stackoverflow.com/users/flair/2329060.json" _data/stackoverflow_reputation.json
 
       - name: Fetch stackoverflow tags
         run: |
-          curl -s --compressed 'https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K' > _data/stackoverflow_tags.json
+          /tmp/fetch_json.sh 'https://api.stackexchange.com/2.3/users/2329060/tags?pagesize=100&order=desc&sort=popular&site=stackoverflow&filter=!bMsg5CXICfJ)0K' _data/stackoverflow_tags.json
 
       - name: Fetch ai stackexchange reputation
         run: |
-          curl -s "https://ai.stackexchange.com/users/flair/12841.json" > _data/ai_reputation.json
+          /tmp/fetch_json.sh "https://ai.stackexchange.com/users/flair/12841.json" _data/ai_reputation.json
 
       - name: Fetch ai stackexchange tags
         run: |
-          curl -s --compressed 'https://api.stackexchange.com/2.3/users/12841/tags?pagesize=100&order=desc&sort=popular&site=ai&filter=!bMsg5CXICfJ)0K' > _data/ai_tags.json
+          /tmp/fetch_json.sh 'https://api.stackexchange.com/2.3/users/12841/tags?pagesize=100&order=desc&sort=popular&site=ai&filter=!bMsg5CXICfJ)0K' _data/ai_tags.json
 
       - name: Push stats
         run: |
