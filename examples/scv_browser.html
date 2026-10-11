@@ -41,6 +41,23 @@
         font: inherit;
       }
 
+      .data-source-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .data-source-item[hidden],
+      .data-source-color[hidden] {
+        display: none;
+      }
+
+      .data-source-color {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       .data-source-custom {
         display: flex;
         align-items: center;
@@ -84,6 +101,48 @@
         overflow: auto;
         padding: 0;
         color: #222;
+      }
+
+      .scv-selected-panel > i {
+        display: block;
+        padding: 10px 12px 0;
+        color: #666;
+        font: 13px/1.4 system-ui, sans-serif;
+      }
+
+      .scv-about {
+        padding: 6px 12px 16px;
+        font: 13px/1.45 system-ui, sans-serif;
+      }
+
+      .scv-about-title {
+        margin: 6px 0 6px;
+        font-size: 14px;
+      }
+
+      .scv-about-summary {
+        margin: 0 0 8px;
+      }
+
+      .scv-about-section {
+        border-top: 1px solid #e3e3e3;
+        padding: 4px 0;
+      }
+
+      .scv-about-section summary {
+        cursor: pointer;
+        font-weight: 600;
+        padding: 3px 0;
+      }
+
+      .scv-about-section ul {
+        margin: 4px 0 6px;
+        padding-left: 18px;
+      }
+
+      .scv-about-section li {
+        margin-bottom: 4px;
+        overflow-wrap: anywhere;
       }
 
       .scv-plot-wrap {
@@ -333,12 +392,20 @@
   </head>
   <body>
     <div class="data-source-controls" id="data-source-controls">
-      <label for="data-source-select">Data source</label>
-      <select id="data-source-select" autocomplete="off"></select>
+      <label for="data-source-group">Dataset</label>
+      <select id="data-source-group" autocomplete="off"></select>
+      <span class="data-source-item" id="data-source-item">
+        <label for="data-source-select" id="data-source-item-label">Model</label>
+        <select id="data-source-select" autocomplete="off"></select>
+      </span>
       <form class="data-source-custom" id="data-source-custom" hidden>
         <input id="data-source-url" type="text" inputmode="url" autocomplete="url" placeholder="https://example.org/data.json">
         <button type="submit">Load</button>
       </form>
+      <span class="data-source-color" id="label-column-controls" hidden>
+        <label for="label-column-select">Color by</label>
+        <select id="label-column-select" autocomplete="off"></select>
+      </span>
     </div>
     <main class="scv-layout">
       <aside id="scv-selected-panel" class="scv-selected-panel"><i>Click or drag-select points to see details and cluster coordinates here</i></aside>
@@ -357,10 +424,47 @@
         const DATA_OPTION_PARAM = "option";
         const DATA_URL_PARAM = "data";
         const CUSTOM_DATA_OPTION_ID = "__custom__";
-        const DATA_OPTIONS = [
-          {id: "covid", label: "COVID-19 spatial embeddings", url: "umap_covid.json"},
-          {id: "convnext_imagenet", label: "ConvNeXtBaseIN1K ImageNet embeddings", url: "ConvNeXtBaseIN1K.json"}
+        // Grouped data sources: the first dropdown picks the group, the second the model or variant.
+        // Ids are stable, so links with ?option=<id> keep working.
+        // Grouped data sources: the first dropdown picks the group, the second the model or variant.
+        // Ids are stable, so links with ?option=<id> keep working.
+        const DATA_GROUPS = [
+          {name: "COCO (14 classes, objects and background)", itemLabel: "Model"},
+          {name: "Breast cancer (BCSS, TCGA-BRCA)", itemLabel: "Data and model"},
+          {name: "COVID-19 chest X-rays", itemLabel: "Model"},
+          {name: "StyleGAN2 encoder", itemLabel: "Data"}
         ];
+        const DATA_OPTIONS = [
+          {id: "coco_resnet50", group: DATA_GROUPS[0].name, label: "Supervised · ResNet-50", url: "umap_coco_resnet50.json"},
+          {id: "coco_convnext", group: DATA_GROUPS[0].name, label: "Supervised · ConvNeXt-Base", url: "umap_coco_convnext.json"},
+          {id: "coco_deit", group: DATA_GROUPS[0].name, label: "Supervised · DeiT-B/16", url: "umap_coco_deit.json"},
+          {id: "coco_clip_resnet50", group: DATA_GROUPS[0].name, label: "CLIP (OpenAI) · ResNet-50", url: "umap_coco_clip_resnet50.json"},
+          {id: "coco_clip_vit", group: DATA_GROUPS[0].name, label: "CLIP (OpenAI) · ViT-B/16", url: "umap_coco_clip_vit.json"},
+          {id: "coco_clip_convnext", group: DATA_GROUPS[0].name, label: "CLIP (LAION-2B) · ConvNeXt-Base", url: "umap_coco_clip_convnext.json"},
+          {id: "coco_clip_vit_laion", group: DATA_GROUPS[0].name, label: "CLIP (LAION-2B) · ViT-B/16", url: "umap_coco_clip_vit_laion.json"},
+          {id: "coco_simclr_resnet50", group: DATA_GROUPS[0].name, label: "SimCLR · ResNet-50", url: "umap_coco_simclr_resnet50.json"},
+          {id: "coco_mocov3_resnet50", group: DATA_GROUPS[0].name, label: "MoCo v3 · ResNet-50", url: "umap_coco_mocov3_resnet50.json"},
+          {id: "coco_mocov3_vit", group: DATA_GROUPS[0].name, label: "MoCo v3 · ViT-B/16", url: "umap_coco_mocov3_vit.json"},
+          {id: "coco_dino_resnet50", group: DATA_GROUPS[0].name, label: "DINO · ResNet-50", url: "umap_coco_dino_resnet50.json"},
+          {id: "coco_dino_vit", group: DATA_GROUPS[0].name, label: "DINO · ViT-B/16", url: "umap_coco_dino_vit.json"},
+          {id: "coco_dinov2", group: DATA_GROUPS[0].name, label: "DINOv2 · ViT-B/14", url: "umap_coco_dinov2.json"},
+          {id: "coco_dinov2_reg", group: DATA_GROUPS[0].name, label: "DINOv2 · ViT-B/14 + registers", url: "umap_coco_dinov2_reg.json"},
+          {id: "coco_dinov3_convnext", group: DATA_GROUPS[0].name, label: "DINOv3 · ConvNeXt-Base (distilled)", url: "umap_coco_dinov3_convnext.json"},
+          {id: "coco_dinov3", group: DATA_GROUPS[0].name, label: "DINOv3 · ViT-B/16", url: "umap_coco_dinov3.json"},
+          {id: "coco_fcmae_convnextv2", group: DATA_GROUPS[0].name, label: "Masked image modelling · FCMAE ConvNeXt-V2-Base", url: "umap_coco_fcmae_convnextv2.json"},
+          {id: "coco_mae", group: DATA_GROUPS[0].name, label: "Masked image modelling · MAE ViT-B/16", url: "umap_coco_mae.json"},
+          {id: "bcss_virchow2", group: DATA_GROUPS[1].name, label: "BCSS (pathologist annotations) · Virchow2", url: "umap_bcss_virchow2.json"},
+          {id: "bcss_phikonv2", group: DATA_GROUPS[1].name, label: "BCSS (pathologist annotations) · Phikon-v2", url: "umap_bcss_phikonv2.json"},
+          {id: "tcga_lobular_virchow2", group: DATA_GROUPS[1].name, label: "TCGA-BRCA lobular vs ductal · Virchow2", url: "umap_tcga_lobular_virchow2.json"},
+          {id: "tcga_lobular_phikonv2", group: DATA_GROUPS[1].name, label: "TCGA-BRCA lobular vs ductal · Phikon-v2", url: "umap_tcga_lobular_phikonv2.json"},
+          {id: "covid", group: DATA_GROUPS[2].name, label: "PubMedCLIP ResNet-50", url: "umap_covid.json"},
+          {id: "stylegan_mnist", group: DATA_GROUPS[3].name, label: "MNIST", url: "stylegan2-with-encoder/mnist.json"},
+          {id: "stylegan_celeba", group: DATA_GROUPS[3].name, label: "CelebA and FFHQ", url: "stylegan2-with-encoder/celeba_ffhq.json"},
+          {id: "stylegan_pcam", group: DATA_GROUPS[3].name, label: "Camelyon (PCam)", url: "stylegan2-with-encoder/pcam.json"}
+        ];
+        const LABEL_COLUMN_PARAM = "color";
+        // Top-level arrays that describe the dataset rather than hold one value per point.
+        const NON_POINT_KEYS = ["images", "label_columns", "palette"];
         const SELECTED_PANEL_ID = "scv-selected-panel";
         const CLUSTER_SOURCE_ID = "annotation_cluster_source";
         const CLUSTER_RENDERER_ID = "annotation_cluster_renderer";
@@ -447,42 +551,60 @@
         }
 
         function installDataSourceSelector(dataSource) {
+          const groupSelect = document.getElementById("data-source-group");
           const select = document.getElementById("data-source-select");
+          const itemBox = document.getElementById("data-source-item");
+          const itemLabel = document.getElementById("data-source-item-label");
           const customForm = document.getElementById("data-source-custom");
           const customInput = document.getElementById("data-source-url");
-          if (!select) return;
+          if (!groupSelect || !select) return;
 
-          select.textContent = "";
-          for (const option of DATA_OPTIONS) {
-            const item = document.createElement("option");
-            item.value = option.id;
-            item.textContent = option.label;
-            select.appendChild(item);
+          function fillItems(groupName, selectedId) {
+            const group = DATA_GROUPS.find(function(g) { return g.name === groupName; });
+            select.textContent = "";
+            for (const option of DATA_OPTIONS.filter(function(o) { return o.group === groupName; })) {
+              const item = document.createElement("option");
+              item.value = option.id;
+              item.textContent = option.label;
+              select.appendChild(item);
+            }
+            if (selectedId) select.value = selectedId;
+            if (itemLabel) itemLabel.textContent = group && group.itemLabel ? group.itemLabel : "Model";
           }
 
+          groupSelect.textContent = "";
+          for (const group of DATA_GROUPS) {
+            const item = document.createElement("option");
+            item.value = group.name;
+            item.textContent = group.name;
+            groupSelect.appendChild(item);
+          }
           const customOption = document.createElement("option");
           customOption.value = CUSTOM_DATA_OPTION_ID;
           customOption.textContent = "External JSON URL...";
-          select.appendChild(customOption);
+          groupSelect.appendChild(customOption);
 
-          if (dataSource.predefined) {
-            select.value = dataSource.id;
-          } else {
-            select.value = CUSTOM_DATA_OPTION_ID;
-          }
+          const custom = !dataSource.predefined;
+          groupSelect.value = custom ? CUSTOM_DATA_OPTION_ID : dataSource.group;
+          if (!custom) fillItems(dataSource.group, dataSource.id);
+          if (itemBox) itemBox.hidden = custom;
+          if (customInput) customInput.value = custom ? dataSource.url : "";
+          if (customForm) customForm.hidden = !custom;
 
-          if (customInput) customInput.value = dataSource.predefined ? "" : dataSource.url;
-          if (customForm) customForm.hidden = select.value !== CUSTOM_DATA_OPTION_ID;
+          groupSelect.onchange = function() {
+            if (groupSelect.value === CUSTOM_DATA_OPTION_ID) {
+              if (itemBox) itemBox.hidden = true;
+              if (customForm) customForm.hidden = false;
+              if (customInput) customInput.focus();
+              return;
+            }
+            const first = DATA_OPTIONS.find(function(o) { return o.group === groupSelect.value; });
+            if (first) window.location.assign(optionBrowserUrl(first).toString());
+          };
 
           select.onchange = function() {
             const option = findDataOption(select.value);
-            if (option) {
-              window.location.assign(optionBrowserUrl(option).toString());
-              return;
-            }
-
-            if (customForm) customForm.hidden = false;
-            if (customInput) customInput.focus();
+            if (option) window.location.assign(optionBrowserUrl(option).toString());
           };
 
           if (customForm && customInput) {
@@ -509,6 +631,33 @@
           const path = String(value || "").split(/[?#]/)[0];
           const filename = path.split("/").filter(Boolean).pop();
           return filename || String(value || "");
+        }
+
+        function isDataUrl(value) {
+          return /^data:/i.test(String(value || ""));
+        }
+
+        function labelColumns(rawData) {
+          if (!Array.isArray(rawData.label_columns)) return [];
+          return rawData.label_columns.map(String).filter(function(column) {
+            return Array.isArray(rawData[column]);
+          });
+        }
+
+        function initialLabelColumn(rawData) {
+          const available = labelColumns(rawData);
+          const requested = new URLSearchParams(window.location.search).get(LABEL_COLUMN_PARAM);
+          if (requested && available.includes(requested)) return requested;
+          if (available.includes(rawData.label_column)) return rawData.label_column;
+          return null;
+        }
+
+        function labelPalette(factors, palette) {
+          return factors.map(function(factor, i) {
+            if (Array.isArray(palette) && palette.length > 0) return palette[i % palette.length];
+            if (palette && typeof palette === "object" && palette[factor]) return palette[factor];
+            return PALETTE[i % PALETTE.length];
+          });
         }
 
         function joinImageUrl(baseUrl, image) {
@@ -541,7 +690,7 @@
           }
 
           const entries = Object.entries(columns).filter(function(entry) {
-            return Array.isArray(entry[1]) && entry[0] !== "images";
+            return Array.isArray(entry[1]) && !NON_POINT_KEYS.includes(entry[0]);
           });
           const lengths = entries.map(function(entry) { return entry[1].length; });
           const minLength = Math.min.apply(null, lengths);
@@ -554,6 +703,8 @@
             console.warn("Data columns have different lengths; truncating to", minLength);
             for (const entry of entries) normalized[entry[0]] = entry[1].slice(0, minLength);
           }
+          const labelColumn = initialLabelColumn(columns);
+          if (labelColumn) normalized.label = normalized[labelColumn];
           if (Array.isArray(normalized.label)) {
             normalized.label = normalized.label.map(function(value) { return String(value); });
           } else {
@@ -579,7 +730,7 @@
           if (!Array.isArray(normalized.image_name)) {
             normalized.image_name = Array.from({length: pointCount}, function(_, i) {
               const image = images ? images[Math.floor(i / patchesPerImage)] : normalized.img_url[i];
-              return filenameFromPath(image);
+              return isDataUrl(image) ? "image_" + (images ? Math.floor(i / patchesPerImage) : i) + ".png" : filenameFromPath(image);
             });
           }
           if (!Array.isArray(normalized.idx)) {
@@ -641,6 +792,7 @@
           return {
             title: escapeHtml(pointTitle(pointValue(data, "idx", i, i), pointValue(data, "label", i, ""))),
             url: escapeHtml(url),
+            isDataUrl: isDataUrl(url),
             imageName: escapeHtml(pointValue(data, "image_name", i, filenameFromPath(url))),
             row: row,
             col: col,
@@ -881,13 +1033,22 @@
           });
         }
 
-        function updateLabelColors(docs, columns) {
+        function updateLabelColors(docs, columns, palette) {
           if (!Array.isArray(columns.label)) return;
           const factors = Array.from(new Set(columns.label));
           for (const mapper of findModels(docs, "CategoricalColorMapper")) {
             mapper.attributes = mapper.attributes || {};
             mapper.attributes.factors = factors;
-            mapper.attributes.palette = factors.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+            mapper.attributes.palette = labelPalette(factors, palette);
+          }
+        }
+
+        function updateTitle(docs, title) {
+          if (typeof title !== "string" || !title) return;
+          document.title = title + " | Latent representation browser";
+          for (const model of findModels(docs, "Title")) {
+            model.attributes = model.attributes || {};
+            model.attributes.text = title;
           }
         }
 
@@ -1062,11 +1223,12 @@
           }
         }
 
-        function applyColumns(docs, columns, annotations) {
+        function applyColumns(docs, columns, annotations, rawData) {
           const sources = findModels(docs, "ColumnDataSource");
           if (sources.length === 0) throw new Error("Template has no ColumnDataSource.");
           sources[0].attributes.data = toBokehMap(columns);
-          updateLabelColors(docs, columns);
+          updateLabelColors(docs, columns, rawData.palette);
+          updateTitle(docs, rawData.title);
           addClusterAnnotations(docs, annotations);
           updateHoverTooltips(docs);
           updateToolbarDefaults(docs);
@@ -1076,6 +1238,44 @@
           return String(value ?? "").replace(/[&<>"']/g, function(ch) {
             return {"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"}[ch];
           });
+        }
+
+        // Shown in the left panel while nothing is selected: the dataset's own description.
+        // JSON field "about": {summary, sections: [{title, items: [text] or text, open}], links: [{label, url}]}.
+        // Without it, the scalar entries of "metadata" are listed (local file paths are left out).
+        let emptyPanelHtml = EMPTY_SELECTION_TEXT;
+
+        function aboutHtml(rawData) {
+          const about = rawData && rawData.about;
+          const isLocalPath = function(v) { return typeof v === "string" && /^(\/|~|[A-Za-z]:\\)/.test(v); };
+          const safeUrl = function(u) { return /^https?:\/\//i.test(String(u || "")) ? escapeHtml(u) : ""; };
+          let body = "";
+          if (about && typeof about === "object") {
+            if (about.summary) body += `<p class="scv-about-summary">${escapeHtml(about.summary)}</p>`;
+            for (const section of Array.isArray(about.sections) ? about.sections : []) {
+              const items = Array.isArray(section.items) ? section.items : [section.items || section.text || ""];
+              const list = items.filter(Boolean).map(function(item) { return `<li>${escapeHtml(item)}</li>`; }).join("");
+              body += `<details class="scv-about-section"${section.open ? " open" : ""}>
+                <summary>${escapeHtml(section.title)}</summary><ul>${list}</ul></details>`;
+            }
+            const links = (Array.isArray(about.links) ? about.links : []).filter(function(l) { return safeUrl(l.url); });
+            if (links.length) {
+              body += `<details class="scv-about-section"><summary>Sources and links</summary><ul>${links.map(function(l) {
+                return `<li><a href="${safeUrl(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.label || l.url)}</a></li>`;
+              }).join("")}</ul></details>`;
+            }
+          } else if (rawData && rawData.metadata && typeof rawData.metadata === "object") {
+            const rows = Object.entries(rawData.metadata).filter(function(entry) {
+              const v = entry[1];
+              return (typeof v === "string" || typeof v === "number") && !isLocalPath(v);
+            }).map(function(entry) {
+              return `<li><b>${escapeHtml(entry[0])}</b>: ${escapeHtml(entry[1])}</li>`;
+            }).join("");
+            if (rows) body = `<details class="scv-about-section" open><summary>Metadata</summary><ul>${rows}</ul></details>`;
+          }
+          if (!body) return "";
+          const title = rawData.title ? `<h3 class="scv-about-title">${escapeHtml(rawData.title)}</h3>` : "";
+          return `<div class="scv-about">${title}${body}</div>`;
         }
 
         function pointTitle(idx, label) {
@@ -1335,21 +1535,27 @@
 
           function overview(i) {
             const preview = pointPreview(source.data, i);
+            const patchOverlay = preview.gridSize > 1 ? `
+                <div class="scv-overview-grid"></div>
+                <div class="scv-overview-marker"></div>` : "";
             return `
               <h3 class="scv-selected-title">${preview.title}</h3>
               <div class="scv-overview-frame" style="${preview.cropStyle}">
-                <img class="scv-overview-image" src="${preview.url}" alt="" />
-                <div class="scv-overview-grid"></div>
-                <div class="scv-overview-marker"></div>
+                <img class="scv-overview-image" src="${preview.url}" alt="" />${patchOverlay}
               </div>`;
           }
 
           function details(i) {
             const preview = pointPreview(source.data, i);
+            const patchCoords = preview.gridSize > 1
+              ? `<div><b>Patch coords:</b> row=${preview.row}, col=${preview.col} (${preview.gridSize}x${preview.gridSize})</div>`
+              : "";
+            // Browsers refuse to open data: URLs in a new tab, so embedded images are offered as a download.
+            const linkTarget = preview.isDataUrl ? `download="${preview.imageName}"` : `target="_blank" rel="noopener noreferrer"`;
             return `
               <div class="scv-selected-details">
-                <div><b>Patch coords:</b> row=${preview.row}, col=${preview.col} (${preview.gridSize}x${preview.gridSize})</div>
-                <div><b>Image:</b> <a href="${preview.url}" target="_blank" rel="noopener noreferrer">${preview.imageName}</a></div>
+                ${patchCoords}
+                <div><b>Image:</b> <a href="${preview.url}" ${linkTarget}>${preview.imageName}</a></div>
               </div>`;
           }
 
@@ -1407,7 +1613,7 @@
           function renderSelection(selected, scrollState) {
             if (selected.length === 0) {
               activeIndex = null;
-              panel.innerHTML = EMPTY_SELECTION_TEXT;
+              panel.innerHTML = emptyPanelHtml;
               return;
             }
             if (!Number.isInteger(activeIndex) || !selected.some(function(i) { return Number(i) === activeIndex; })) activeIndex = Number(selected[0]);
@@ -1505,6 +1711,39 @@
           if (!connectSelectionUpdates()) setInterval(updateIfChanged, 150);
         }
 
+        function installLabelColumnSelector(rawData) {
+          const controls = document.getElementById("label-column-controls");
+          const select = document.getElementById("label-column-select");
+          const available = labelColumns(rawData);
+          const doc = currentBokehDocument();
+          const source = doc && doc.get_model_by_id("p1001");
+          const mapper = doc && doc.get_model_by_id("p1030");
+          if (!controls || !select || available.length === 0 || !source || !mapper) return;
+
+          select.textContent = "";
+          for (const column of available) {
+            const item = document.createElement("option");
+            item.value = column;
+            item.textContent = column;
+            select.appendChild(item);
+          }
+          select.value = initialLabelColumn(rawData) || available[0];
+          controls.hidden = false;
+
+          select.onchange = function() {
+            const column = select.value;
+            const label = rawData[column].map(function(value) { return String(value); });
+            const factors = Array.from(new Set(label));
+            mapper.factors = factors;
+            mapper.palette = labelPalette(factors, rawData.palette);
+            source.data = Object.assign({}, source.data, {label: label});
+
+            const url = new URL(window.location.href);
+            url.searchParams.set(LABEL_COLUMN_PARAM, column);
+            window.history.replaceState(null, "", url.toString());
+          };
+        }
+
         function waitForBokeh(root) {
           return new Promise(function(resolve, reject) {
             if (root.Bokeh !== undefined) {
@@ -1545,13 +1784,17 @@
             if (!response.ok) throw new Error("HTTP " + response.status + " while loading " + dataSource.url);
 
             const rawData = await response.json();
+            emptyPanelHtml = EMPTY_SELECTION_TEXT + aboutHtml(rawData);
+            const panel = document.getElementById(SELECTED_PANEL_ID);
+            if (panel) panel.innerHTML = emptyPanelHtml;
             const columns = normalizeColumns(rawData);
             const annotations = normalizeAnnotations(rawData.annotations);
             const docs = JSON.parse(document.getElementById(TEMPLATE_JSON_ID).textContent);
-            applyColumns(docs, columns, annotations);
+            applyColumns(docs, columns, annotations, rawData);
             await bokeh.embed.embed_items(JSON.stringify(docs), buildRenderItems(docs));
             installPatchHoverOverlay();
             installSelectionPreview();
+            installLabelColumnSelector(rawData);
           } catch (error) {
             showError(error, dataSource);
           }
