@@ -8,7 +8,8 @@
 
 const SIDES = ["Image A", "Image B"];
 const lower = (side) => SIDES[side].replace("Image", "image");   // "image A", inside a sentence
-const START_IMAGES = ["Dog & cat", "Dog & cat indoors"];
+const START_IMAGES = ["Bus & taxi", "Bus sign"];
+const START_MODEL = "clip_resnet101";
 const MAX_CANVAS = 1024;   // the image canvas never needs more pixels than it is shown with
 
 const $ = (id) => document.getElementById(id);
@@ -376,7 +377,8 @@ function init() {
   els.clearButton.onclick = clearSelection;
   new ResizeObserver(() => draw()).observe(els.pair);
 
-  selectModel(MODELS[0]);
+  els.modelSelect.value = START_MODEL;
+  selectModel(MODELS.find((m) => m.id === START_MODEL));
   state.panels.forEach(async (panel, side) => {
     const sample = SAMPLES.find((s) => s.label === START_IMAGES[side]);
     await setImage(panel, await fetch(sample.url).then((r) => r.blob()), sample.label);
