@@ -1,12 +1,22 @@
+---
+layout: null
+title: Region Similarity Demo
+description: >-
+  See which regions of two images look alike to a vision model: classifiers, self-supervised and
+  CLIP models, computed in your browser.
+image:
+  path: /assets/img/demos/similarity.png
+  width: 1200
+  height: 630
+  alt: A street with a bus and a taxi connected by lines to the matching regions of a bus and taxi sign.
+---
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Region Similarity Demo</title>
-    <meta name="description"
-        content="See which regions of two images look alike to a vision model, computed in your browser.">
+    {% seo %}
     <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -98,7 +108,7 @@
             <li><strong>Connections</strong> sets how many lines are drawn; <strong>Model</strong> switches the model,
                 which is downloaded when you select it.</li>
         </ul>
-        <p>See also the <a href="../lafam/">LaFAM demo</a>, which shows where a classifier looks.</p>
+        <p>See also the <a href="../lafam/">LaFAM demo</a>, which shows where a vision model looks.</p>
     </section>
 
     <script src="../models/models.js"></script>
