@@ -1,1640 +1,692 @@
-window.addEventListener("error", (event) => {
-  addLogMsg(event.message);
-});
-window.addEventListener("unhandledrejection", (event) => {
-  addLogMsg(event.reason);
-});
+// The LaFAM demo. The selected model (../js/inference.js) returns, for every cell of the last feature
+// map, the features and the classification head applied to that cell ("cell logits"). For a global-
+// average-pooling classifier the mean of the cell logits is the model's prediction, so every view
+// below is computed exactly from these two arrays:
+//   LaFAM          the mean of the (ReLU) features of each cell
+//   CAM            the selected classes' cell logits
+//   region         the mean of the selected cells' logits
+//   per-cell class the top class of each cell's logits
+//   tracking       the cosine similarity of each cell's features to an object's mean features
 
-function addLogMsg(msg) {
-  debug_log.textContent += msg + "\n";
-  debug_log.scrollTop = debug_log.scrollHeight;
-}
-
-const debug_devices = document.getElementById("devices");
-const debug_log = document.getElementById("log");
-
-const INPUT_WIDTH = 224;
-const INPUT_HEIGHT = 224;
-const MEAN = [0.485, 0.456, 0.406];
-const STD = [0.229, 0.224, 0.225];
 const TOP_N = 14;
+const MAX_CANVAS = 1024;   // the image canvas never needs more pixels than it is shown with
 
-// Application state management
-const AppState = {
-  includeGroups: null,
-  excludeGroups: null,
-  grouper: null,
-  selectionEnabled: false,
-  currentImage: null,
-  squareData: null,
-  isWorkerReady: false,
-  trackingObjects: [],
-  activeTrackingObjectId: null,
-  trackingSettings: {
-    threshold: 0.5,
-    ema: 0.75,
-    overlayAlpha: 0.5,
-    resolution: 224
-  }
+const $ = (id) => document.getElementById(id);
+const els = {
+  main: $("main-section"),
+  imgCanvas: $("img-canvas"),
+  heatmapCanvas: $("heatmap-canvas"),
+  boxCanvas: $("bounding-boxes-canvas"),
+  grid: $("grid"),
+  loading: $("loading-indicator"),
+  loadingText: $("loading-text"),
+  modelSelect: $("model-select"),
+  modeSelect: $("mode-select"),
+  paletteSelect: $("palette-select"),
+  opacity: $("heatmap-opacity"),
+  presets: $("predefined-files"),
+  upload: $("upload-input"),
+  startButton: $("start-button"),
+  cameraButton: $("switch-camera-button"),
+  predictions: $("prediction-list"),
+  clearSelection: $("clear-selection"),
+  tracking: $("tracking-controls"),
+  objectList: $("tracking-objects-list"),
 };
 
-
-class ModelWorker {
-  constructor(url) {
-    let $this = this;
-    this.initCamera();
-
-    this.worker = new window.Worker(url);
-    this.worker.onmessage = (e) => {
-      $this._onmessage(e);
-    };
-
-    this.palettes;
-    this.currentPalette;
-
-
-
-    this.initElements();
-    this.initEvents();
-    this._clearGroupMapDisplay();
-
-    // Update loading text
-    const loadingText = document.getElementById("loading-text");
-    
-    // Parallelize data fetches with per-file progress tracking
-    const dataFiles = [
-      { name: "ImageNet classes", url: "assets/data/imagenet_class_index.json", loaded: false },
-      { name: "Color palettes", url: "assets/data/palettes.json", loaded: false },
-      { name: "Exclude groups", url: "assets/data/exclude_groups.json", loaded: false },
-      { name: "Include groups", url: "assets/data/include_groups.json", loaded: false }
-    ];
-
-    const updateLoadingDisplay = () => {
-      if (loadingText) {
-        const status = dataFiles.map(f => 
-          `${f.loaded ? '✓' : '○'} ${f.name}`
-        ).join('\n');
-        loadingText.innerHTML = status.replace(/\n/g, '<br>');
-      }
-    };
-
-    // Initial display
-    updateLoadingDisplay();
-
-    const fetchWithProgress = (file) => {
-      return fetch(file.url)
-        .then(r => r.json())
-        .then(data => {
-          file.loaded = true;
-          updateLoadingDisplay();
-          return data;
-        });
-    };
-
-    Promise.all(dataFiles.map(fetchWithProgress))
-      .then(([imagenetClasses, palettes, excludeGroups, includeGroups]) => {
-        this.imagenet_classes = imagenetClasses;
-        this.palettes = palettes;
-        this.currentPalette = Object.keys(palettes)[0];
-        AppState.excludeGroups = excludeGroups;
-        AppState.includeGroups = includeGroups;
-        
-        if (loadingText) {
-          loadingText.textContent = "Initializing model...";
-        }
-        
-        // Initialize palette select options
-        for (const palette in palettes) {
-          const option = document.createElement("option");
-          option.value = palette;
-          option.textContent = palette;
-          this.paletteSelect.appendChild(option);
-        }
-      }).catch(error => {
-        console.error("Failed to load data files:", error);
-        addLogMsg("Error loading data files: " + error.message);
-        if (loadingText) {
-          loadingText.textContent = "Error loading data files!";
-        }
-      });
-  }
-
-  initElements() {
-    this.paletteSelect = document.getElementById("palette-select");
-    this.modeSelect = document.getElementById("mode-select");
-    this.mainSection = document.getElementById("main-section");
-    this.video = document.createElement("video");
-    this.predictionList = document.getElementById("prediction-list");
-    this.hidden_canvas = document.createElement("canvas");
-    this.ctx_hidden = this.hidden_canvas.getContext("2d");
-    this.img_canvas = document.getElementById("img-canvas");
-    this.ctx_img = this.img_canvas.getContext("2d");
-    this.heatmap_canvas = document.getElementById("heatmap-canvas");
-    this.ctx_heatmap = this.heatmap_canvas.getContext("2d");
-    this.bb_canvas = document.getElementById("bounding-boxes-canvas");
-    this.startButton = document.getElementById("start-button");
-    this.switchCameraButton = document.getElementById("switch-camera-button");
-    this.heatmapOpacity = document.getElementById("heatmap-opacity");
-    this.predefinedFiles = document.getElementById("predefined-files");
-    this.uploadButton = document.getElementById("upload-button");
-    this.uploadInput = document.getElementById("upload-input");
-    this.heatmapGrid = document.getElementById("grid");
-    this.clearSelection = document.getElementById("clear-selection");
-
-    // Object Tracking Elements
-    this.trackingControls = document.getElementById("tracking-controls");
-    this.addObjectBtn = document.getElementById("add-object-btn");
-    this.trackingObjectsList = document.getElementById("tracking-objects-list");
-    this.trackingResolution = document.getElementById("tracking-resolution");
-    this.trackingThreshold = document.getElementById("tracking-threshold");
-    this.trackingThresholdVal = document.getElementById("tracking-threshold-val");
-    this.trackingEma = document.getElementById("tracking-ema");
-    this.trackingEmaVal = document.getElementById("tracking-ema-val");
-    this.trackingOverlayAlpha = document.getElementById("tracking-overlay-alpha");
-    this.trackingOverlayAlphaVal = document.getElementById("tracking-overlay-alpha-val");
-  }
-
-  initEvents() {
-    const $this = this;
-
-    this.video.onloadedmetadata = async () => {
-      $this.setSize($this.video.videoWidth, $this.video.videoHeight);
-      $this.startButton.disabled = false;
-
-      if ($this.video.srcObject) {
-        try {
-          await $this.video.play();
-          AppState.currentImage = await $this._getFrame();
-          if($this.mainSection.classList.contains("paused")){
-            $this.video.pause();
-          }
-        } catch (err) {
-          addLogMsg("Failed to get camera preview frame: " + err);
-          console.warn("Failed to get camera preview frame: " + err);
-        }
-      } else {
-        AppState.currentImage = await $this._getFrame();
-      }
-      if(AppState.isWorkerReady){
-        $this._postMessage();
-      }
-    };
-
-    this.predefinedFiles.addEventListener("change", () => {
-      $this._clearSelections();
-      $this._clearGroupMapDisplay();
-      $this.video.pause();
-      $this.mainSection.classList.add("paused");
-      AppState.squareData = null;
-      const status = this.modeSelect.value;
-      $this.load_selected_image(status);
-    });
-
-    this.uploadButton.addEventListener("click", () => {
-      this.uploadInput.click();
-    });
-
-    this.uploadInput.addEventListener("change", async (e) => {      
-      $this._clearSelections();
-      $this._clearGroupMapDisplay();
-      $this.video.pause();
-      $this.mainSection.classList.add("paused");
-      AppState.squareData = null;
-
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-
-      this._handleUploadedBlob(file, this.modeSelect.value);
-
-      if ($this.uploadInput.files.length > 0) {
-        $this.predefinedFiles.value = "";
-      }
-    });
-
-    this.predictionList.addEventListener("click", (event) => {
-      if (!AppState.selectionEnabled) return;
-      if (!this.video.paused) return;
-      const div = event.target.closest(".prediction");
-      if (!div) return; // Clicked outside a prediction div
-
-      let selectedIdxs = [];
-      if (!div.classList.contains("selected")) {
-        selectedIdxs.push(parseInt(div.getAttribute("data-idx")));
-        div.classList.add("selected");
-      } else {
-        div.classList.remove("selected");
-      }
-
-      for (const el of document.querySelectorAll(".prediction.selected")) {
-        if (el !== div) {
-          selectedIdxs.push(parseInt(el.getAttribute("data-idx")));
-        }
-      }
-
-      if (selectedIdxs.length > 0) {
-        this.clearSelection.disabled = false;
-        this.worker.postMessage({
-          status: "heatmap_by_class",
-          classIdxs: selectedIdxs,
-        });
-      } else {
-        this.clearSelection.disabled = true;
-        this.updateResults(
-          this.results.heatmap,
-          this.results.predictions,
-          this.results.logits
-        );
-      }
-    });
-
-    this.clearSelection.addEventListener("click", () => {
-      this._clearSelections();
-      this.updateResults(
-        this.results.heatmap,
-        this.results.predictions,
-        this.results.logits
-      );
-    });
-
-    this.heatmapOpacity.oninput = () => {
-      $this.heatmap_canvas.style.opacity = $this.heatmapOpacity.value;
-    };
-
-    this.paletteSelect.onchange = function () {
-      if (!AppState.selectionEnabled) return;
-      $this.currentPalette = this.value;
-      $this.updateHeatmap($this.currentHeatmap);
-    };
-
-    this.startButton.addEventListener("click", async () => {
-      AppState.squareData = null;
-
-      const hasStream = !!this.video.srcObject;
-      const hasFileSrc = !!this.video.currentSrc; // populated after src is set and load starts
-
-      if (!hasStream && !hasFileSrc) {
-        console.warn("Cannot play: video has no srcObject and no src/currentSrc.");
-        return;
-      }
-
-      if (this.video.paused || this.video.ended) {
-        this._clearSelections();
-        this.mainSection.classList.remove("paused");
-
-        try {
-          await this.video.play();
-          this._updateVideo();
-        } catch (err) {
-          console.warn("video.play() failed:", err);
-
-          if (this.video.srcObject && typeof this.video.srcObject.getVideoTracks === "function") {
-            console.log(
-              "track states:",
-              this.video.srcObject.getVideoTracks().map(t => ({ readyState: t.readyState, enabled: t.enabled, muted: t.muted }))
-            );
-          }
-        }
-      } else {
-        this.video.pause();
-        this.mainSection.classList.add("paused");
-      }
-    });
-
-    this.modeSelect.addEventListener("change", (e) => {
-      this.processModeChange();
-    });
-
-    // Tracking UI Events
-    this.addObjectBtn.addEventListener("click", () => {
-        this.addTrackingObject();
-    });
-
-    this.trackingResolution.addEventListener("change", (e) => {
-        AppState.trackingSettings.resolution = parseInt(e.target.value);
-    });
-
-    this.trackingThreshold.addEventListener("input", (e) => {
-        AppState.trackingSettings.threshold = parseFloat(e.target.value);
-        this.trackingThresholdVal.innerText = parseFloat(e.target.value).toFixed(2);
-    });
-
-    this.trackingEma.addEventListener("input", (e) => {
-        AppState.trackingSettings.ema = parseFloat(e.target.value);
-        this.trackingEmaVal.innerText = parseFloat(e.target.value).toFixed(2);
-    });
-
-    this.trackingOverlayAlpha.addEventListener("input", (e) => {
-        AppState.trackingSettings.overlayAlpha = parseFloat(e.target.value);
-        this.trackingOverlayAlphaVal.innerText = parseFloat(e.target.value).toFixed(2);
-    });
-
-    // root event listener for cells (divs)
-    this.heatmapGrid.addEventListener("click", (e) => {
-      if (!AppState.selectionEnabled) return;
-
-      const div = e.target.closest("div");
-      if (!div) return;
-
-      if (this.modeSelect.value === "object_tracking") {
-          // Object Tracking Mode
-          if (AppState.activeTrackingObjectId === null) return;
-          
-          let obj = AppState.trackingObjects.find(o => o.id === AppState.activeTrackingObjectId);
-          if (!obj) return;
-
-          const idx = parseInt(div.getAttribute("data-idx"));
-          const cellIndex = obj.cells.indexOf(idx);
-          
-          if (cellIndex === -1) {
-              obj.cells.push(idx);
-              div.classList.add("selected");
-              div.style.borderColor = obj.color;
-              div.style.boxShadow = `0 0 20px ${obj.color} inset`;
-          } else {
-              obj.cells.splice(cellIndex, 1);
-              div.classList.remove("selected");
-              div.style.borderColor = "";
-              div.style.boxShadow = "";
-          }
-
-          // Request new embedding if cells exist
-          if (obj.cells.length > 0) {
-              this.worker.postMessage({
-                  status: "calc_embedding",
-                  id: obj.id,
-                  cells: obj.cells,
-                  imageBitmap: AppState.currentImage // Needs current image for ref aggregation
-              });
-              
-              // Also show heatmap for feedback (like classification mode)
-              this.worker.postMessage({
-                  status: "class_by_heatmap",
-                  classIdxs: obj.cells,
-              });
-          } else {
-              // Clear predictions/heatmap if no cells
-              this.updateResults(this.results.heatmap, this.results.predictions, this.results.logits);
-          }
-
-      } else {
-          // Standard Modes
-            this._clearPredictionSelections();
-            let classIdxs = [];
-            if (!div.classList.contains("selected")) {
-                classIdxs.push(parseInt(div.getAttribute("data-idx")));
-                div.classList.add("selected");
-            } else {
-                div.classList.remove("selected");
-            }
-
-            for (const el of document.querySelectorAll("#grid div.selected")) {
-                if (el !== div) {
-                classIdxs.push(parseInt(el.getAttribute("data-idx")));
-                }
-            }
-
-            if (classIdxs.length > 0) {
-                this.clearSelection.disabled = false;
-                $this.worker.postMessage({
-                status: "class_by_heatmap",
-                classIdxs: classIdxs,
-                });
-            } else {
-                this.clearSelection.disabled = true;
-                this.updateResults(
-                this.results.heatmap,
-                this.results.predictions,
-                this.results.logits
-                );
-            }
-        }
-    });
-
-    AppState.selectionEnabled = false;
-  }
-
-  _resizeCanvases(width, height) {
-    this.hidden_canvas.width = width;
-    this.hidden_canvas.height = height;
-
-    this.img_canvas.width = this.min_side;
-    this.img_canvas.height = this.min_side;
-
-    this.heatmap_canvas.width = this.min_side;
-    this.heatmap_canvas.height = this.min_side;
-  }
-
-  setSize(width, height) {
-    this.width = width;
-    this.height = height;
-    this.min_side = Math.min(width, height);
-    this.sx = Math.floor((width - this.min_side) / 2);
-    this.sy = Math.floor((height - this.min_side) / 2);
-
-    this._resizeCanvases(width, height);
-  }
-
-  getImage(img) {
-    this.ctx_hidden.drawImage(img, 0, 0);
-    return this.ctx_hidden.getImageData(0, 0, this.width, this.height);
-  }
-
-  load_selected_image(post_status) {
-    const file = document.getElementById("predefined-files").value;
-    if (!file) return;
-
-    fetch("assets/" + file)
-      .then((response) => response.blob())
-      .then((blob) => this._handleUploadedBlob(blob, post_status))
-      .catch((err) => console.warn("Failed to load asset:", err));
-  }
-
-  async _handleUploadedBlob(file, post_status) {
-    this.video.pause();
-    this.startButton.disabled = true;   
-
-    if (this.video.srcObject) {
-      this.video.srcObject.getTracks().forEach(t => t.stop());
-      this.video.srcObject = null;
-    }
-    
-    if (this.video.src) {
-      this.video.removeAttribute('src');
-      this.video.load();
-    }
-
-    if (file.type.startsWith("image/")) {
-      const bitmap = await createImageBitmap(file);
-      this.setSize(bitmap.width, bitmap.height);
-      AppState.currentImage = bitmap;
-
-      this._postMessage(post_status, bitmap);
-    } else if (file.type.startsWith("video/")) {
-      this.video.preload = "metadata";
-      this.video.muted = true;
-      this.video.playsInline = true;
-      const url = URL.createObjectURL(file);
-      this.video.src = url;
-      this.video.load();
-
-    } else {
-      console.warn("Unsupported file type:", file.type);
-      return;
-    }
-  }
-
-  async initCamera() {
-    let $this = this;
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.warn("Camera API not supported in this browser");
-      return;
-    }
-
-    try {
-      this.localMediaStream = await navigator.mediaDevices.getUserMedia({video: true});
-      window._lafamMediaStream = this.localMediaStream;
-    } catch (error) {
-      console.warn("Camera permission denied or device not found", error);
-      debug_devices.textContent +=
-        "Camera permission denied or device not found\n";
-
-      return;
-    }
-
-    let cameras = await navigator.mediaDevices.enumerateDevices();
-
-    // Debug output
-    if (typeof debug_devices !== "undefined") {
-      debug_devices.textContent = JSON.stringify(cameras, null, 2);
-    }
-
-    cameras = cameras.filter((device) => device.kind === "videoinput");
-
-    if (cameras.length === 0) {
-      return;
-    }
-    console.log("Cameras found:", cameras);
-    this.mainSection.classList.add("camera-available");
-
-    const targetDeviceId = cameras[cameras.length - 1].deviceId;
-
-    const currentTrack = this.localMediaStream.getVideoTracks()[0];
-    const currentStreamId = currentTrack.getSettings().deviceId;
-    this.currentCameraId = currentStreamId;
-
-    if (currentStreamId !== targetDeviceId) {
-      currentTrack.stop();
-
-      this.localMediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          height: { ideal: 1024 },
-        },
-      });
-      window._lafamMediaStream = this.localMediaStream;
-    } else {
-      this.currentCameraId = currentStreamId;
-    }
-
-    this.video.srcObject = this.localMediaStream;
-
-    this.switchCameraButton.onclick = async () => {
-      $this.video.pause();
-      $this.mainSection.classList.add("paused");
-      $this.startButton.disabled = true;
-      
-      if (!$this.video.srcObject && $this.video.currentSrc) {
-        $this.video.removeAttribute('src');
-        $this.video.load();
-      }
-      
-      if ($this.localMediaStream) {
-        $this.localMediaStream.getTracks().forEach((track) => track.stop());
-      }
-
-      const nextCamera = cameras.find(
-        (camera) => camera.deviceId !== $this.currentCameraId
-      );
-
-      if (nextCamera) {
-        $this.currentCameraId = nextCamera.deviceId;
-      }
-
-      try {
-        $this.localMediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            deviceId: { exact: $this.currentCameraId },
-            height: { ideal: 1024 },
-          },
-        });
-        window._lafamMediaStream = $this.localMediaStream;
-
-        $this.mainSection.classList.remove("paused");
-        $this.video.srcObject = $this.localMediaStream;
-        $this.toggleModeSelect(false);
-
-      } catch (err) {
-        console.error("Error switching camera:", err);
-        addLogMsg("Error switching camera: " + err);
-      }
-    };
-
-    // this.video.addEventListener("play", async () => {
-    //   AppState.currentImage = await this._getFrame();
-    //   this._postMessage(this.modeSelect.value, AppState.currentImage);
-    // });
-  }
-
-  async _getFrame() {
-    if (!this.video.srcObject) {
-      if (typeof this.video.requestVideoFrameCallback === "function") {
-        await new Promise((resolve) => this.video.requestVideoFrameCallback(resolve));
-      }
-    }
-    
-    return await createImageBitmap(
-      this.video,
-      this.sx, this.sy,
-      this.min_side, this.min_side
-    );
-  }
-
-  _onmessage(e) {
-    const { data } = e;
-    // Handle errors from worker
-    if (data.status === "error") {
-      document.getElementById("loading-indicator").style.display = "none";
-      addLogMsg("Worker Error: " + data.message);
-      alert("Failed to initialize: " + data.message);
-      return;
-    }
-    
-    if (data.status === "ready") {
-      AppState.isWorkerReady = true;
-      document.getElementById("loading-indicator").style.display = "none";
-      this.mainSection.classList.add("ready");
-      if(AppState.currentImage){
-        this._postMessage();
-      }
-    }
-    if (data.status === "results") {
-      this.results = data;
-      this._updateVideo();
-      this.updateResults(data.heatmap, data.predictions, data.logits);
-    }
-    if (data.status === "weighted_heatmap") {
-      this.updateHeatmap(data.heatmap);
-    }
-    if (data.status === "class_by_heatmap") {
-      const top_n_idx = argmax_top_n(data.logits, TOP_N, 0);
-      this._updatePredictionList(top_n_idx, data.predictions, data.logits);
-    }
-
-    if (data.status === "square_results_for_groupmap") {
-      AppState.squareData = this.preprocessSquareResults(data.data);
-      this.updateGroupMap();
-      this.updateGroupList();
-      this._updateVideo();
-    }
-
-    if (data.status === "square_results_for_classmap") {
-      AppState.squareData = this.preprocessSquareResults(data.data);
-      this.updateClassMap();
-      this.updateClassList();
-      this._updateVideo();
-    }
-
-    if (data.status === "embedding_result") {
-        const obj = AppState.trackingObjects.find(o => o.id === data.id);
-        if (obj) {
-            obj.refEmb = data.refEmb;
-            // Convert predictionIdx to class name
-            const classInfo = this.imagenet_classes[data.predictionIdx];
-            obj.name = `[${data.predictionIdx}] ${classInfo}`;
-            this.renderTrackingObjectsList();
-        }
-    }
-
-    if (data.status === "tracking_results") {
-      this.heatmap_canvas.classList.add("hidden");
-      this.drawTrackingResults(data.objects);
-      this._updateVideo();
-      // this.ctx_img.drawImage(AppState.currentImage, 0, 0, AppState.currentImage.width, AppState.currentImage.height);
-    }
-  }
-
-  _clearPredictionSelections() {
-    for (const el of document.querySelectorAll(".prediction.selected")) {
-      el.classList.remove("selected");
-    }
-  }
-
-  _clearHeatmapSelections() {
-    // remove all selected classes and inline styles
-    for (const el of document.querySelectorAll("#grid div.selected")) {
-      el.classList.remove("selected");
-      el.style.borderColor = "";
-      el.style.boxShadow = "";
-    }
-  }
-
-  _clearSelections() {
-    this._clearPredictionSelections();
-    this._clearHeatmapSelections();
-    this.clearSelection.disabled = true;
-  }
-
-  async _postMessage() {
-    this.toggleModeSelect(false);
-    
-    const activeObjects = AppState.trackingObjects.filter(o => o.cells.length > 0 && o.visible && o.refEmb);
-    this.worker.postMessage({
-                status: this.modeSelect.value,
-                imageBitmap: AppState.currentImage,
-                objects: activeObjects.map(o => ({
-                    id: o.id,
-                    refEmb: o.refEmb,
-                    prevX: o.prevX || -1, // undefined becomes -1
-                    prevY: o.prevY || -1
-                })),
-                settings: AppState.trackingSettings
-            });
-  }
-
-  processModeChange() {
-    const value = this.modeSelect.value;
-    this.heatmap_canvas.classList.remove("hidden");
-    this.trackingControls.classList.add("hidden");
-
-    this._clearSelections();
-    if (value === "predict") {
-    } else if (value === "imagenet_classes") {
-      this.showImagenetClasses();
-    } else if (value === "groupmap_bbs") {
-      this.showGroupmap();
-    } else if (value === "object_tracking") {
-        this.showObjectTracking();
-    } else {
-      console.error("Invalid mode-select value: ", value);
-    }
-    this._postMessage();
-  }
-
-  updateResults(heatmap, predictions, logits) {
-    this._clearSelections();
-    this._clearGroupMapDisplay();
-    this._clearHeatmap();
-    this._clearBoundingBoxes();
-    this.toggleOpacitySlider(true);
-    this.togglePaletteSelect(true);
-    toggleSelection(true);
-
-    this.ctx_img.drawImage(AppState.currentImage, 0, 0, this.min_side, this.min_side);
-    this.updateHeatmap(heatmap);
-    let top_n_idx = argmax_top_n(logits, TOP_N, 1.7);
-    this._updatePredictionList(top_n_idx, predictions, logits);
-  }
-
-  async _updateVideo() {
-    if (!this.video.paused) {
-      AppState.currentImage = await this._getFrame();
-      await this._postMessage();
-      this.ctx_img.drawImage(AppState.currentImage, 0, 0, AppState.currentImage.width, AppState.currentImage.height);
-    } else {
-      this.toggleModeSelect(true);
-    }
-  }
-
-  showGroupmap() {
-    // if (AppState.currentImage === null) return;
-    if (AppState.squareData === null) {
-      // this._postMessage();
-    } else {
-      this.updateGroupMap();
-      this.updateGroupList();
-    }
-
-    this._updateVideo();
-  }
-
-  showImagenetClasses() {
-    // if (AppState.currentImage === null) return;
-    if (AppState.squareData === null) {
-      // this._postMessage();
-    } else {
-      this.updateClassMap();
-      this.updateClassList();
-    }
-
-    this._updateVideo();
-  }
-
-  updateGroupMap() {
-    this._clearSelections();
-    this._clearGroupMapDisplay();
-    this._clearHeatmap();
-    this._clearBoundingBoxes();
-    this.togglePaletteSelect(false);
-    this.toggleModeSelect(true);
-    toggleSelection(false);
-
-    // show logits+classId in square
-    AppState.squareData.forEach((square, i) => {
-      const div = document.querySelector(`div[data-idx='${i}']`);
-      if (div !== null) {
-        const group = square.groupId;
-        const logit = square.logit.toFixed(2);
-        div.classList.add("class-display");
-        div.innerHTML = `${logit}<br/>${group}`;
-      } else {
-        addLogMsg("Error: could not find div with data-idx=" + i);
-      }
-    });
-
-    // calc and show groupmap
-    const groupIds = AppState.squareData
-      .map((square) => square.classId)
-      .map((classId) => AppState.grouper.classToGroup(classId));
-    const heatmap = this.makeClassHeatmap(groupIds);
-    this.setClassHeatmap(heatmap);
-
-    // calc and show group bounding boxes
-    const groupGrid2d = to2DArray(
-      AppState.squareData.map((square) => square.groupId),
-      7,
-      7
-    );
-    const areas = findAreas(groupGrid2d, [-1]);
-    const boundingBoxes = findBoundingBoxes(areas);
-    drawBoundingBoxes(boundingBoxes, "bounding-boxes-canvas");
-  }
-
-  updateGroupList() {
-    // reuse prediction list div
-    if (AppState.squareData === null) return;
-    this._clearPredictionsList();
-    let addedGroups = {};
-    AppState.squareData
-      .toSorted((a, b) => a.groupId - b.groupId)
-      .filter((square) => square.groupId >= 0)
-      .forEach((square) => {
-        if (!addedGroups[square.groupId]) {
-          const div = document.createElement("div");
-          div.style.padding = "10px";
-          div.style.fontWeight = "bold";
-          div.innerText = `${square.groupId}: ${AppState.grouper.getGroupName(
-            square.groupId
-          )}`;
-          this.predictionList.appendChild(div);
-          addedGroups[square.groupId] = true;
-        }
-      });
-  }
-
-  preprocessSquareResults(data) {
-    if (!AppState.grouper) {
-      AppState.grouper = new ClassGrouper();
-    }
-    let squareData = [];
-    for (let i = 0; i < 49; i++) {
-      squareData.push({
-        logit: parseFloat(data.logits[i]),
-        classId: parseInt(data.classIds[i]),
-        groupId: AppState.grouper.classToGroup(parseInt(data.classIds[i])),
-      });
-    }
-    return squareData;
-  }
-
-  makeClassHeatmap(squareClasses) {
-    const min = Math.min(...squareClasses);
-    const max = Math.max(...squareClasses);
-    return squareClasses.map((classId) => (classId - min) / (max - min + 1e-6));
-  }
-
-  _clearGroupMapDisplay() {
-    for (let div of document.querySelectorAll("#grid div")) {
-      div.innerHTML = "";
-      div.classList.remove("class-display");
-    }
-  }
-
-  _clearHeatmap() {
-    const canvas = this.heatmap_canvas;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  _clearBoundingBoxes() {
-    const canvas = this.bb_canvas;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  setClassHeatmap(data) {
-    this.currentHeatmap = data;
-
-    const hueBase = 20; // Math.floor(360 * Math.random());
-    let heatmap = mapToHSL(data, hueBase);
-    heatmap = new ImageProcessor(heatmap, 7, 7).resize(
-      this.min_side,
-      this.min_side,
-      "nearest"
-    );
-
-    this.ctx_heatmap.putImageData(
-      new ImageData(
-        ImageProcessor.toImageData(heatmap),
-        this.min_side,
-        this.min_side
-      ),
-      0,
-      0
-    );
-  }
-
-  updateHeatmap(data, palette = null) {
-    this.currentHeatmap = data;
-
-    palette = palette === null ? this.currentPalette : palette;
-    let heatmap = mapToPalette(data, this.palettes[palette]);
-    heatmap = new ImageProcessor(heatmap, 7, 7).resize(
-      this.min_side,
-      this.min_side,
-      "nearest"
-    );
-
-    this.ctx_heatmap.putImageData(
-      new ImageData(
-        ImageProcessor.toImageData(heatmap),
-        this.min_side,
-        this.min_side
-      ),
-      0,
-      0
-    );
-  }
-
-  _updatePredictionList(indices, predictions, logits) {
-    // create list with progress bars
-    this.predictionList.innerHTML = "";
-    const fragment = document.createDocumentFragment();
-    for (let i = 0; i < indices.length; i++) {
-      const idx = indices[i];
-      let div = document.createElement("div");
-      div.classList.add("prediction");
-      div.setAttribute("data-idx", idx);
-      // div.setAttribute("data-logits", logits[idx]);
-
-      let label = document.createElement("label");
-      const cls = this.imagenet_classes[idx];
-      const prob = predictions[idx];
-      const l = logits[idx].toFixed(2);
-      label.innerHTML = `<b>${cls}</b> (Logits: ${l}; Softmax: ${Math.round(
-        prob * 100
-      )}%)`;
-      div.appendChild(label);
-
-      let progress = document.createElement("progress");
-      progress.value = prob;
-      progress.max = 1;
-      div.appendChild(progress);
-
-      fragment.appendChild(div);
-    }
-
-    this.predictionList.appendChild(fragment);
-  }
-
-  toggleOpacitySlider(enabled, value = null) {
-    if (value !== null) {
-      this.heatmapOpacity.value = value;
-      this.heatmap_canvas.style.opacity = this.heatmapOpacity.value;
-    }
-    this.heatmapOpacity.disabled = !enabled;
-  }
-
-  toggleModeSelect(enabled, value = null) {
-    if (value !== null) {
-      this.modeSelect.value = value;
-    }
-    this.modeSelect.disabled = !enabled;
-  }
-
-  togglePaletteSelect(enabled, value = null) {
-    if (value !== null) {
-      this.paletteSelect.value = value;
-      this.currentPalette = this.paletteSelect.value;
-      this.updateHeatmap(this.currentHeatmap);
-    }
-    this.paletteSelect.disabled = !enabled;
-  }
-
-  _clearPredictionsList() {
-    this.predictionList.innerHTML = "";
-  }
-
-  updateClassMap() {
-    this._clearSelections();
-    this._clearGroupMapDisplay();
-    this._clearHeatmap();
-    this._clearBoundingBoxes();
-    this.togglePaletteSelect(false);
-    this.toggleModeSelect(true);
-    toggleSelection(false);
-
-    // show logits+classId in square
-    AppState.squareData.forEach((square, i) => {
-      const div = document.querySelector(`div[data-idx='${i}']`);
-      if (div !== null) {
-        const classId = square.classId;
-        const logit = square.logit.toFixed(2);
-        div.classList.add("class-display");
-        div.innerHTML = `${logit}<br/>${classId}`;
-      } else {
-        addLogMsg("Error: could not find div with data-idx=" + i);
-      }
-    });
-
-    // calc and show group map
-    const classIds = AppState.squareData.map((square) => square.classId);
-    const heatmap = this.makeClassHeatmap(classIds);
-    this.setClassHeatmap(heatmap);
-  }
-
-  updateClassList() {
-    if (AppState.squareData === null) return;
-    this._clearPredictionsList();
-    const seen = {};
-    AppState.squareData
-      .map((square) => square.classId)
-      .filter((classId, index, self) => {
-        if (classId <= 0) return false;
-        if (seen[classId]) return false;
-        seen[classId] = true;
-        return true;
-      })
-      .toSorted((a, b) => a - b)
-      // .slice(0, 17)
-      .forEach((classId) => {
-        const div = document.createElement("div");
-        div.style.padding = "10px";
-        div.style.fontWeight = "bold";
-        div.innerText = `${classId}: ${this.imagenet_classes[classId]}`;
-        this.predictionList.appendChild(div);
-      });
-  }
-
-  showObjectTracking() {
-    // Show tracking controls
-    this.trackingControls.classList.remove("hidden");
-    
-    // Hide standard prediction list/sliders if desired, or repurpose them
-    // For now we keep them but maybe standard predictions are less relevant unless looking at a paused frame
-    
-    // Clear other views
-    this._clearGroupMapDisplay();
-    this._clearBoundingBoxes();
-    
-    // Enable selection (for defining objects)
-    AppState.selectionEnabled = true;
-    toggleSelection(true);
-
-    if (AppState.currentImage === null) {
-        //  this._postMessage();
-         return; 
-    }
-    
-    // Redraw grid for active object
-    if (this.video.paused) {
-        this._clearSelections();
-        // Highlight active object cells
-        const obj = AppState.trackingObjects.find(o => o.id === AppState.activeTrackingObjectId);
-        if (obj) {
-            for(let idx of obj.cells) {
-                const div = document.querySelector(`div[data-idx='${idx}']`);
-                if(div) {
-                    div.classList.add("selected");
-                    div.style.borderColor = obj.color;
-                    div.style.boxShadow = `0 0 20px ${obj.color} inset`;
-                }
-            }
-             // Trigger prediction view for these cells
-             if (obj.cells.length > 0) {
-                 this.worker.postMessage({
-                    status: "class_by_heatmap",
-                    classIdxs: obj.cells,
-                 });
-             }
-        }
-    }
-    
-    this._updateVideo();
-  }
-
-  addTrackingObject() {
-      const id = Date.now();
-      const colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF"];
-      const color = colors[AppState.trackingObjects.length % colors.length];
-      
-      const newObj = {
-          id: id,
-          name: `Object ${AppState.trackingObjects.length + 1}`,
-          color: color,
-          cells: [],
-          refEmb: null,
-          visible: true,
-          prevX: null,
-          prevY: null
-      };
-      
-      AppState.trackingObjects.push(newObj);
-      this.selectTrackingObject(id);
-      this.renderTrackingObjectsList();
-  }
-
-  removeTrackingObject(id) {
-      AppState.trackingObjects = AppState.trackingObjects.filter(o => o.id !== id);
-      if (AppState.activeTrackingObjectId === id) {
-          AppState.activeTrackingObjectId = AppState.trackingObjects.length > 0 ? AppState.trackingObjects[0].id : null;
-      }
-      this.renderTrackingObjectsList();
-      if(AppState.activeTrackingObjectId) this.selectTrackingObject(AppState.activeTrackingObjectId);
-  }
-
-  selectTrackingObject(id) {
-      AppState.activeTrackingObjectId = id;
-      this.renderTrackingObjectsList();
-      
-      // Refresh grid selection if paused
-      if (this.video.paused) {
-          this._clearSelections();
-          const obj = AppState.trackingObjects.find(o => o.id === id);
-          if (obj) {
-              for(let idx of obj.cells) {
-                  const div = document.querySelector(`div[data-idx='${idx}']`);
-                  if(div) {
-                      div.classList.add("selected");
-                      div.style.borderColor = obj.color;
-                      div.style.boxShadow = `0 0 20px ${obj.color} inset`;
-                  }
-              }
-               // Trigger prediction view for these cells
-             if (obj.cells.length > 0) {
-                 this.worker.postMessage({
-                    status: "class_by_heatmap",
-                    classIdxs: obj.cells,
-                 });
-             } else {
-                 this.updateResults(
-                    this.results.heatmap, // Use last available heatmap? Or clear
-                    this.results.predictions,
-                    this.results.logits
-                 );
-             }
-          }
-      }
-  }
-
-  renderTrackingObjectsList() {
-      this.trackingObjectsList.innerHTML = "";
-      
-      AppState.trackingObjects.forEach(obj => {
-          const div = document.createElement("div");
-          div.className = "prediction"; // reuse class for styling
-          if (obj.id === AppState.activeTrackingObjectId) {
-              div.classList.add("selected");
-          }
-          
-          div.style.borderLeft = `5px solid ${obj.color}`;
-          
-          const info = document.createElement("span");
-          info.innerText = obj.name;
-          info.style.flex = "1";
-          info.onclick = () => this.selectTrackingObject(obj.id);
-          
-          const removeBtn = document.createElement("button");
-          removeBtn.innerHTML = "X"; // or icon
-          removeBtn.style.background = "none";
-          removeBtn.style.border = "none";
-          removeBtn.style.cursor = "pointer";
-          removeBtn.style.color = "var(--text-muted)";
-          removeBtn.onclick = (e) => {
-              e.stopPropagation();
-              this.removeTrackingObject(obj.id);
-          };
-
-          div.appendChild(info);
-          div.appendChild(removeBtn);
-          
-          this.trackingObjectsList.appendChild(div);
-      });
-  }
-
-  drawTrackingResults(results) {
-        // Draw standard video output first (clears previous frame)
-        // If we want to keep the heatmap from tracking, we'd need to blend it.
-        // For now, let's just draw the tracked cross on the bounding box canvas
-        this._clearBoundingBoxes();
-        
-        const ctx = this.bb_canvas.getContext("2d");
-        const scale = this.min_side; // Since coordinates are normalized to [0,1] or 224 based on worker?
-        // Worker returns pixel coordinates in input space (224x224) or relative?
-        // Let's assume Worker returns normalized [0..1] to be resolution independent?
-        // OR Worker knows input size 224. 
-        // Plan says: "Upsample... Return list of { id, x, y }" where x,y are in 224 space or original?
-        // Worker.js has INPUT_WIDTH = 224.
-        
-        // Let's assume x,y are in [0, 224]. We scale to min_side.
-        const r = this.min_side / 224;
-
-        // Optionally clear heatmap or specific overlay
-        // Implementation Plan says: "Overlay Alpha"
-        if (AppState.trackingSettings.overlayAlpha < 1.0) {
-              // ...
-        }
-
-        results.forEach(res => {
-            const obj = AppState.trackingObjects.find(o => o.id === res.id);
-            if (!obj) return;
-            
-            // Update prev pos
-            obj.prevX = res.x;
-            obj.prevY = res.y;
-            
-            if (res.x < 0 || res.y < 0) return; // Not found / below threshold
-
-            const x = res.x * r;
-            const y = res.y * r;
-            const CrossSize = this.min_side * 0.05;
-
-            ctx.beginPath();
-            ctx.strokeStyle = obj.color;
-            ctx.lineWidth = 3;
-            // Draw cross
-            ctx.moveTo(x - CrossSize, y);
-            ctx.lineTo(x + CrossSize, y);
-            ctx.moveTo(x, y - CrossSize);
-            ctx.lineTo(x, y + CrossSize);
-            ctx.stroke();
-            
-            // Draw Label
-            ctx.font = "16px sans-serif";
-            ctx.fillStyle = obj.color;
-            ctx.fillText(obj.name, x + 5, y - 5);
-        });
+const state = {
+  model: null,            // the selected entry of MODELS
+  ready: false,           // the model is loaded
+  busy: false,            // the model is running
+  again: false,           // run once more when the current run ends
+  classNames: [],
+  palettes: {},
+  grouper: null,
+  source: null,           // an ImageBitmap, or the video element (video file or camera)
+  playing: false,
+  result: null,           // the last output of the model
+  selectedCells: new Set(),
+  selectedClasses: new Set(),
+  objects: [],            // tracked objects: { id, name, color, cells, embedding, visible, pos }
+  activeObject: null,
+  tracking: { threshold: 0.5, ema: 0.75, resolution: 224 },
+  stream: null,
+  cameras: [],
+  cameraIndex: 0,
+};
+
+const video = document.createElement("video");
+video.muted = true;
+video.playsInline = true;
+
+// ── loading ───────────────────────────────────────────────────────────────────
+
+const jsonCache = {};
+const loadJson = (url) => (jsonCache[url] ??= fetch(url).then((r) => r.json()));
+
+function showLoading(text) {
+  els.loading.style.display = text ? "" : "none";
+  els.loadingText.textContent = text || "";
+}
+
+async function selectModel(entry) {
+  state.ready = false;
+  els.main.classList.remove("ready");
+  els.modelSelect.disabled = true;
+  try {
+    const { backend, classNames } = await loadModel(entry, showLoading);
+    log(backend.name === "webgpu"
+      ? `${entry.label} runs on the GPU (WebGPU: ${backend.reason})`
+      : `${entry.label} runs on the CPU (WebAssembly): ${backend.reason}`);
+
+    state.model = entry;
+    state.classNames = classNames;
+    state.result = null;
+    state.objects = [];          // object features belong to the previous model
+    state.activeObject = null;
+    renderObjectList();
+    clearSelections();
+    state.ready = true;
+    els.main.classList.add("ready");
+    showLoading("");
+    analyze();
+  } catch (err) {
+    showLoading(`Failed to load ${entry.label}`);
+    log(err);
+  } finally {
+    els.modelSelect.disabled = false;
   }
 }
 
+// ── sources: image, video file, camera ────────────────────────────────────────
 
-function toggleSelection(enabled) {
-  for (let div of document.querySelectorAll("#grid div")) {
-    if (enabled) {
-      div.classList.add("grid-selection");
-    } else {
-      div.classList.remove("grid-selection");
-    }
-  }
-  AppState.selectionEnabled = enabled;
+function sourceSize(source) {
+  return source === video ? [video.videoWidth, video.videoHeight] : [source.width, source.height];
 }
 
-async function init() {
-  if ("serviceWorker" in navigator) {
-    try {
-      await navigator.serviceWorker.register("service-worker.js");
-    } catch (error) {
-      console.error("Service Worker Registration Failed:", error);
-    }
+function setSource(source) {
+  if (state.source && state.source !== video && state.source !== source) state.source.close();
+  state.source = source;
+  const side = Math.min(MAX_CANVAS, ...sourceSize(source));
+  for (const canvas of [els.imgCanvas, els.boxCanvas]) {
+    canvas.width = side;
+    canvas.height = side;
   }
-
-  new ModelWorker("js/worker.js");
+  clearSelections();
+  for (const obj of state.objects) obj.pos = null;
+  els.startButton.disabled = source !== video;
+  analyze();
 }
 
-function mapToHSL(x, hueBase = 0) {
-  let heatmap = [
-    new Float32Array(x.length),
-    new Float32Array(x.length),
-    new Float32Array(x.length),
-  ];
-  for (let i = 0; i < x.length; i++) {
-    const hue = (hueBase + 300 * x[i]) % 360; // 360 * x[i]; // degrees
-    const saturation = 100; // %
-    const lightness = 50; // %
-    const [r, g, b] = hslToRgb(hue, saturation, lightness);
-
-    heatmap[0][i] = r;
-    heatmap[1][i] = g;
-    heatmap[2][i] = b;
-  }
-  return heatmap;
+function stopCamera() {
+  if (state.stream) state.stream.getTracks().forEach((t) => t.stop());
+  state.stream = null;
+  video.srcObject = null;
 }
 
-function mapToPalette(x, palette) {
-  let heatmap = [
-    new Float32Array(x.length),
-    new Float32Array(x.length),
-    new Float32Array(x.length),
-  ];
-  for (let i = 0; i < x.length; i++) {
-    const color = palette[Math.round(x[i] * (palette.length - 1))];
-    heatmap[0][i] = color[0];
-    heatmap[1][i] = color[1];
-    heatmap[2][i] = color[2];
-  }
-  return heatmap;
+async function showImage(blob) {
+  setPlaying(false);
+  stopCamera();
+  video.removeAttribute("src");
+  setSource(await createImageBitmap(blob));
 }
 
-function hslToRgb(h, s, l) {
-  // Normalize the H, S, L values
-  s /= 100;
-  l /= 100;
+async function showVideo(url) {
+  setPlaying(false);
+  stopCamera();
+  if (video.src.startsWith("blob:")) URL.revokeObjectURL(video.src);
+  video.src = url;
+  await new Promise((resolve) => video.addEventListener("loadeddata", resolve, { once: true }));
+  setSource(video);
+}
 
-  const C = (1 - Math.abs(2 * l - 1)) * s; // Chroma
-  const X = C * (1 - Math.abs(((h / 60) % 2) - 1)); // Secondary component
-  const m = l - C / 2; // Adjustment factor
+// The first press asks for permission to use the camera; later presses switch to the next camera.
+async function nextCamera() {
+  const constraints = { height: { ideal: 1024 } };
+  if (state.cameras.length > 1) {
+    state.cameraIndex = (state.cameraIndex + 1) % state.cameras.length;
+    constraints.deviceId = { exact: state.cameras[state.cameraIndex].deviceId };
+  }
+  setPlaying(false);
+  stopCamera();
+  video.removeAttribute("src");
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({ video: constraints });
+  } catch (err) {
+    log("Camera not available: " + err);
+    return;
+  }
+  if (!state.cameras.length) {
+    state.cameras = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+    const current = state.stream.getVideoTracks()[0].getSettings().deviceId;
+    state.cameraIndex = Math.max(0, state.cameras.findIndex((c) => c.deviceId === current));
+  }
+  video.srcObject = state.stream;
+  await video.play();
+  els.presets.value = "";
+  setSource(video);
+  setPlaying(true);
+}
 
-  let rPrime, gPrime, bPrime;
-
-  // Determine RGB prime values based on the hue angle
-  if (h >= 0 && h < 60) {
-    rPrime = C;
-    gPrime = X;
-    bPrime = 0;
-  } else if (h >= 60 && h < 120) {
-    rPrime = X;
-    gPrime = C;
-    bPrime = 0;
-  } else if (h >= 120 && h < 180) {
-    rPrime = 0;
-    gPrime = C;
-    bPrime = X;
-  } else if (h >= 180 && h < 240) {
-    rPrime = 0;
-    gPrime = X;
-    bPrime = C;
-  } else if (h >= 240 && h < 300) {
-    rPrime = X;
-    gPrime = 0;
-    bPrime = C;
+function setPlaying(on) {
+  state.playing = on && state.source === video;
+  els.main.classList.toggle("paused", !state.playing);
+  if (state.playing) {
+    clearSelections();
+    video.play();
+    analyze();
   } else {
-    rPrime = C;
-    gPrime = 0;
-    bPrime = X;
-  }
-
-  // Convert RGB prime values to RGB values and adjust by m
-  const r = Math.round((rPrime + m) * 255);
-  const g = Math.round((gPrime + m) * 255);
-  const b = Math.round((bPrime + m) * 255);
-
-  return [r, g, b];
-}
-
-class ImageProcessor {
-  constructor(channels, width, height) {
-    this.channels = channels;
-    this.width = width;
-    this.height = height;
-  }
-
-  static fromImageData(imageData) {
-    let img = new ImageProcessor();
-    img.width = imageData.width;
-    img.height = imageData.height;
-    img.channels = ImageProcessor.toNdarray(imageData, 3);
-
-    return img;
-  }
-
-  static toTensor(img) {
-    let tensor = new Float32Array(img.channels.length * img.width * img.height);
-    for (let i = 0; i < img.channels.length; i++) {
-      tensor.set(img.channels[i], i * img.width * img.height);
-    }
-    return tensor;
-  }
-
-  squareCrop() {
-    const size = Math.min(this.width, this.height);
-    const startX = Math.round((this.width - size) / 2);
-    const startY = Math.round((this.height - size) / 2);
-    const endY = startY + size;
-
-    let channels = [];
-    for (let i = 0; i < this.channels.length; i++) {
-      channels.push(new Float32Array(size * size));
-    }
-
-    let croppedIndex = 0;
-
-    for (let y = startY; y < endY; y++) {
-      const rowStart = y * this.width + startX;
-      const rowEnd = rowStart + size;
-
-      for (let channel = 0; channel < this.channels.length; channel++) {
-        channels[channel].set(
-          this.channels[channel].slice(rowStart, rowEnd),
-          croppedIndex
-        );
-      }
-
-      croppedIndex += size;
-    }
-
-    return new ImageProcessor(channels, size, size);
-  }
-
-  resize(newWidth, newHeight, interpolation = "bilinear") {
-    const resized = [];
-    for (let i = 0; i < this.channels.length; i++) {
-      resized.push(new Float32Array(newWidth * newHeight));
-    }
-
-    const xRatio = this.width / newWidth;
-    const yRatio = this.height / newHeight;
-
-    for (let y = 0; y < newHeight; y++) {
-      for (let x = 0; x < newWidth; x++) {
-        if (interpolation === "nearest") {
-          this._nearestNeighbor(x, y, xRatio, yRatio, resized, newWidth);
-        } else if (interpolation === "bilinear") {
-          this._bilinearInterpolation(x, y, xRatio, yRatio, resized, newWidth);
-        } else {
-          throw new Error(
-            `interpolation method ${interpolation} is not supported.`
-          );
-        }
-      }
-    }
-
-    return new ImageProcessor(resized, newWidth, newHeight);
-  }
-
-  normalize(mean, std) {
-    // Validate mean and std have 3 elements each
-    if (mean.length !== 3 || std.length !== 3) {
-      throw new Error("Mean and standard deviation must each have 3 elements.");
-    }
-
-    const length = this.width * this.height;
-    const n_channels = this.channels.length;
-    let channels = [
-      new Float32Array(length),
-      new Float32Array(length),
-      new Float32Array(length),
-    ];
-
-    for (let i = 0; i < length; i++) {
-      // Normalize each channel
-      for (let channel = 0; channel < n_channels; channel++) {
-        channels[channel][i] =
-          (this.channels[channel][i] / 255 - mean[channel]) / std[channel];
-      }
-    }
-
-    return new ImageProcessor(channels, this.width, this.height);
-  }
-
-  demoralize(mean, std) {
-    // Validate mean and std have 3 elements each
-    if (mean.length !== 3 || std.length !== 3) {
-      throw new Error("Mean and standard deviation must each have 3 elements.");
-    }
-
-    const length = this.width * this.height;
-    let channels = [
-      new Float32Array(length),
-      new Float32Array(length),
-      new Float32Array(length),
-    ];
-
-    for (let i = 0; i < length; i++) {
-      // Denormalize each channel
-      for (let channel = 0; channel < 3; channel++) {
-        channels[channel][i] =
-          (this.channels[channel][i] * std[channel] + mean[channel]) * 255;
-      }
-    }
-
-    return new ImageProcessor(channels, this.width, this.height);
-  }
-
-  static toImageData(img) {
-    const length = img.width * img.height;
-    let rgba = new Uint8ClampedArray(length * 4);
-    for (let i = 0; i < length * 4; i += 4) {
-      for (let channel = 0; channel < img.channels.length; channel++) {
-        rgba[i + channel] = img.channels[channel][i / 4];
-      }
-      rgba[i + 3] = 255;
-    }
-
-    return rgba;
-  }
-
-  static toNdarray(imageData, n_channels) {
-    const length = imageData.width * imageData.height;
-    let channels = [];
-    for (let i = 0; i < n_channels; i++) {
-      channels.push(new Float32Array(length));
-    }
-
-    for (let i = 0; i < imageData.data.length; i += 4) {
-      for (let channel = 0; channel < n_channels; channel++) {
-        channels[channel][i / 4] = imageData.data[i + channel];
-      }
-      // ignore [i + 4] as it is alpha channel
-    }
-    // 3. Concatenate RGB to transpose [224, 224, 3] -> [3, 224, 224] to a number array
-    // const transposedData = redArray.concat(greenArray).concat(blueArray);
-
-    return channels;
-  }
-
-  _nearestNeighbor(x, y, xRatio, yRatio, output, newWidth) {
-    const nearestX = Math.floor((x + 0.5) * xRatio);
-    const nearestY = Math.floor((y + 0.5) * yRatio);
-    const idxSrc = nearestY * this.width + nearestX;
-    const idxDest = y * newWidth + x;
-
-    for (let channel = 0; channel < this.channels.length; channel++) {
-      output[channel][idxDest] = this.channels[channel][idxSrc];
-    }
-  }
-
-  _bilinearInterpolation(x, y, xRatio, yRatio, output, newWidth) {
-    const xL = Math.floor(x * xRatio);
-    const yL = Math.floor(y * yRatio);
-    const xH = Math.ceil(x * xRatio);
-    const yH = Math.ceil(y * yRatio);
-    const xWeight = x * xRatio - xL;
-    const yWeight = y * yRatio - yL;
-    const idxDest = y * newWidth + x;
-
-    for (let channel = 0; channel < this.channels.length; channel++) {
-      const valTL = this.channels[channel][yL * this.width + xL];
-      const valTR = this.channels[channel][yL * this.width + xH];
-      const valBL = this.channels[channel][yH * this.width + xL];
-      const valBR = this.channels[channel][yH * this.width + xH];
-
-      const top = valTL + (valTR - valTL) * xWeight;
-      const bottom = valBL + (valBR - valBL) * xWeight;
-      output[channel][idxDest] = top + (bottom - top) * yWeight;
-    }
+    video.pause();
   }
 }
 
-class ClassGrouper {
-  constructor() {
-    this.includeGroups = AppState.includeGroups;
-    this.excludeGroups = AppState.excludeGroups;
-    this.includedClasses = new Set(Object.values(this.includeGroups).flat());
-    this.excludedClasses = new Set(Object.values(this.excludeGroups).flat());
+// ── running the model ─────────────────────────────────────────────────────────
 
-    // mapping for group names
-    this._classToGroup = {};
-    for (let [groupName, indices] of Object.entries(this.includeGroups)) {
-      for (let idx of indices) {
-        this._classToGroup[idx] = groupName;
+// the centred square of the source, shown on the image canvas
+function drawSource() {
+  const [w, h] = sourceSize(state.source);
+  const side = Math.min(w, h);
+  const canvas = els.imgCanvas;
+  canvas.getContext("2d").drawImage(state.source, (w - side) / 2, (h - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+}
+
+async function analyze() {
+  if (!state.ready || !state.source) return;
+  if (state.busy) {
+    state.again = true;
+    return;
+  }
+  state.busy = true;
+  try {
+    drawSource();
+    const size = state.model.size;
+    const bitmap = await createImageBitmap(els.imgCanvas, { resizeWidth: size, resizeHeight: size, resizeQuality: "high" });
+    state.result = await runModel(bitmap);
+    render();
+  } catch (err) {
+    log(err);
+  } finally {
+    state.busy = false;
+  }
+  if (state.again || state.playing) {
+    state.again = false;
+    requestAnimationFrame(analyze);
+  }
+}
+
+// ── computations on a result ──────────────────────────────────────────────────
+// features: channels x cells, cellLogits: classes x cells (cells in row-major order)
+
+const cellCount = (r) => r.height * r.width;
+const allCells = (r) => [...Array(cellCount(r)).keys()];
+
+// the exact readout of a region: the mean of its cells' logits (all cells: the model's logits)
+function regionLogits(r, cells = allCells(r)) {
+  const n = cellCount(r);
+  const logits = new Float32Array(r.classes);
+  for (let k = 0; k < r.classes; k++) {
+    let sum = 0;
+    for (const i of cells) sum += r.cellLogits[k * n + i];
+    logits[k] = sum / cells.length;
+  }
+  return logits;
+}
+
+// LaFAM: the mean of the ReLU features of each cell
+function lafamMap(r) {
+  const n = cellCount(r);
+  const map = new Float32Array(n);
+  for (let c = 0; c < r.channels; c++) {
+    for (let i = 0; i < n; i++) map[i] += Math.max(0, r.features[c * n + i]);
+  }
+  return map;
+}
+
+// CAM: the sum of the selected classes' cell logits (the bias shifts every cell alike)
+function camMap(r, classes) {
+  const n = cellCount(r);
+  const map = new Float32Array(n);
+  for (const k of classes) {
+    for (let i = 0; i < n; i++) map[i] += r.cellLogits[k * n + i];
+  }
+  return map;
+}
+
+// the top class of every cell
+function cellClasses(r) {
+  const n = cellCount(r);
+  const classIds = new Int32Array(n);
+  const logits = new Float32Array(n).fill(-Infinity);
+  for (let k = 0; k < r.classes; k++) {
+    for (let i = 0; i < n; i++) {
+      const v = r.cellLogits[k * n + i];
+      if (v > logits[i]) {
+        logits[i] = v;
+        classIds[i] = k;
       }
     }
-
-    this._groupToId = {};
-    Object.entries(this.includeGroups).forEach(([group, _], groupId) => {
-      this._groupToId[group] = groupId;
-    });
   }
-
-  classToGroup(classId) {
-    if (this.excludedClasses.has(classId)) return -1;
-    const group = this._classToGroup[classId];
-    const groupId = this.getGroupId(group);
-    if (groupId < 0 || groupId === undefined) return -1;
-    return groupId;
-  }
-
-  getGroupId(group) {
-    return this._groupToId[group];
-  }
-
-  getGroupName(groupId) {
-    if (groupId < 0) return "---";
-    return Array.from(Object.keys(this.includeGroups))[groupId];
-  }
+  return { classIds, logits };
 }
 
-function argmax_top_n(logits, n, threshold = 0) {
-  let indices = logits.map((e, i) => i);
-  indices.sort((a, b) => logits[b] - logits[a]);
-  let top_n = [];
-  for (let i = 0; i < n; i++) {
-    if (logits[indices[i]] < threshold) break;
-
-    top_n.push(indices[i]);
+// the mean features of the given cells
+function embedding(r, cells) {
+  const n = cellCount(r);
+  const e = new Float32Array(r.channels);
+  for (let c = 0; c < r.channels; c++) {
+    for (const i of cells) e[c] += r.features[c * n + i] / cells.length;
   }
-  return top_n; //.slice(0, n);
+  return e;
 }
 
-function updateServiceWorker() {
-  if ("caches" in window) {
-    caches
-      .keys()
-      .then((keyList) => {
-        return Promise.all(
-          keyList.map((key) => {
-            return caches.delete(key);
-          })
-        );
-      })
-      .then(() => {
-        console.log("All caches cleared.");
-      })
-      .catch((err) => {
-        console.error("Error clearing caches:", err);
-      });
-  }
-
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .getRegistrations()
-      .then((registrations) => {
-        // Unregister all service workers
-        for (let registration of registrations) {
-          registration.unregister();
-        }
-      })
-      .catch((error) => {
-        console.error("Error unregistering service worker:", error);
-      });
-  }
-  localStorage.removeItem('lafam_tutorial_shown');
-  window.location.reload();
-}
-
-let loadingText = document.getElementById("loading-text");
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data && event.data.type === "progress") {
-      loadingText.textContent = `Downloading ${event.data.name} (${event.data.progress}%)`;
+// the cosine similarity of every cell's features to an embedding
+function cosineMap(r, e) {
+  const n = cellCount(r);
+  const dot = new Float32Array(n), norm = new Float32Array(n);
+  let eNorm = 0;
+  for (let c = 0; c < r.channels; c++) {
+    eNorm += e[c] * e[c];
+    for (let i = 0; i < n; i++) {
+      const f = r.features[c * n + i];
+      dot[i] += f * e[c];
+      norm[i] += f * f;
     }
+  }
+  return dot.map((d, i) => d / (Math.sqrt(norm[i] * eNorm) + 1e-12));
+}
+
+function minMax(values) {
+  let lo = Infinity, hi = -Infinity;
+  for (const v of values) {
+    lo = Math.min(lo, v);
+    hi = Math.max(hi, v);
+  }
+  return Float32Array.from(values, (v) => (v - lo) / (hi - lo + 1e-6));
+}
+
+function softmax(logits) {
+  const max = Math.max(...logits);
+  const exps = logits.map((x) => Math.exp(x - max));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map((x) => x / sum);
+}
+
+function topN(logits, n, threshold = -Infinity) {
+  return [...logits.keys()]
+    .sort((a, b) => logits[b] - logits[a])
+    .slice(0, n)
+    .filter((i) => logits[i] >= threshold);
+}
+
+function upsampleBilinear(src, srcW, srcH, dstW, dstH) {
+  const dst = new Float32Array(dstW * dstH);
+  for (let y = 0; y < dstH; y++) {
+    const gy = (y + 0.5) * (srcH / dstH) - 0.5;
+    const y0 = Math.max(0, Math.min(srcH - 1, Math.floor(gy))), y1 = Math.min(srcH - 1, y0 + 1), wy = gy - y0;
+    for (let x = 0; x < dstW; x++) {
+      const gx = (x + 0.5) * (srcW / dstW) - 0.5;
+      const x0 = Math.max(0, Math.min(srcW - 1, Math.floor(gx))), x1 = Math.min(srcW - 1, x0 + 1), wx = gx - x0;
+      dst[y * dstW + x] =
+        (1 - wy) * ((1 - wx) * src[y0 * srcW + x0] + wx * src[y0 * srcW + x1]) +
+        wy * ((1 - wx) * src[y1 * srcW + x0] + wx * src[y1 * srcW + x1]);
+    }
+  }
+  return dst;
+}
+
+// ── drawing ───────────────────────────────────────────────────────────────────
+
+// one pixel per cell; the canvas is scaled up by CSS without smoothing
+function drawMap(r, values, colorOf) {
+  const canvas = els.heatmapCanvas;
+  canvas.width = r.width;
+  canvas.height = r.height;
+  const image = new ImageData(r.width, r.height);
+  values.forEach((v, i) => {
+    image.data.set(colorOf(v), 4 * i);
+    image.data[4 * i + 3] = 255;
+  });
+  canvas.getContext("2d").putImageData(image, 0, 0);
+}
+
+function paletteColor(v) {
+  const palette = state.palettes[els.paletteSelect.value];
+  return palette[Math.round(v * (palette.length - 1))];
+}
+
+function hueColor(v) {   // for maps of class or group ids
+  const h = (20 + 300 * v) % 360;
+  const f = (n) => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return [f(0), f(8), f(4)];
+}
+
+function setupGrid(r) {
+  if (els.grid.children.length !== cellCount(r)) {
+    els.grid.replaceChildren(...allCells(r).map((i) => {
+      const div = document.createElement("div");
+      div.dataset.idx = i;
+      return div;
+    }));
+  }
+  els.grid.style.gridTemplateColumns = `repeat(${r.width}, 1fr)`;
+  for (const div of els.grid.children) {
+    div.innerHTML = "";
+    div.className = "";
+    div.style.borderColor = div.style.boxShadow = "";
+  }
+}
+
+function markCell(i, color = null) {
+  const div = els.grid.children[i];
+  div.classList.add("selected");
+  if (color) {
+    div.style.borderColor = color;
+    div.style.boxShadow = `0 0 20px ${color} inset`;
+  }
+}
+
+function labelCells(values, ids) {
+  [...els.grid.children].forEach((div, i) => {
+    div.className = "class-display";
+    div.innerHTML = `${values[i].toFixed(2)}<br/>${ids[i]}`;
   });
 }
 
-// release camera on page unload
-window.addEventListener("beforeunload", () => {
-  if (window._lafamMediaStream) {
-    window._lafamMediaStream.getTracks().forEach((track) => track.stop());
+function showPredictions(logits, threshold) {
+  const probs = softmax(logits);
+  els.predictions.replaceChildren(
+    ...topN(logits, TOP_N, threshold).map((k) => {
+      const div = document.createElement("div");
+      div.className = "prediction" + (state.selectedClasses.has(k) ? " selected" : "");
+      div.dataset.idx = k;
+      div.innerHTML = `<label><b>${state.classNames[k]}</b> (Logits: ${logits[k].toFixed(2)}; Softmax: ${Math.round(probs[k] * 100)}%)</label>`;
+      div.append(Object.assign(document.createElement("progress"), { value: probs[k], max: 1 }));
+      return div;
+    })
+  );
+}
+
+function showList(lines) {
+  els.predictions.replaceChildren(
+    ...lines.map((text) => Object.assign(document.createElement("div"), { className: "list-line", innerText: text }))
+  );
+}
+
+// ── views ─────────────────────────────────────────────────────────────────────
+
+const views = {
+  // LaFAM, or CAM of the selected classes; predictions of the image or of the selected cells
+  predict(r) {
+    const classes = [...state.selectedClasses];
+    drawMap(r, minMax(classes.length ? camMap(r, classes) : lafamMap(r)), paletteColor);
+    const cells = [...state.selectedCells];
+    cells.forEach((i) => markCell(i));
+    showPredictions(cells.length ? regionLogits(r, cells) : regionLogits(r), cells.length ? -Infinity : 1.7);
+  },
+
+  // the top class of every cell
+  imagenet_classes(r) {
+    const { classIds, logits } = cellClasses(r);
+    labelCells(logits, classIds);
+    drawMap(r, minMax(classIds), hueColor);
+    showList([...new Set(classIds)].sort((a, b) => a - b).map((k) => `${k}: ${state.classNames[k]}`));
+  },
+
+  // cells grouped into object categories, with boxes around connected cells of one group
+  groupmap_bbs(r) {
+    const { classIds, logits } = cellClasses(r);
+    const groups = Array.from(classIds, (k) => state.grouper.of(k));
+    labelCells(logits, groups);
+    drawMap(r, minMax(groups), hueColor);
+    const rows = Array.from({ length: r.height }, (_, y) => groups.slice(y * r.width, (y + 1) * r.width));
+    drawBoundingBoxes(findBoundingBoxes(findAreas(rows, [-1])), els.boxCanvas, r.width, state.grouper.name);
+    showList([...new Set(groups)].filter((g) => g >= 0).sort((a, b) => a - b).map((g) => `${g}: ${state.grouper.name(g)}`));
+  },
+
+  // every object at the centre of mass of the cells similar to it
+  object_tracking(r) {
+    const active = state.objects.find((o) => o.id === state.activeObject);
+    if (active) active.cells.forEach((i) => markCell(i, active.color));
+    drawMap(r, minMax(active?.embedding ? cosineMap(r, active.embedding) : lafamMap(r)), paletteColor);
+    showPredictions(active?.cells.length ? regionLogits(r, active.cells) : regionLogits(r), active?.cells.length ? -Infinity : 1.7);
+
+    const { threshold, ema, resolution: res } = state.tracking;
+    const ctx = els.boxCanvas.getContext("2d");
+    for (const obj of state.objects) {
+      if (!obj.embedding || !obj.visible) continue;
+      const map = upsampleBilinear(cosineMap(r, obj.embedding), r.width, r.height, res, res);
+      let w = 0, sx = 0, sy = 0;
+      map.forEach((v, i) => {
+        if (v < threshold) return;
+        w += v;
+        sx += v * ((i % res) + 0.5);
+        sy += v * (Math.floor(i / res) + 0.5);
+      });
+      if (w === 0) {
+        obj.pos = null;
+        continue;
+      }
+      let pos = { x: sx / w / res, y: sy / w / res };   // as a fraction of the image side
+      if (obj.pos) pos = { x: ema * obj.pos.x + (1 - ema) * pos.x, y: ema * obj.pos.y + (1 - ema) * pos.y };
+      obj.pos = pos;
+
+      const x = pos.x * els.boxCanvas.width, y = pos.y * els.boxCanvas.height, s = els.boxCanvas.width * 0.05;
+      ctx.strokeStyle = ctx.fillStyle = obj.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x - s, y);
+      ctx.lineTo(x + s, y);
+      ctx.moveTo(x, y - s);
+      ctx.lineTo(x, y + s);
+      ctx.stroke();
+      ctx.font = "16px sans-serif";
+      ctx.fillText(obj.name, x + 5, y - 5);
+    }
+  },
+};
+
+const SELECTABLE = { predict: true, object_tracking: true };   // modes in which grid cells can be selected
+
+function render() {
+  const r = state.result;
+  if (!r) return;
+  const mode = els.modeSelect.value;
+  setupGrid(r);
+  els.grid.classList.toggle("selectable", !!SELECTABLE[mode]);
+  els.paletteSelect.disabled = !SELECTABLE[mode];
+  els.tracking.classList.toggle("hidden", mode !== "object_tracking");
+  els.boxCanvas.getContext("2d").clearRect(0, 0, els.boxCanvas.width, els.boxCanvas.height);
+  els.clearSelection.disabled = !state.selectedCells.size && !state.selectedClasses.size;
+  views[mode](r);
+}
+
+function clearSelections() {
+  state.selectedCells.clear();
+  state.selectedClasses.clear();
+}
+
+// ── tracked objects ───────────────────────────────────────────────────────────
+
+const OBJECT_COLORS = ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF"];
+
+function addObject() {
+  const obj = {
+    id: Date.now(),
+    name: `Object ${state.objects.length + 1}`,
+    color: OBJECT_COLORS[state.objects.length % OBJECT_COLORS.length],
+    cells: [],
+    embedding: null,
+    visible: true,
+    pos: null,
+  };
+  state.objects.push(obj);
+  state.activeObject = obj.id;
+  renderObjectList();
+  render();
+}
+
+function removeObject(id) {
+  state.objects = state.objects.filter((o) => o.id !== id);
+  if (state.activeObject === id) state.activeObject = state.objects[0]?.id ?? null;
+  renderObjectList();
+  render();
+}
+
+// an object is the mean features of its cells; its name is the top class of these cells
+function toggleObjectCell(obj, i) {
+  obj.cells = obj.cells.includes(i) ? obj.cells.filter((c) => c !== i) : [...obj.cells, i];
+  const r = state.result;
+  if (obj.cells.length) {
+    obj.embedding = embedding(r, obj.cells);
+    const k = topN(regionLogits(r, obj.cells), 1)[0];
+    obj.name = `[${k}] ${state.classNames[k]}`;
+  } else {
+    obj.embedding = null;
   }
-});
+  obj.pos = null;
+  renderObjectList();
+}
 
-const grid = document.getElementById("grid");
-const cellCount = 49; // 7 x 7 grid for example
+function renderObjectList() {
+  els.objectList.replaceChildren(
+    ...state.objects.map((obj) => {
+      const div = document.createElement("div");
+      div.className = "prediction" + (obj.id === state.activeObject ? " selected" : "");
+      div.style.borderLeft = `5px solid ${obj.color}`;
+      const name = Object.assign(document.createElement("span"), { innerText: obj.name });
+      name.style.flex = "1";
+      name.onclick = () => {
+        state.activeObject = obj.id;
+        renderObjectList();
+        render();
+      };
+      const remove = Object.assign(document.createElement("button"), { innerText: "X", className: "remove-object" });
+      remove.onclick = () => removeObject(obj.id);
+      div.append(name, remove);
+      return div;
+    })
+  );
+}
 
-for (let i = 0; i < cellCount; i++) {
-  const cell = document.createElement("div");
-  cell.dataset.idx = i;
-  grid.appendChild(cell);
+// ── events ────────────────────────────────────────────────────────────────────
+
+els.modelSelect.onchange = () => selectModel(MODELS.find((m) => m.id === els.modelSelect.value));
+els.modeSelect.onchange = () => {
+  clearSelections();
+  render();
+};
+els.paletteSelect.onchange = render;
+els.opacity.oninput = () => (els.heatmapCanvas.style.opacity = els.opacity.value);
+els.startButton.onclick = () => setPlaying(!state.playing);
+els.cameraButton.onclick = nextCamera;
+$("upload-button").onclick = () => els.upload.click();
+$("add-object-btn").onclick = addObject;
+
+els.presets.onchange = async () => {
+  const url = els.presets.value;
+  if (url.endsWith(".mp4")) return showVideo(url);
+  showImage(await (await fetch(url)).blob());
+};
+
+els.upload.onchange = () => {
+  const file = els.upload.files[0];
+  if (!file) return;
+  els.presets.value = "";
+  if (file.type.startsWith("video/")) showVideo(URL.createObjectURL(file));
+  else showImage(file);
+};
+
+els.grid.onclick = (e) => {
+  const mode = els.modeSelect.value;
+  const div = e.target.closest("#grid > div");
+  if (!div || !SELECTABLE[mode] || state.playing) return;
+  const i = Number(div.dataset.idx);
+  if (mode === "object_tracking") {
+    const obj = state.objects.find((o) => o.id === state.activeObject);
+    if (obj) toggleObjectCell(obj, i);
+  } else {
+    state.selectedClasses.clear();
+    state.selectedCells.has(i) ? state.selectedCells.delete(i) : state.selectedCells.add(i);
+  }
+  render();
+};
+
+els.predictions.onclick = (e) => {
+  const div = e.target.closest(".prediction");
+  if (!div || els.modeSelect.value !== "predict" || state.playing) return;
+  const k = Number(div.dataset.idx);
+  state.selectedClasses.has(k) ? state.selectedClasses.delete(k) : state.selectedClasses.add(k);
+  render();
+};
+
+els.clearSelection.onclick = () => {
+  clearSelections();
+  render();
+};
+
+video.onended = () => setPlaying(false);
+
+for (const [id, key, digits] of [["tracking-threshold", "threshold", 2], ["tracking-ema", "ema", 2]]) {
+  $(id).oninput = (e) => {
+    state.tracking[key] = parseFloat(e.target.value);
+    $(`${id}-val`).innerText = state.tracking[key].toFixed(digits);
+  };
+}
+$("tracking-resolution").onchange = (e) => (state.tracking.resolution = parseInt(e.target.value));
+
+// ── debugging ─────────────────────────────────────────────────────────────────
+
+function log(msg) {
+  console.warn(msg);
+  const area = $("log");
+  area.textContent += msg + "\n";
+  area.scrollTop = area.scrollHeight;
+}
+window.addEventListener("error", (e) => log(e.message));
+window.addEventListener("unhandledrejection", (e) => log(e.reason));
+
+// clears the caches and the service worker, then reloads (the "Hard reset" button)
+async function updateServiceWorker() {
+  if ("caches" in window) await Promise.all((await caches.keys()).map((key) => caches.delete(key)));
+  if ("serviceWorker" in navigator) {
+    for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
+  }
+  localStorage.removeItem("lafam_tutorial_shown");
+  window.location.reload();
+}
+
+// ── start ─────────────────────────────────────────────────────────────────────
+
+function makeGrouper(include, exclude) {
+  const names = Object.keys(include);
+  const groupOf = {};
+  names.forEach((name, g) => include[name].forEach((k) => (groupOf[k] = g)));
+  const excluded = new Set(Object.values(exclude).flat());
+  return {
+    of: (k) => (excluded.has(k) ? -1 : groupOf[k] ?? -1),
+    name: (g) => (g < 0 ? "---" : names[g]),
+  };
+}
+
+async function init() {
+  // the camera is only offered here; permission is asked on the first press of the camera button
+  const devices = (await navigator.mediaDevices?.enumerateDevices?.()) ?? [];
+  if (devices.some((d) => d.kind === "videoinput")) els.main.classList.add("camera-available");
+
+  const [palettes, include, exclude] = await Promise.all(
+    ["palettes", "include_groups", "exclude_groups"].map((name) => loadJson(`assets/data/${name}.json`))
+  );
+  state.palettes = palettes;
+  state.grouper = makeGrouper(include, exclude);
+  els.paletteSelect.replaceChildren(...Object.keys(palettes).map((p) => new Option(p, p)));
+  els.modelSelect.replaceChildren(...MODELS.map((m) => new Option(`${m.label} (ImageNet, ${m.mb} MB)`, m.id)));
+
+  els.presets.selectedIndex = 1;          // start with the first example image
+  els.presets.onchange();
+  await selectModel(MODELS[0]);
 }
 
 init();

@@ -1,127 +1,73 @@
+// Bounding boxes around connected areas of grid cells with the same group.
+
+// grid: rows of group ids; returns the areas of more than one cell, skipping the given ids
 function findAreas(grid, skipNumbers = []) {
   const rows = grid.length;
   const cols = grid[0].length;
   const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const skip = new Set(skipNumbers);
   const areas = [];
 
-  const skipSet = new Set(skipNumbers);
-
-  const directions = [
-    [-1, 0], [1, 0], [0, -1], [0, 1]
-  ];
-
-  // Perform a DFS to find all connected cells with the same number
   function dfs(r, c, number, area) {
     area.squares.push([r, c]);
     visited[r][c] = true;
-
-    for (const [dr, dc] of directions) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (
-          nr >= 0 && nr < rows &&
-          nc >= 0 && nc < cols &&
-          !visited[nr][nc] &&
-          grid[nr][nc] === number &&
-          !skipSet.has(grid[nr][nc])
-      ) {
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc] && grid[nr][nc] === number) {
         dfs(nr, nc, number, area);
       }
     }
   }
 
-  // Iterate over the grid to find all unvisited areas
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (!visited[r][c] && !skipSet.has(grid[r][c])) {
-        const area = { groupId: grid[r][c], squares: [] };
-        dfs(r, c, grid[r][c], area);
-        areas.push(area);
-      } else {
-        visited[r][c] = true; // Mark skipped numbers as visited
-      }
+      if (visited[r][c] || skip.has(grid[r][c])) continue;
+      const area = { groupId: grid[r][c], squares: [] };
+      dfs(r, c, grid[r][c], area);
+      areas.push(area);
     }
   }
-
-  return areas.filter(area => area.squares.length > 1);
+  return areas.filter((area) => area.squares.length > 1);
 }
 
 function findBoundingBoxes(areas) {
-  return areas.map(area => {
-    let minRow = Infinity, maxRow = -Infinity;
-    let minCol = Infinity, maxCol = -Infinity;
-
-    // Iterate over all the points in the area to find the bounds
-    for (const [row, col] of area.squares) {
-      minRow = Math.min(minRow, row);
-      maxRow = Math.max(maxRow, row);
-      minCol = Math.min(minCol, col);
-      maxCol = Math.max(maxCol, col);
-    }
-
+  return areas.map((area) => {
+    const rows = area.squares.map(([r]) => r), cols = area.squares.map(([, c]) => c);
     return {
       groupId: area.groupId,
-      topLeft: [minRow, minCol],
-      bottomRight: [maxRow, maxCol]
+      topLeft: [Math.min(...rows), Math.min(...cols)],
+      bottomRight: [Math.max(...rows), Math.max(...cols)],
     };
   });
 }
 
-function drawBoundingBoxes(boundingBoxes, canvasId) {
-  const color = '#ff0000';
-  boundingBoxes.forEach(box => drawBoundingBox(box, canvasId, color));
-}
-
-function drawBoundingBox(box, canvasId, color = '#ff0000') {
-  const canvas = document.getElementById(canvasId);
+// draws the boxes on a canvas showing a grid of gridSize x gridSize cells; nameOf(groupId) labels them
+function drawBoundingBoxes(boxes, canvas, gridSize, nameOf, color = "#ff0000") {
   const ctx = canvas.getContext("2d");
-  const minSide = Math.min(canvas.width, canvas.height);
+  const side = Math.min(canvas.width, canvas.height);
+  const cell = side / gridSize;
+  const border = Math.round(Math.max(5, Math.min(11, cell / 16)));
+  const fontSize = Math.max(16, side / 25);
 
-  const cellSize = minSide / 7;
-  const borderThickness = Math.round(Math.max(5, Math.min(11, cellSize / 16)));
+  for (const box of boxes) {
+    const [top, left] = box.topLeft;
+    const [bottom, right] = box.bottomRight;
+    const x = Math.max(Math.round(left * cell), border / 2);
+    const y = Math.max(Math.round(top * cell), border / 2);
+    const width = Math.min(Math.round((right - left + 1) * cell), side - x - border / 2);
+    const height = Math.min(Math.round((bottom - top + 1) * cell), side - y - border / 2);
 
-  ctx.strokeStyle = color;
-  ctx.lineWidth = borderThickness;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = border;
+    ctx.strokeRect(x, y, width, height);
 
-  const [topRow, leftCol] = box.topLeft;
-  const [bottomRow, rightCol] = box.bottomRight;
-
-  // give each box a slight offset such that the boxes' edges dont overlap 100%
-  const offset = 0; // Math.floor(20 * Math.random()) - 10;
-
-  let x = Math.round(leftCol * cellSize) + offset;
-  x = Math.max(x, borderThickness / 2);
-  let y = Math.round(topRow * cellSize) + offset;
-  y = Math.max(y, borderThickness / 2);
-  let width = Math.round((rightCol - leftCol + 1) * cellSize) + offset;
-  width = Math.min(width, minSide - x - borderThickness / 2);
-  let height = Math.round((bottomRow - topRow + 1) * cellSize) + offset;
-  height = Math.min(height, minSide - y - borderThickness / 2);
-
-  ctx.strokeRect(x, y, width, height);
-
-  const groupName = AppState.grouper.getGroupName(box.groupId);
-  const fontSize = Math.max(16, minSide / 25);
-  const textX = x + borderThickness / 2 + 2;
-  const textY = y + borderThickness / 2 + 2;
-  const maxWidth = width - borderThickness - 4;
-  ctx.textBaseline = "top";
-  ctx.font = `bold ${fontSize}px Arial`;
-  ctx.strokeStyle = "#000000";
-  ctx.lineWidth = 3;
-  ctx.fillStyle = color;
-  ctx.strokeText(groupName, textX, textY, maxWidth);
-  ctx.fillText(groupName, textX, textY, maxWidth);
-}
-
-function to2DArray(array, rows, cols) {
-  if (array.length !== rows * cols) {
-    throw new Error("The given array size does not match the specified dimensions.");
+    const textX = x + border / 2 + 2, textY = y + border / 2 + 2, maxWidth = width - border - 4;
+    ctx.textBaseline = "top";
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 3;
+    ctx.fillStyle = color;
+    ctx.strokeText(nameOf(box.groupId), textX, textY, maxWidth);
+    ctx.fillText(nameOf(box.groupId), textX, textY, maxWidth);
   }
-
-  const result = [];
-  for (let i = 0; i < rows; i++) {
-    result.push(array.slice(i * cols, i * cols + cols));
-  }
-  return result;
 }
