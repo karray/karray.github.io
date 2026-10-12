@@ -6,36 +6,6 @@ html {
     height: 100%;
 }
 
-/* --- CSS VARIABLES & THEME --- */
-:root {
-    /* Light Theme */
-    --bg-color: #f8fafc;
-    --card-bg: #ffffff;
-    --text-main: #334155;
-    --text-muted: #64748b;
-    --accent-color: #f1efff;
-    /* Cyan-700 */
-    --accent-hover: #dbd5ff;
-    --border-color: #cbd5e1;
-    --overlay-dim: rgba(15, 23, 42, 0.75);
-    /* Slate-900 with opacity */
-    --spotlight-transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-    --font-family: 'Inter', system-ui, -apple-system, sans-serif;
-}
-
-body.dark-mode {
-    /* Dark Theme */
-    --bg-color: #0f172a;
-    --card-bg: #1e293b;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --accent-color: #00143b;
-    /* Cyan-400 */
-    --accent-hover: #002450;
-    --border-color: #334155;
-    --overlay-dim: rgba(0, 0, 0, 0.85);
-}
-
 * {
     box-sizing: border-box;
     outline: none;
@@ -52,8 +22,12 @@ body {
 }
 
 a {
-    color: var(--accent-color);
+    color: var(--link-color);
     text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
 }
 
 /* --- ICONS --- */
@@ -239,6 +213,8 @@ input:checked+.slider:before {
 
 #heatmap-canvas {
     opacity: 0.5;
+    /* one pixel per cell, scaled up without smoothing */
+    image-rendering: pixelated;
 }
 
 .canvas-wrapper canvas,
@@ -296,24 +272,23 @@ input:checked+.slider:before {
 #grid {
     display: none;
     z-index: 3;
-    grid-template-columns: repeat(7, 1fr);
 }
 
 .paused.ready #grid {
     display: grid;
 }
 
-.grid-selection {
+#grid.selectable > div {
     border: 1px solid rgba(255, 255, 255, 0.05);
     transition: all 0.2s;
 }
 
-.grid-selection:hover {
+#grid.selectable > div:hover {
     border: 1px solid rgba(255, 255, 255, 0.8);
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) inset;
 }
 
-.grid-selection.selected {
+#grid.selectable > div.selected {
     border: 2px solid #fff;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.5) inset;
 }
@@ -751,4 +726,15 @@ textarea {
 
 .full-width {
     width: 100%;
+}
+.list-line {
+    padding: 10px;
+    font-weight: bold;
+}
+
+.remove-object {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
 }

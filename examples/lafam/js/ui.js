@@ -1,28 +1,3 @@
-// --- 1. THEME LOGIC ---
-const themeBtn = document.getElementById('theme-toggle-button');
-const currentTheme = localStorage.getItem('theme');
-
-// Initial Load
-if (currentTheme) {
-    document.body.className = currentTheme;
-} else {
-    // System preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.className = 'dark-mode';
-    }
-}
-
-// Toggle Event
-themeBtn.addEventListener('click', function () {
-    if (document.body.classList.contains('dark-mode')) {
-        document.body.classList.remove('dark-mode');
-        localStorage.setItem('theme', 'light-mode');
-    } else {
-        document.body.classList.add('dark-mode');
-        localStorage.setItem('theme', 'dark-mode');
-    }
-});
-
 // --- 2. TUTORIAL LOGIC (SIDE POSITIONING) ---
 const tutorialOverlay = document.getElementById('tutorial-overlay');
 const spotlight = document.getElementById('tutorial-spotlight');
@@ -38,7 +13,8 @@ const totalEl = document.getElementById('tut-total');
 const steps = [
     { target: '#control-panel', title: "Control Center", desc: "Manage the camera, upload images, change mode, or adjust settings here. You can fine-tune the visualization mode and opacity." },
     { target: '#upload-group', title: "Upload & Presets", desc: "Upload your own image or choose from our preset scenarios" },
-    { target: '#mode-select', title: "Model Modes", desc: "Select different model modes: default ResNet with label-free/Grad-CAM heatmaps, Multi-instance classification, object detection" },
+    { target: '#model-select', title: "Models", desc: "Choose the model. Each model is downloaded the first time you select it." },
+    { target: '#mode-select', title: "Model Modes", desc: "Select different model modes: classifier with label-free (LaFAM) or class (CAM) heatmaps, multi-instance classification, object detection, object tracking" },
     { target: '#predictions-panel', title: "Predictions", desc: "The model's top guesses appear here. Click a prediction to highlight the area in the image responsible for that classification. You can clear selection by clicking again or clicking X-button." },
     { target: '#canvas-area', title: "Live Visualization", desc: "This canvas displays the model's salience map. Pause the stream to interact with the overlay Grid and explore specific regions. You can click on grid cells to show predictions for that region (multiple cells selection possible)." },
 ];

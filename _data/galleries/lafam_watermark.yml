@@ -10,24 +10,24 @@ caption: >-
 
 items:
   - label: MaxViT · Averaging
-    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    src: /assets/img/samples/spider_web.jpg
     overlay: /assets/img/posts/lafam/figures/watermark/maxvit_avg.png
   - label: MaxViT · LRP
-    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    src: /assets/img/samples/spider_web.jpg
     overlay: /assets/img/posts/lafam/figures/watermark/maxvit_lrp.png
     rendering: auto
   - label: MaxViT · LRP, scaled without the watermark
-    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    src: /assets/img/samples/spider_web.jpg
     overlay: /assets/img/posts/lafam/figures/watermark/maxvit_lrp_rescaled.png
     rendering: auto
   - label: CLIP ConvNeXt · Averaging
-    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    src: /assets/img/samples/spider_web.jpg
     overlay: /assets/img/posts/lafam/figures/watermark/clip_convnext_avg.png
   - label: CLIP ConvNeXt · LRP
-    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    src: /assets/img/samples/spider_web.jpg
     overlay: /assets/img/posts/lafam/figures/watermark/clip_convnext_lrp.png
     rendering: auto
   - label: CLIP ConvNeXt · LRP without the watermark cell
-    src: /assets/img/posts/lafam/figures/images/spider_web.png
+    src: /assets/img/samples/spider_web.jpg
     overlay: /assets/img/posts/lafam/figures/watermark/clip_convnext_lrp_nocell.png
     rendering: auto
