@@ -9,6 +9,7 @@
 //   tracking       the cosine similarity of each cell's features to an object's mean features
 
 const TOP_N = 14;
+const CLASS_MODES = ["imagenet_classes", "groupmap_bbs"];   // modes that need a classifier
 const MAX_CANVAS = 1024;   // the image canvas never needs more pixels than it is shown with
 
 const $ = (id) => document.getElementById(id);
@@ -81,6 +82,9 @@ async function selectModel(entry) {
 
     state.model = entry;
     state.classNames = classNames;
+    // the modes that name classes need a classifier
+    for (const option of els.modeSelect.options) option.disabled = !entry.classes && CLASS_MODES.includes(option.value);
+    if (els.modeSelect.selectedOptions[0].disabled) els.modeSelect.value = "predict";
     state.result = null;
     state.objects = [];          // object features belong to the previous model
     state.activeObject = null;
@@ -220,8 +224,10 @@ async function analyze() {
 const cellCount = (r) => r.height * r.width;
 const allCells = (r) => [...Array(cellCount(r)).keys()];
 
-// the exact readout of a region: the mean of its cells' logits (all cells: the model's logits)
+// the exact readout of a region: the mean of its cells' logits (all cells: the model's logits);
+// null for a model without a classifier
 function regionLogits(r, cells = allCells(r)) {
+  if (!r.cellLogits) return null;
   const n = cellCount(r);
   const logits = new Float32Array(r.classes);
   for (let k = 0; k < r.classes; k++) {
@@ -396,6 +402,10 @@ function labelCells(values, ids) {
 }
 
 function showPredictions(logits, threshold) {
+  if (!logits) {
+    showList([`${state.model.label} has no classifier. The heatmap shows where its features respond most (LaFAM).`]);
+    return;
+  }
   const probs = softmax(logits);
   els.predictions.replaceChildren(
     ...topN(logits, TOP_N, threshold).map((k) => {
@@ -541,8 +551,11 @@ function toggleObjectCell(obj, i) {
   const r = state.result;
   if (obj.cells.length) {
     obj.embedding = embedding(r, obj.cells);
-    const k = topN(regionLogits(r, obj.cells), 1)[0];
-    obj.name = `[${k}] ${state.classNames[k]}`;
+    const logits = regionLogits(r, obj.cells);
+    if (logits) {
+      const k = topN(logits, 1)[0];
+      obj.name = `[${k}] ${state.classNames[k]}`;
+    }
   } else {
     obj.embedding = null;
   }
@@ -682,8 +695,9 @@ async function init() {
   state.palettes = palettes;
   state.grouper = makeGrouper(include, exclude);
   els.paletteSelect.replaceChildren(...Object.keys(palettes).map((p) => new Option(p, p)));
-  els.modelSelect.replaceChildren(...MODELS.map((m) => new Option(`${m.label} (ImageNet, ${m.mb} MB)`, m.id)));
+  fillModelMenu(els.modelSelect);
 
+  els.presets.querySelector('option[value$=".mp4"]').before(...SAMPLES.map((s) => new Option(`🖼️ ${s.label}`, s.url)));
   els.presets.selectedIndex = 1;          // start with the first example image
   els.presets.onchange();
   await selectModel(MODELS[0]);

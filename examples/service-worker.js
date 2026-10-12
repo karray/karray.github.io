@@ -1,6 +1,7 @@
-// Offline support for all demos under /examples/. Large files (models, videos) are cached on first
-// use and then served from the cache, once for the whole site: give a changed large file a new name. Everything else is fetched from the network first,
-// so changes to the page reach visitors immediately, and served from the cache when offline.
+// Offline support for all demos under /examples/. Large files (the models on Hugging Face, videos) are
+// cached on first use and then served from the cache, once for the whole site: a changed large file
+// needs a new URL. Everything else is fetched from the network first, so changes to the pages reach
+// visitors immediately, and served from the cache when offline.
 const CACHE_NAME = "examples-v1";
 const LARGE = /\.(onnx|mp4)$/;
 
@@ -34,8 +35,14 @@ async function networkFirst(request) {
   }
 }
 
+const MODEL_HOST = "huggingface.co";   // the models (see models/models.js)
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (event.request.method !== "GET" || url.origin !== location.origin) return;
-  event.respondWith(LARGE.test(url.pathname) ? cacheFirst(event.request) : networkFirst(event.request));
+  if (event.request.method !== "GET") return;
+  if (LARGE.test(url.pathname) && (url.origin === location.origin || url.hostname === MODEL_HOST)) {
+    event.respondWith(cacheFirst(event.request));
+  } else if (url.origin === location.origin) {
+    event.respondWith(networkFirst(event.request));
+  }
 });

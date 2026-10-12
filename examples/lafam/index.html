@@ -6,10 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LaFAM Live Demo</title>
 
+    <link rel="stylesheet" href="../css/theme.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
+    <script src="../js/theme.js"></script>
 
     <section id="main-section" class="main-section paused">
         <!-- Canvas Area -->
@@ -60,19 +62,6 @@
                             <!-- Invisible Select sitting on top -->
                             <select id="predefined-files" class="invisible-select lafam-select">
                                 <option value="" disabled selected hidden></option> <!-- Empty Selection -->
-                                <option value="/assets/img/samples/dog_and_cat.jpg">🖼️ Dog & cat</option>
-                                <option value="/assets/img/samples/dog_and_cat_indoor.jpg">🖼️ Dog & cat indoors</option>
-                                <option value="/assets/img/samples/two_dogs.jpg">🖼️ Two dogs</option>
-                                <option value="/assets/img/samples/fish_and_person.jpg">🖼️ Fish & person</option>
-                                <option value="/assets/img/samples/person_without_fish.jpg">🖼️ Person without fish</option>
-                                <option value="/assets/img/samples/warthog.jpg">🖼️ Warthog</option>
-                                <option value="/assets/img/samples/warthog_occluded.jpg">🖼️ Warthog (occluded)</option>
-                                <option value="/assets/img/samples/doughnuts.jpg">🖼️ Doughnuts</option>
-                                <option value="/assets/img/samples/doughnuts_newspaper.jpg">🖼️ Doughnuts on a newspaper</option>
-                                <option value="/assets/img/samples/bus_and_taxi.jpg">🖼️ Bus & taxi</option>
-                                <option value="/assets/img/samples/bus_sign.jpg">🖼️ Bus sign</option>
-                                <option value="/assets/img/samples/six_objects.jpg">🖼️ Six objects</option>
-                                <option value="/assets/img/samples/spider_web.jpg">🖼️ Spider web</option>
                                 <option value="assets/videos/dog_on_a_beach.mp4">🎥 Dog on a beach</option>
                             </select>
                         </div>
@@ -100,7 +89,7 @@
                     <select id="model-select" class="lafam-select" title="Model (downloaded when selected)">
                     </select>
                     <select id="mode-select" class="lafam-select">
-                        <option value="predict" selected>Classifier with LaFAM/CAM</option>
+                        <option value="predict" selected>Heatmap (LaFAM or CAM)</option>
                         <option value="imagenet_classes">Multi-instance classification</option>
                         <option value="groupmap_bbs">Object detection</option>
                         <option value="object_tracking">Object tracking</option>
@@ -177,7 +166,7 @@
 
     <section class="info-section">
         <h2>About</h2>
-        <p>This demo shows where an image classifier looks. Its main view is the Label-free Activation Map (LaFAM):
+        <p>This demo shows where a vision model looks. Its main view is the Label-free Activation Map (LaFAM):
             a heatmap of the regions the model responds to most, computed without choosing a class, so it also works
             for models trained without labels (<a href="https://arxiv.org/abs/2407.06059" target="_blank"
                 rel="noopener">Karjauv &amp; Albayrak, 2024</a>; <a
@@ -229,6 +218,7 @@
     <script src="js/ui.js"></script>
     <script src="js/boundingboxes.js"></script>
     <script src="../models/models.js"></script>
+    <script src="../js/samples.js"></script>
     <script src="../js/inference.js"></script>
     <script src="js/app.js"></script>
 </body>

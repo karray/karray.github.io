@@ -1,14 +1,14 @@
-// Runs the models of examples/models/models.js for any demo, in a worker (worker.js). A model is
-// downloaded when it is first loaded and then kept by the worker, so switching back is instant.
-// The service worker caches the downloads for the whole site.
+// Runs the models of examples/models/models.js for any demo, in a worker (worker.js), one model at
+// a time. A model is downloaded when it is selected; the service worker caches the downloads for the
+// whole site, so selecting it again reads it from the cache.
 //
 //   const { backend, classNames } = await loadModel(MODELS[0], showStatus);
 //   const { features, cellLogits, channels, classes, height, width } = await runModel(bitmap);
+//   fillModelMenu(select);   // the models as <option>s, grouped by how they were trained
 
 const inferenceWorker = new Worker("/examples/js/worker.js", { type: "module" });
 const pendingCalls = new Map();
 let nextCallId = 0;
-const loadedModels = new Set();
 
 inferenceWorker.onmessage = ({ data }) => {
   const { resolve, reject } = pendingCalls.get(data.id);
@@ -42,23 +42,29 @@ async function download(url, onProgress) {
 }
 
 // Makes `entry` (of MODELS) the model that runModel uses; onStatus(text) reports the progress.
-// Resolves with the backend ({ name: "webgpu" or "wasm", reason }) and the model's class names.
+// Resolves with the backend ({ name: "webgpu" or "wasm", reason }) and the model's class names
+// (empty for a model without a classifier).
 async function loadModel(entry, onStatus = () => {}) {
   onStatus(`Loading ${entry.label}…`);
-  const classNames = fetch(entry.classes).then((r) => r.json()).then(Object.values);
-  let bytes;
-  if (!loadedModels.has(entry.id)) {
-    bytes = await download(entry.url, (p) => onStatus(`Downloading ${entry.label} (${Math.round(p * 100)}%)`));
-  }
+  const classNames = entry.classes ? fetch(entry.classes).then((r) => r.json()).then(Object.values) : [];
+  const bytes = await download(entry.url, (p) => onStatus(`Downloading ${entry.label} (${Math.round(p * 100)}%)`));
   onStatus(`Initializing ${entry.label}…`);
-  const { backend } = await callWorker({ type: "load", model: { id: entry.id, size: entry.size }, bytes }, bytes ? [bytes] : []);
-  loadedModels.add(entry.id);
+  const { backend } = await callWorker({ type: "load", model: { id: entry.id, size: entry.size }, bytes }, [bytes]);
   return { backend, classNames: await classNames };
 }
 
 // Runs the loaded model on an ImageBitmap of its input size (the bitmap is transferred to the worker).
-// features: channels x cells, cellLogits: classes x cells, cells in row-major order of height x width.
+// features: channels x cells, cellLogits: classes x cells (null without a classifier), cells in
+// row-major order of height x width.
 const runModel = (bitmap) => callWorker({ type: "run", bitmap }, [bitmap]);
+
+function fillModelMenu(select) {
+  select.replaceChildren(...Object.entries(MODEL_GROUPS).map(([group, label]) => {
+    const optgroup = Object.assign(document.createElement("optgroup"), { label });
+    optgroup.append(...MODELS.filter((m) => m.group === group).map((m) => new Option(`${m.label} (${m.mb} MB)`, m.id)));
+    return optgroup;
+  }));
+}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/examples/service-worker.js").catch((err) => console.warn("Service worker:", err));

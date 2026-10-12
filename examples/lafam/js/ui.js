@@ -1,28 +1,3 @@
-// --- 1. THEME LOGIC ---
-const themeBtn = document.getElementById('theme-toggle-button');
-const currentTheme = localStorage.getItem('theme');
-
-// Initial Load
-if (currentTheme) {
-    document.body.className = currentTheme;
-} else {
-    // System preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.className = 'dark-mode';
-    }
-}
-
-// Toggle Event
-themeBtn.addEventListener('click', function () {
-    if (document.body.classList.contains('dark-mode')) {
-        document.body.classList.remove('dark-mode');
-        localStorage.setItem('theme', 'light-mode');
-    } else {
-        document.body.classList.add('dark-mode');
-        localStorage.setItem('theme', 'dark-mode');
-    }
-});
-
 // --- 2. TUTORIAL LOGIC (SIDE POSITIONING) ---
 const tutorialOverlay = document.getElementById('tutorial-overlay');
 const spotlight = document.getElementById('tutorial-spotlight');

@@ -1,12 +1,12 @@
 // Runs the selected model off the main thread (see inference.js). A model takes an RGB image in [0, 1]
-// and returns its last feature map and the classification head applied to every cell (see
-// ../models/models.js); the demos compute everything else from these two outputs.
+// and returns its last feature map and, for a classifier, the classification head applied to every
+// cell (see ../models/models.js); the demos compute everything else from these outputs.
 import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.webgpu.min.mjs";
 
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/";
 
-const sessions = {};   // model id -> InferenceSession, so that switching back needs no new download
-let model = null;      // the selected entry of MODELS
+let session = null;    // the selected model; only one is kept, so that memory does not grow with every model tried
+let model = null;      // its entry of MODELS
 
 // WebGPU only on a real GPU: a software (fallback) adapter is far slower than WebAssembly
 const backend = (async () => {
@@ -35,37 +35,40 @@ function preprocess(bitmap) {
 }
 
 const handlers = {
-  // { model, bytes? }: bytes is the downloaded .onnx file, omitted when the model was loaded before
+  // { model, bytes }: bytes is the downloaded .onnx file
   async load({ model: entry, bytes }) {
     const ep = await backend;
-    if (!sessions[entry.id]) {
-      const session = await ort.InferenceSession.create(bytes, { executionProviders: ep.name === "webgpu" ? ["webgpu", "wasm"] : ["wasm"] });
-      // the first run compiles the GPU shaders, which can take seconds: do it while the model is loading
-      const { size } = entry;
-      await session.run({ image: new ort.Tensor("float32", new Float32Array(3 * size * size), [1, 3, size, size]) });
-      sessions[entry.id] = session;
-    }
+    await session?.release();
+    session = null;
+    session = await ort.InferenceSession.create(bytes, { executionProviders: ep.name === "webgpu" ? ["webgpu", "wasm"] : ["wasm"] });
+    // the first run compiles the GPU shaders, which can take seconds: do it while the model is loading
+    const { size } = entry;
+    await session.run({ image: new ort.Tensor("float32", new Float32Array(3 * size * size), [1, 3, size, size]) });
     model = entry;
     return { backend: ep };
   },
   async run({ bitmap }) {
-    const out = await sessions[model.id].run({ image: preprocess(bitmap) });
+    const out = await session.run({ image: preprocess(bitmap) });
     const [, channels, height, width] = out.features.dims;
     return {
       features: (await out.features.getData()).slice(),       // copies, so that they can be transferred
-      cellLogits: (await out.cell_logits.getData()).slice(),
-      channels, classes: out.cell_logits.dims[1], height, width,
+      cellLogits: out.cell_logits ? (await out.cell_logits.getData()).slice() : null,   // null: no classifier
+      channels, classes: out.cell_logits?.dims[1] ?? 0, height, width,
     };
   },
 };
 
-onmessage = async ({ data }) => {
+async function handle(data) {
   try {
     const result = await handlers[data.type](data);
-    const transfer = result.features ? [result.features.buffer, result.cellLogits.buffer] : [];
+    const transfer = [result.features?.buffer, result.cellLogits?.buffer].filter(Boolean);
     postMessage({ id: data.id, ...result }, transfer);
   } catch (err) {
     console.error(err);
     postMessage({ id: data.id, error: String(err) });
   }
-};
+}
+
+// one request at a time, in the order they arrive: a new model is never loaded during a run
+let queue = Promise.resolve();
+onmessage = ({ data }) => (queue = queue.then(() => handle(data)));
