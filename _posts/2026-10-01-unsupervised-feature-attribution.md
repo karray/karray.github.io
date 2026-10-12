@@ -21,19 +21,19 @@ lafam_results:
   columns: 5
   items:
     - label: Dog and cat
-      src: /assets/img/posts/lafam/figures/images/dog_cat.jpeg
+      src: /assets/img/samples/dog_and_cat.jpg
       overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_dog_cat.png
     - label: Two dogs
-      src: /assets/img/posts/lafam/figures/images/dog_dog.jpeg
+      src: /assets/img/samples/two_dogs.jpg
       overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_dog_dog.png
     - label: Fish and person
-      src: /assets/img/posts/lafam/figures/images/fish_person.png
+      src: /assets/img/samples/fish_and_person.jpg
       overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_fish_person.png
     - label: Spider web
-      src: /assets/img/posts/lafam/figures/images/spider_web.png
+      src: /assets/img/samples/spider_web.jpg
       overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_spider_web.png
     - label: Six objects
-      src: /assets/img/posts/lafam/figures/images/misc.png
+      src: /assets/img/samples/six_objects.jpg
       overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_misc.png
 ---
 
