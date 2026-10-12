@@ -59,27 +59,27 @@
   {
    "id": "dog_cat",
    "label": "Dog and cat",
-   "src": "/assets/img/posts/lafam/figures/images/dog_cat.jpeg"
+   "src": "/assets/img/samples/dog_and_cat.jpg"
   },
   {
    "id": "dog_dog",
    "label": "Two dogs",
-   "src": "/assets/img/posts/lafam/figures/images/dog_dog.jpeg"
+   "src": "/assets/img/samples/two_dogs.jpg"
   },
   {
    "id": "fish_person",
    "label": "Fish and person",
-   "src": "/assets/img/posts/lafam/figures/images/fish_person.png"
+   "src": "/assets/img/samples/fish_and_person.jpg"
   },
   {
    "id": "misc",
    "label": "Six objects",
-   "src": "/assets/img/posts/lafam/figures/images/misc.png"
+   "src": "/assets/img/samples/six_objects.jpg"
   },
   {
    "id": "spider_web",
    "label": "Spider web",
-   "src": "/assets/img/posts/lafam/figures/images/spider_web.png"
+   "src": "/assets/img/samples/spider_web.jpg"
   }
  ],
  "notes": {
