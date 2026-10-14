@@ -19,7 +19,7 @@ Personal blog and portfolio site built with **Jekyll** using the **Minima theme*
 | `_includes/` | Reusable partials (e.g., `comments.html`, `reference.html` for citations) |
 | `_sass/`     | SCSS partials imported via [assets/main.scss](assets/main.scss)           |
 | `_data/`     | JSON data files for reputation widgets and comments storage               |
-| `examples/`  | Standalone HTML demos (LaFAM, StyleGAN) with their own JS/CSS             |
+| `demos/`     | Standalone HTML demos and their landing page (list in `_data/demos.yml`)  |
 | `_plugins/`  | Custom Liquid tags (e.g., `WakaTag.rb` for coding stats)                  |
 
 ## Development Workflow
@@ -71,9 +71,11 @@ The anchor format is: `{lastName}{year}{firstTitleWord}` slugified.
 
 Every page header is rendered by [\_includes/masthead.html](_includes/masthead.html): full height at the top, shrinking to a bar while scrolling down, hidden when scrolling further, shown again when scrolling up. The shrinking is a CSS scroll-driven animation in [\_sass/masthead.scss](_sass/masthead.scss); [assets/js/masthead.js](assets/js/masthead.js) only toggles `.is-docked` and `.is-hidden`. The artwork comes from `_includes/headers/`: `home.html` for the home page, `lights.html` for posts by default, and a post can set its own with `header:` (plus `header_class:` and `styles:`) in its front matter.
 
-## Interactive Demos (`examples/`)
+## Interactive Demos (`demos/`)
 
-The `examples/lafam/` directory contains a browser-based ML demo:
+[demos/index.html](demos/index.html) is the landing page at `/demos/`; it lists the demos from [\_data/demos.yml](_data/demos.yml) (add new demos there). The demos used to live under `/examples/`: those URLs redirect to `/demos/` through `redirect_from` (jekyll-redirect-from) on the landing page, and [demos/legacy/](demos/legacy/) unregisters the service workers old visits registered there.
+
+The `demos/lafam/` directory contains a browser-based ML demo:
 
 - Uses ONNX Runtime (`worker.js`) for model inference
 - Service worker for offline caching

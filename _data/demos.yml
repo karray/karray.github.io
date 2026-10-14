@@ -1,0 +1,30 @@
+# The demos listed on /demos/, in this order. `post` is the file name of a related post in _posts/
+# (optional).
+- title: LaFAM
+  url: /demos/lafam/
+  description: >-
+    Where does a vision model look when nobody tells it what to find? Label-free activation maps
+    answer this for classifiers, self-supervised and CLIP models, on example images, your own
+    pictures or your camera, all computed in your browser.
+  post: 2026-10-01-unsupervised-feature-attribution.md
+
+- title: Region similarity
+  url: /demos/similarity/
+  description: >-
+    Which parts of two images look alike to a vision model? Lines connect the regions whose
+    features match best, for every pair, the regions you select or the one under your pointer.
+
+- title: Latent space browser
+  url: /demos/scv_browser.html
+  description: >-
+    UMAP maps of image features from supervised, self-supervised and CLIP models, pathology
+    foundation models and StyleGAN encoders. Hover over the points to see the images behind them
+    and select clusters to inspect them.
+  post: 2023-01-06-turning-stylegan-into-a-latent-feature-extractor.md
+
+- title: Python in the browser
+  url: /demos/pyodide_repl.html
+  description: >-
+    A small Python console built on Pyodide and WebAssembly. NumPy and other packages load as soon
+    as you import them.
+  post: 2022-07-12-bringing-python-to-the-web.md

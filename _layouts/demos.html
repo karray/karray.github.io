@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang | default: " en" }}">
+
+{%- include head.html -%}
+
+<body>
+  {% include masthead.html art="lights.html" heading=page.title brand="" link_url="/" link_text="Blog" %}
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      {{ content }}
+
+      <ul class="post-list demo-list">
+        {%- for demo in site.data.demos -%}
+        {%- assign post = nil -%}
+        {%- if demo.post -%}
+        {%- assign post_path = "_posts/" | append: demo.post -%}
+        {%- assign post = site.posts | where: "path", post_path | first -%}
+        {%- endif -%}
+        <li>
+          <h3>
+            <a class="post-link" href="{{ demo.url | relative_url }}">{{ demo.title | escape }}</a>
+          </h3>
+          <p>{{ demo.description | escape }}</p>
+          {%- if post %}
+          <p class="post-meta">Read more in <a href="{{ post.url | relative_url }}">{{ post.title | escape }}</a></p>
+          {%- endif %}
+        </li>
+        {%- endfor -%}
+      </ul>
+    </div>
+  </main>
+
+  {%- include footer.html -%}
+</body>
+
+</html>

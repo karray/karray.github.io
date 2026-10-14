@@ -5,7 +5,7 @@
 // add an entry here with the new commit.
 //   inputs: image (RGB in [0, 1], size x size); outputs: features and, for classifiers, cell_logits
 //   classes: the class names of a classifier, null for a model without a classifier
-const IMAGENET_CLASSES = "/examples/models/imagenet_classes.json";
+const IMAGENET_CLASSES = "/demos/models/imagenet_classes.json";
 const MODEL_FILES = "https://huggingface.co/karay/demo-models/resolve/9ae07a86944dce671bd8d4135081f2b92e0e53d9/";
 
 const MODEL_GROUPS = {

@@ -34,6 +34,12 @@ plugins:
   - jekyll-feed
   - jekyll-target-blank
   - jekyll-sitemap
+  - jekyll-redirect-from
+
+# The pages linked in the navigation bar (otherwise every page with a title, demos included)
+header_pages:
+  - about.markdown
+  - demos/index.html
 
 kramdown:
   math_engine: mathjax

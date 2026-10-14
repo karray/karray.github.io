@@ -1,8 +1,8 @@
-// Offline support for all demos under /examples/. Large files (the models on Hugging Face, videos) are
+// Offline support for all demos under /demos/. Large files (the models on Hugging Face, videos) are
 // cached on first use and then served from the cache, once for the whole site: a changed large file
 // needs a new URL. Everything else is fetched from the network first, so changes to the pages reach
 // visitors immediately, and served from the cache when offline.
-const CACHE_NAME = "examples-v1";
+const CACHE_NAME = "demos-v1";
 const LARGE = /\.(onnx|mp4)$/;
 
 self.addEventListener("install", () => self.skipWaiting());

@@ -1,4 +1,4 @@
-// Runs the models of examples/models/models.js for any demo, in a worker (worker.js), one model at
+// Runs the models of demos/models/models.js for any demo, in a worker (worker.js), one model at
 // a time. A model is downloaded when it is selected; the service worker caches the downloads for the
 // whole site, so selecting it again reads it from the cache.
 //
@@ -6,7 +6,7 @@
 //   const { features, cellLogits, channels, classes, height, width } = await runModel(bitmap);
 //   fillModelMenu(select);   // the models as <option>s, grouped by how they were trained
 
-const inferenceWorker = new Worker("/examples/js/worker.js", { type: "module" });
+const inferenceWorker = new Worker("/demos/js/worker.js", { type: "module" });
 const pendingCalls = new Map();
 let nextCallId = 0;
 
@@ -67,5 +67,5 @@ function fillModelMenu(select) {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/examples/service-worker.js").catch((err) => console.warn("Service worker:", err));
+  navigator.serviceWorker.register("/demos/service-worker.js").catch((err) => console.warn("Service worker:", err));
 }

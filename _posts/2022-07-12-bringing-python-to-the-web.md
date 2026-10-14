@@ -22,7 +22,7 @@ Take a look at this REPL example:
 {% include alert.html type='info' title='Note' message='This guide has been updated to Pyodide v0.21.3.' %}
 
 
-Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide). You can also open the [pyodide_repl.html](/examples/pyodide_repl.html){:target='_blank'} ([source code](https://github.com/karray/karray.github.io/blob/master/examples/pyodide_repl.html)) example in a new tab.
+Witchcraft! This is made possible by [WebAssembly](https://webassembly.org/) (Wasm) and the [Pyodide project](https://github.com/iodide-project/pyodide). You can also open the [pyodide_repl.html](/demos/pyodide_repl.html){:target='_blank'} ([source code](https://github.com/karray/karray.github.io/blob/master/demos/pyodide_repl.html)) example in a new tab.
 
 So what can we actually do? Spoiler: With the power of Python and JS, we can do almost anything. But before getting into the details, let me first tell you a little story behind this writing.
 
@@ -127,7 +127,7 @@ Okay, but how can we use all of this? In fact, we can replace JS and use Python 
 
 The JS scope can be accessed from Python through the `js` module. This module gives us access to the global object `window` and allows us to directly manipulate the DOM and access global variables and functions from Python. In other words, `js` is an alias for `window`, so we can either use `window` by importing it `from the js import window` or just use `js` directly.
 
-Why not try it yourself? You can either try it out in the live demo above or open the [demo](https://karay.me/examples/pyodide_repl.html) in a new tab.
+Why not try it yourself? You can either try it out in the live demo above or open the [demo](https://karay.me/demos/pyodide_repl.html) in a new tab.
 
 <!-- **Please be aware that execution of the code may take a while and the UI thread will be blocked until all packages have been downloaded.** -->
 
@@ -282,7 +282,7 @@ Detailed information on how to install and build packages can be found [here](ht
 
 # **Advanced example**
 
-Finally, let's look at the last example. Here we will create a plot using `matplotlib` and display it a the page. You can reproduce the result by running the following code on the [demo page](https://karay.me/examples/pyodide_repl.html).
+Finally, let's look at the last example. Here we will create a plot using `matplotlib` and display it a the page. You can reproduce the result by running the following code on the [demo page](https://karay.me/demos/pyodide_repl.html).
 
 First, we import all necessary modules. Since this will load a bunch of dependencies, the import will take a few minutes. The download progress can be seen in the browser console.
 
