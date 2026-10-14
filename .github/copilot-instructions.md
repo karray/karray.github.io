@@ -73,7 +73,7 @@ Every page header is rendered by [\_includes/masthead.html](_includes/masthead.h
 
 ## Interactive Demos (`demos/`)
 
-[demos/index.html](demos/index.html) is the landing page at `/demos/`; it lists the demos from [\_data/demos.yml](_data/demos.yml) (add new demos there). The demos used to live under `/examples/`: those URLs redirect to `/demos/` through `redirect_from` (jekyll-redirect-from) on the landing page, and [demos/legacy/](demos/legacy/) unregisters the service workers old visits registered there.
+[demos/index.html](demos/index.html) is the landing page at `/demos/`; it lists the demos from [\_data/demos.yml](_data/demos.yml) (add new demos there). The demos used to live under `/examples/`: those URLs redirect to `/demos/` through `redirect_from` (jekyll-redirect-from) on the landing page.
 
 The `demos/lafam/` directory contains a browser-based ML demo:
 
