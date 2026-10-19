@@ -10,8 +10,8 @@ stylesheet and dark for dark artwork.
     {%- if kind == "post" %}<span class="ttl">{{ include.title | escape }}</span>{% endif %}
     <nav class="navpill">
       <a class="about" href="{{ '/about/' | relative_url }}">About</a>
-      <button class="theme-toggle" type="button" aria-label="Switch theme">
-        <span class="tt-dark">{% include icon.html id="moon" size=18 %}</span><span class="tt-light">{% include icon.html id="sun" size=18 %}</span>
+      <button class="theme-toggle" type="button" aria-label="Theme">
+        <span class="tt-auto">{% include icon.html id="auto" size=18 %}</span><span class="tt-light">{% include icon.html id="sun" size=18 %}</span><span class="tt-dark">{% include icon.html id="moon" size=18 %}</span>
       </button>
     </nav>
   </div>

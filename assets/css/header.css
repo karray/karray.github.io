@@ -75,8 +75,8 @@
 .hd:not(.home) { --h: max(36vh, 320px); }
 .hd-art ~ .hd-text { pointer-events: none; }
 .hd-art ~ .hd-text a { pointer-events: auto; }
-.theme-toggle .tt-light, :root[data-theme="dark"] .theme-toggle .tt-dark { display: none; }
-:root[data-theme="dark"] .theme-toggle .tt-light { display: contents; }
+.theme-toggle > span { display: none; }
+:root[data-mode="auto"] .tt-auto, :root[data-mode="light"] .tt-light, :root[data-mode="dark"] .tt-dark { display: contents; }
 
 @media (max-width: 860px) {
   :root { --pad: 20px; --bar: 54px; --nh: 40px; --k: calc(18 / 40); }

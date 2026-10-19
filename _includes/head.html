@@ -1,10 +1,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>
-    (() => { let t; try { t = localStorage.getItem("theme"); } catch {}
-      document.documentElement.dataset.theme = t ? (t === "dark-mode" ? "dark" : "light") : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; })();
-  </script>
+  <script src="{{ '/assets/js/theme.js' | relative_url }}"></script>
   {%- seo -%}
   <link rel="preload" href="{{ '/assets/fonts/newsreader-latin.woff2' | relative_url }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ '/assets/fonts/figtree-latin.woff2' | relative_url }}" as="font" type="font/woff2" crossorigin>

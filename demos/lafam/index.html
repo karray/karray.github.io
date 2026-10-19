@@ -15,6 +15,7 @@ image:
 
 <head>
     <meta charset="utf-8">
+    <script src="{{ '/assets/js/theme.js' | relative_url }}"></script>
     <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% seo %}
@@ -24,10 +25,8 @@ image:
 </head>
 
 <body>
-    <script src="../js/theme.js"></script>
 
     <section id="main-section" class="main-section paused">
-        <!-- Canvas Area -->
         <div class="canvas-block" id="canvas-area">
             <div class="canvas-wrapper">
                 <div id="loading-indicator" class="loading">
@@ -42,7 +41,6 @@ image:
         </div>
 
         <div class="record-block">
-            <!-- Controls -->
             <div class="card" id="control-panel">
                 <div class="button-group">
                     <button id="start-button" class="btn" disabled title="Play/Pause the video or camera"
@@ -54,43 +52,35 @@ image:
                         aria-label="Use the camera, or switch to the next camera">
                         <img src="assets/images/switch-camera.svg" class="icon" alt="Switch camera icon" />
                     </button>
-                    <!-- Slim Split-Button for Upload & Presets -->
                     <div class="btn upload-split-group" id="upload-group">
-                        <!-- Left: Upload Trigger -->
                         <div id="upload-button" class="split-action" title="Upload Image or Video"
                             aria-label="Upload an image or video from your device">
                             <img src="assets/images/upload.svg" class="icon" alt="Upload icon" />
                         </div>
                         <input type="file" id="upload-input" accept="image/*,video/*" style="display: none;">
 
-                        <!-- Divider -->
                         <div class="split-divider"></div>
 
-                        <!-- Right: Preset Dropdown -->
                         <div class="split-action relative" title="Select Preset">
-                            <!-- Visual Arrow -->
                             <svg class="icon" viewBox="0 0 24 24">
                                 <path d="M7 10l5 5 5-5z" />
                             </svg>
-                            <!-- Invisible Select sitting on top -->
                             <select id="predefined-files" class="invisible-select lafam-select">
-                                <option value="" disabled selected hidden></option> <!-- Empty Selection -->
                                 <option value="assets/videos/dog_on_a_beach.mp4">🎥 Dog on a beach</option>
                             </select>
                         </div>
                     </div>
 
-                    <button id="theme-toggle-button" class="btn" title="Toggle Theme"
-                        aria-label="Toggle between light and dark theme">
-                        <!-- Moon Icon (Visible in Light Mode) -->
+                    <button id="theme-toggle-button" class="theme-toggle btn" title="Theme"
+                        aria-label="Theme">
                         <svg class="icon moon-icon" viewBox="0 0 24 24">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                         </svg>
-                        <!-- Sun Icon (Visible in Dark Mode) -->
                         <svg class="icon sun-icon" viewBox="0 0 24 24">
                             <path
                                 d="M6.995 12c0 2.761 2.246 5.007 5.007 5.007s5.007-2.246 5.007-5.007-2.246-5.007-5.007-5.007S6.995 9.239 6.995 12zM11 19h2v3h-2zm0-17h2v3h-2zm-9 9h3v2h-3zm17 0h3v2h-3zM5.637 19.778l-1.414-1.414 2.121-2.121 1.414 1.414zM16.242 6.344l2.122-2.122 1.414 1.414-2.122 2.122zM6.344 7.759 4.223 5.637l1.415-1.414 2.12 2.122zM19.07 18.365l1.414 1.414-2.122 2.122-1.414-1.414z" />
                         </svg>
+                        <svg class="icon auto-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20a10 10 0 0 1 0-20Zm0 2a8 8 0 0 0 0 16Z"/></svg>
                     </button>
 
                     <button id="help-button" class="btn help" title="Start Tutorial"
