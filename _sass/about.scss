@@ -1,19 +1,24 @@
+.waka {
+  container-type: inline-size;
+}
+
+// one line per row on any width: the text keeps a readable size and the 40-character bar shrinks into
+// what is left (monospace characters are 0.6em wide; name and percent take about 19 of them)
 #waka {
-  font-size: 18px;
+  --f: clamp(12px, calc(100cqw / 35), 18px);
+  font: var(--f)/1.5 ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
   border: none;
   width: initial;
+  white-space: nowrap;
 
   td {
     border: none;
     padding: 0;
+    vertical-align: middle;
 
-    &:nth-child(2) {
-      padding: 0 15px;
-    }
-
-    &:first-child, &:last-child {
-      white-space: nowrap;
-    }
+    &:first-child { padding-right: 1ch; }
+    &:last-child { padding-left: 1ch; }
+    &:nth-child(2) { font-size: clamp(4px, calc((100cqw - 19 * .6 * var(--f)) / 24.5), var(--f)); }
   }
 }
 
@@ -69,6 +74,10 @@
     border-bottom: 2px solid var(--accent);
     padding-bottom: 10px;
     margin-bottom: 20px;
+  }
+
+  @media (max-width: 600px) {
+    padding: 20px;
   }
 }
 
