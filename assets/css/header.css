@@ -1,0 +1,98 @@
+/* --nh: the name's size, --k: its scale once docked */
+:root { --pad: 32px; --navw: 124px; --bar: 60px; --nh: 59px; --k: calc(19 / 59); }
+.col { width: min(720px, 100% - 2 * var(--pad)); margin: 0 auto; }
+
+.hd-bar { pointer-events: none; position: sticky; z-index: 20; top: 0; height: var(--bar); margin-bottom: calc(-1 * var(--bar)); color: var(--ink); transition: transform .3s; }
+:is(.hd-bar, .hd).is-hidden { transform: translateY(calc(-1 * var(--bar) - 1rem)); }
+/* the toolbar lets clicks through to the docked links beneath it, except on its own contents */
+.hd-bar > div { position: absolute; inset: 0; display: flex; align-items: center; pointer-events: none; }
+.hd-bar .col { gap: 14px; }
+.brand { font: 400 19px/1 var(--serif); color: var(--ink); text-decoration: none; white-space: nowrap; pointer-events: auto; }
+.ttl { font: 400 15px/1 var(--serif); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); opacity: 0; transition: opacity .25s; }
+.hd-bar .brand { opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
+.is-docked :is(.ttl, .brand) { opacity: 1; visibility: visible; }
+.navpill { box-sizing: border-box; margin-left: auto; flex: none; pointer-events: auto; width: var(--navw); justify-content: flex-end; display: flex; align-items: center; gap: 4px; padding: 3px 3px 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--head) 88%, transparent); }
+.navpill a { display: grid; place-items: center; height: 34px; min-width: 34px; border-radius: 999px; color: var(--muted); text-decoration: none; font: 500 15px/1 var(--sans); }
+.navpill a:hover { color: var(--accent); }
+.navpill .about { padding: 0 10px; }
+.theme-toggle { all: unset; cursor: pointer; display: grid; place-items: center; width: 36px; height: 36px; margin-left: 4px; border-radius: 50%; color: var(--ink); border: 1px solid var(--line); }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+
+.hd { --h: max(33.3vh, 260px); container-type: inline-size; position: sticky; z-index: 19; top: calc(var(--bar) - var(--h)); height: var(--h); overflow: clip; background: var(--head); color: var(--ink); border-bottom: 1px solid var(--line); transition: transform .3s; }
+.hd.is-docked { box-shadow: 0 10px 30px -22px rgba(40, 20, 10, .55); }
+.hd .fx { position: absolute; left: 0; top: 0; image-rendering: pixelated; --fx-ink: #d4a489; --fx-ink2: #dbbd84; --fx-mid: #d6cfc3; }
+:root[data-theme="dark"] .hd .fx { --fx-ink: #684430; --fx-ink2: #69552e; --fx-mid: #3a3632; }
+.hd-text { position: relative; height: 100%; --top: calc((var(--bar) + var(--h)) / 2 - 40px); }
+.kicker { font: 600 12.5px/1.4 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0; }
+.hd :is(.kicker, .hd-name, h1, .meta) { text-shadow: 0 0 2px var(--head), 0 0 6px var(--head), 0 0 12px var(--head); }
+.home .hd-name { position: absolute; z-index: 21; left: 0; top: var(--top); font: 400 var(--nh)/1 var(--serif); letter-spacing: -.02em; color: var(--ink); text-decoration: none; white-space: nowrap;
+  transform-origin: 0 50%; }
+.home .kicker { position: absolute; left: 0; top: calc(var(--top) - 32px); }
+/* Each link has a fixed width --w at a known offset --x (set with the link), so CSS can compute
+   where its icon docks; docking only moves and fades, so the GPU does it without repainting. */
+.hd-links { --ip: 12px; --step: 36px; pointer-events: none; position: absolute; z-index: 21; left: 0; top: calc(var(--top) + var(--nh) + 20px); display: flex; gap: 8px; }
+.hd-links a { pointer-events: auto; position: relative; display: flex; align-items: center; gap: 8px; width: var(--w); height: 32px; padding-left: var(--ip); box-sizing: border-box; color: var(--ink); text-decoration: none; font: 500 14.5px/1 var(--sans); white-space: nowrap; }
+.hd-links a::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--head) 80%, transparent); }
+.hd-links a:hover { color: var(--accent); }
+.hd-links .ico { display: grid; place-items: center; width: 17px; height: 17px; }
+.hd:not(.home) .hd-text { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding-top: var(--bar); }
+.hd:not(.home) h1 { font: 400 clamp(32px, 3.7vw, 51px)/1.05 var(--serif); letter-spacing: -.02em; margin: 0; max-width: 15em; text-wrap: balance; }
+.hd:not(.home) .meta { font: 500 14px/1 var(--sans); color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+.hd-art { position: absolute; inset: 0; }
+.hd-art::after { pointer-events: none; content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7, 4, 13, .7), rgba(7, 4, 13, .2) 45%, rgba(7, 4, 13, .88)); }
+.on-art { --ink: #f6f1ff; --muted: #d4c8e2; --line: rgba(255, 255, 255, .24); --head: #07040d; --accent: #f9c46b; }
+
+.home .hd-name { --dy: calc(var(--h) / 2 - var(--bar) + 40px - var(--nh) / 2); }
+.home .hd-links { --dy: calc(var(--h) / 2 - var(--bar) + 4px - var(--nh)); }
+/* to its toolbar slot: --step apart, the last 14px left of the About group, which ends with the
+   column (its width from the header's, 100cqw) */
+.home .hd-links a { --dx: calc(min(720px, 100cqw - 2 * var(--pad)) - var(--navw) - 14px - 17px - (var(--n) - 1 - var(--i)) * var(--step) - var(--x) - var(--ip)); }
+@keyframes name-y { to { translate: 0 var(--dy); } }
+@keyframes name-scale { to { scale: var(--k); } }
+@keyframes links-y { to { translate: 0 var(--dy); } }
+@keyframes link-x { to { transform: translateX(var(--dx)); } }
+@keyframes fade-out { to { opacity: 0; } }
+@supports (animation-timeline: scroll()) {
+  .home .hd-name { animation: name-y linear both, name-scale cubic-bezier(.3, .7, .4, 1) both; animation-timeline: scroll(root); animation-range: 0 calc(var(--h) - var(--bar)); }
+  .home .hd-links { animation: links-y linear both; animation-timeline: scroll(root); animation-range: 0 calc(var(--h) - var(--bar)); }
+  .home .hd-links a { animation: link-x cubic-bezier(.3, .7, .4, 1) both; animation-timeline: scroll(root); animation-range: 0 calc(var(--h) - var(--bar)); }
+  .home .hd-links a::before, .home .hd-links .lbl { animation: fade-out linear both; animation-timeline: scroll(root); animation-range: 0 calc((var(--h) - var(--bar)) * .22); }
+  .home .kicker { animation: fade-out linear both; animation-timeline: scroll(root); animation-range: 0 calc((var(--h) - var(--bar)) * .3); }
+  .hd:not(.home) .hd-text { animation: fade-out linear both; animation-timeline: scroll(root); animation-range: 0 calc((var(--h) - var(--bar)) * .7); }
+}
+/* no scroll-driven animations (Firefox): slide into place once docked */
+@supports not (animation-timeline: scroll()) {
+  .home :is(.hd-name, .hd-links, .hd-links a) { transition: translate .35s, scale .35s, transform .35s; }
+  .home :is(.kicker, .hd-links .lbl), .home .hd-links a::before { transition: opacity .2s; }
+  .hd.is-docked .hd-name { translate: 0 var(--dy); scale: var(--k); }
+  .hd.is-docked .hd-links { translate: 0 var(--dy); }
+  .hd.is-docked .hd-links a { transform: translateX(var(--dx)); }
+  .hd.is-docked :is(.kicker, .hd-links .lbl), .hd.is-docked .hd-links a::before { opacity: 0; }
+  .hd:not(.home) .hd-text { transition: opacity .2s; }
+  .hd:not(.home).is-docked .hd-text { opacity: 0; }
+}
+.hd-bar.home .brand { display: none; }
+.hd:not(.home) { --h: max(36vh, 320px); }
+.hd-art ~ .hd-text { pointer-events: none; }
+.hd-art ~ .hd-text a { pointer-events: auto; }
+.theme-toggle .tt-light, :root[data-theme="dark"] .theme-toggle .tt-dark { display: none; }
+:root[data-theme="dark"] .theme-toggle .tt-light { display: contents; }
+
+@media (max-width: 860px) {
+  :root { --pad: 20px; --bar: 54px; --nh: 40px; --k: calc(18 / 40); }
+  .brand { font-size: 18px; }
+  .hd-links { --ip: 8px; }
+  .hd-links a { --w: 34px !important; --x: calc(var(--i) * 42px) !important; }
+  .hd-links .lbl { display: none; }
+}
+.hd-art { transition: opacity .25s; }
+.hd.is-docked .hd-art { opacity: 0; }
+.hd-bar.on-art > div { transition: opacity .25s, visibility .25s; }
+.hd-bar.on-art:not(.is-docked) > div { opacity: 0; visibility: hidden; }
+/* a post's own artwork and title stay centred in the shrinking header */
+@keyframes hd-follow { to { translate: 0 calc((var(--h) - var(--bar)) / 2); } }
+@supports (animation-timeline: scroll()) {
+  .hd:not(.home) .hd-art, .hd:not(.home) .hd-art ~ .hd-text { animation: hd-follow linear both; animation-timeline: scroll(root); animation-range: 0 calc(var(--h) - var(--bar)); }
+}
+.hd:not(.home) .hd-art ~ .hd-text { transition: opacity .25s; }
+.hd.is-docked .hd-art ~ .hd-text { opacity: 0; }

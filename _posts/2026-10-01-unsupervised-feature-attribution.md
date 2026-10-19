@@ -5,6 +5,7 @@ styles:
   - /assets/css/posts/lafam-header.css
 header: lafam.html
 header_class: lafam-header
+header_dark: true
 title: What Does a Vision Model See Without Labels?
 date: 2026-10-01 11:40:00 +0200
 tags: XAI, CNN, ViT, Foundation Models, Self-Supervised Learning

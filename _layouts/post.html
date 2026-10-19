@@ -1,39 +1,34 @@
 <!DOCTYPE html>
-<html lang="{{ page.lang | default: site.lang | default: " en" }}">
-
-{%- include head.html -%}
-
+<html lang="{{ page.lang | default: site.lang | default: "en" }}">
+{%- include head.html %}
 <body itemscope itemtype="http://schema.org/BlogPosting">
+  {%- assign date_format = site.minima.date_format | default: "%-d %B %Y" -%}
+  {%- capture meta -%}
+  <span itemprop="author" itemscope itemtype="http://schema.org/Person"><span class="p-author h-card" itemprop="name">Aray Karjauv</span></span>
+  <span>·</span><time class="dt-published" datetime="{{ page.date | date_to_xmlschema }}" itemprop="datePublished">{{ page.date | date: date_format }}</time>
+  <span>·</span><span>{{ content | strip_html | number_of_words | divided_by: 220 | at_least: 1 }} min read</span>
+  {%- endcapture -%}
 
-  {%- assign header_art = page.header | default: "lights.html" %}
-  {% include masthead.html art=header_art class=page.header_class heading=page.title brand="" %}
-
+  {%- if page.header %}
+  {% include masthead.html kind="post" title=page.title art=page.header class=page.header_class dark=page.header_dark %}
+  {%- else %}
+  {%- assign kicker = page.tags | slice: 0, 3 | join: " · " | remove: "," | replace: "-", " " %}
+  {% include masthead.html kind="post" title=page.title kicker=kicker meta=meta %}
+  {%- endif %}
   <main class="page-content" aria-label="Content">
     <div class="wrapper">
-      <p class="post-meta">
-        <time class="dt-published" datetime="{{ page.date | date_to_xmlschema }}" itemprop="datePublished">
-          {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
-          {{ page.date | date: date_format }}
-        </time>
-        • <span itemprop="author" itemscope itemtype="http://schema.org/Person"><span class="p-author h-card"
-            itemprop="name">Aray Karjauv</span></span>
-      </p>
+      {%- if page.header %}
+      <p class="post-meta">{{ meta }}</p>
+      {%- endif %}
       <article class="post h-entry">
-
-
-
         <div class="post-content e-content" itemprop="articleBody">
           {{ content }}
         </div>
-
         <a class="u-url" href="{{ page.url | relative_url }}" hidden></a>
       </article>
-
     </div>
   </main>
-
-  {%- include footer.html -%}
-
+  {%- include footer.html %}
   <script src="{{ '/assets/js/posts.js' | relative_url }}"></script>
   <script src="{{ '/assets/js/code-blocks.js' | relative_url }}"></script>
   <script type="text/x-mathjax-config">
@@ -47,5 +42,4 @@
   </script>
   <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
 </body>
-
 </html>
