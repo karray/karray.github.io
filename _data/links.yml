@@ -1,0 +1,14 @@
+# The links under the name on the home page. w: the button's width in px (its icon and label plus
+# 28px); the header's CSS needs it to dock the icon, so change it with the label.
+- id: github
+  label: GitHub
+  url: https://github.com/karray
+  w: 102
+- id: scholar
+  label: Google Scholar
+  url: https://scholar.google.com/citations?hl=en&user=jRde2vMAAAAJ
+  w: 155
+- id: linkedin
+  label: LinkedIn
+  url: https://www.linkedin.com/in/Aray-Karjauv
+  w: 109

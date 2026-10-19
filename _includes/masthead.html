@@ -1,25 +1,43 @@
-<header id="masthead" class="masthead{% if include.class %} {{ include.class }}{% endif %}" data-masthead>
-  <div class="masthead__hero">
-    {% include headers/{{ include.art }} %}
-    {%- if include.heading %}
-    <div class="wrapper masthead__heading">
-      <h1 class="p-name" itemprop="name headline">{{ include.heading | escape }}</h1>
-    </div>
-    {%- endif %}
+{%- comment -%}
+kind: home, post or page. art: an include in headers/ that replaces the dunes, with class for its
+stylesheet and dark for dark artwork.
+{%- endcomment -%}
+{%- assign kind = include.kind | default: "page" -%}
+{%- assign dark = include.dark | default: false -%}
+<div class="hd-bar {{ kind }}{% if dark %} on-art{% endif %}">
+  <div class="col">
+    <a class="brand" href="{{ '/' | relative_url }}">{{ site.title | escape }}</a>
+    {%- if kind == "post" %}<span class="ttl">{{ include.title | escape }}</span>{% endif %}
+    <nav class="navpill">
+      <a class="about" href="{{ '/about/' | relative_url }}">About</a>
+      <button class="theme-toggle" type="button" aria-label="Switch theme">
+        <span class="tt-dark">{% include icon.html id="moon" size=18 %}</span><span class="tt-light">{% include icon.html id="sun" size=18 %}</span>
+      </button>
+    </nav>
   </div>
-  <div class="masthead__bar">
-    <div class="wrapper masthead__bar-inner">
-      <a class="masthead__avatar" href="{{ '/' | relative_url }}">
-        <img src="{{ '/assets/img/me.jpg' | relative_url }}" alt="Aray Karjauv">
-      </a>
-      <span class="masthead__brand">{{ include.brand }}</span>
-      {%- if include.heading %}
-      <span class="masthead__title" aria-hidden="true">{{ include.heading | escape }}</span>
-      {%- endif %}
-      {%- if include.link_url %}
-      <a class="masthead__link" href="{{ include.link_url | relative_url }}">{{ include.link_text }}</a>
-      {%- endif %}
+</div>
+<header class="hd {{ kind }}{% if include.class %} {{ include.class }}{% endif %}{% if dark %} on-art{% endif %}">
+  {%- if include.art %}
+  <div class="hd-art">{% include headers/{{ include.art }} %}</div>
+  {%- else %}
+  <canvas class="fx" aria-hidden="true"></canvas>
+  {%- endif %}
+  <div class="col hd-text">
+    {%- if kind == "home" %}
+    <p class="kicker">{{ include.role }}</p>
+    <a class="hd-name" href="{{ '/' | relative_url }}">{{ site.title | escape }}</a>
+    <div class="hd-links" style="--n: {{ site.data.links.size }}">
+      {%- assign x = 0 -%}
+      {%- for l in site.data.links %}
+      <a href="{{ l.url }}" title="{{ l.label }}" style="--i: {{ forloop.index0 }}; --w: {{ l.w }}px; --x: {{ x }}px"><span class="ico">{% include icon.html id=l.id size=16 %}</span><span class="lbl">{{ l.label }}</span></a>
+      {%- assign x = x | plus: l.w | plus: 8 -%}
+      {%- endfor %}
     </div>
+    {%- else %}
+    {%- if include.kicker %}<p class="kicker">{{ include.kicker }}</p>{% endif %}
+    <h1 itemprop="name headline">{{ include.title | escape }}</h1>
+    {%- if include.meta %}<div class="meta">{{ include.meta }}</div>{% endif %}
+    {%- endif %}
   </div>
 </header>
 <script src="{{ '/assets/js/masthead.js' | relative_url }}"></script>
