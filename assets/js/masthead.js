@@ -124,11 +124,4 @@
   addEventListener("resize", resize);
   document.fonts.ready.then(resize);
   resize(); onScroll();
-
-  // the stored value is shared with demos/js/theme.js
-  bar_.querySelector(".theme-toggle").addEventListener("click", () => {
-    const dark = root.dataset.theme !== "dark";
-    root.dataset.theme = dark ? "dark" : "light";
-    try { localStorage.setItem("theme", dark ? "dark-mode" : "light-mode"); } catch {}
-  });
 })();
