@@ -10,13 +10,15 @@
   const ss = (a, b, x) => { x = Math.min(1, Math.max(0, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
   const rgb = (s) => { const n = parseInt(s.trim().slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let cols, rows, cp, W, H, bar, band, colSide, colour, crest, img, p = 0, lastY = scrollY, travel = 0;
+  let cols, rows, cp, W, H, bar, colSide, colour, crest, img, p = 0, lastY = scrollY, travel = 0;
   // the warp follows the pointer (tx, ty) and eases to strength ta
   const ptr = { x: 0, y: 0, tx: 0, ty: 0, a: 0, ta: 0 }, AMP = 24, SIGMA = 70, GLOW = 0.45;
   let raf = 0;
 
   function size() {
     bar = parseFloat(getComputedStyle(root).getPropertyValue("--bar")); H = hero.clientHeight;
+    // a header that fits its text (a post's title can wrap) tells the CSS its height
+    if (hero.classList.contains("fit")) hero.style.setProperty("--h", H + "px");
     if (!canvas) return;
     const dpr = devicePixelRatio || 1;
     cp = Math.max(1, Math.round(CELL * dpr)) / dpr;
@@ -25,13 +27,14 @@
     canvas.width = cols; canvas.height = rows;
     canvas.style.width = cols * cp + "px"; canvas.style.height = rows * cp + "px";
     img = ctx.createImageData(cols, rows);
-    const half = Math.min(720, W - 64) / 2 + 40, top = hero.querySelector(".hd-text > *");
-    band = W < 860 && top ? top.offsetTop - 12 : 0;
+    // narrower headers get narrower dunes, so a phone still shows whole ones; the dunes are grey and
+    // sparse in the middle, about the text column wide on a wide screen and 60% of a narrow one
+    const sx = Math.sqrt(1440 / W), grey = Math.min(290, W * 0.3);
     colSide = new Float32Array(cols); crest = new Float32Array(RIDGES.length * cols);
     for (let x = 0; x < cols; x++) {
-      const px = (x + 0.5) * cp, out = band ? 1 : ss(half * 0.7, half + 220, Math.abs(px - W / 2));
-      colSide[x] = out;
-      RIDGES.forEach(([base, amp, f, ph], k) => (crest[k * cols + x] = H * base - amp * (1 + Math.sin(px * f + ph)) - 10 * Math.sin(px * f * 2.7 + ph)));
+      const px = (x + 0.5) * cp, qx = px * sx;
+      colSide[x] = ss(grey, grey + Math.min(330, W * 0.2), Math.abs(px - W / 2));
+      RIDGES.forEach(([base, amp, f, ph], k) => (crest[k * cols + x] = H * base - amp * (1 + Math.sin(qx * f + ph)) - 10 * Math.sin(qx * f * 2.7 + ph)));
     }
     colours();
   }
@@ -40,7 +43,7 @@
     const cs = getComputedStyle(canvas), a = rgb(cs.getPropertyValue("--fx-ink")), z = rgb(cs.getPropertyValue("--fx-ink2")), g = rgb(cs.getPropertyValue("--fx-mid"));
     colour = new Uint8ClampedArray(cols * 3);
     for (let x = 0; x < cols; x++) {
-      const px = (x + 0.5) * cp, t = Math.min(1, Math.min(px, W - px) / Math.max(1, (W - Math.min(720, W - 64)) / 2)), m = band ? 0 : 1 - colSide[x];
+      const px = (x + 0.5) * cp, t = Math.min(1, Math.min(px, W - px) / (W * 0.25)), m = 1 - colSide[x];
       for (let c = 0; c < 3; c++) { const e = a[c] + (z[c] - a[c]) * t; colour[x * 3 + c] = e + (g[c] - e) * m; }
     }
   }
@@ -51,7 +54,7 @@
   function draw(patch) {
     if (!canvas) return;
     const { x0, x1, y0, y1 } = reach(), S2 = 2 * SIGMA * SIGMA, warp = ptr.a;
-    const d = img.data, fade = (1 - p) ** 1.3, shift = Math.round((p * (H - bar)) / 2 / cp), squeeze = band ? H / band : 1;
+    const d = img.data, fade = (1 - p) ** 1.3, shift = Math.round((p * (H - bar)) / 2 / cp);
     const c0 = patch ? Math.max(0, Math.floor(patch.x0 / cp)) : 0, c1 = patch ? Math.min(cols, Math.ceil(patch.x1 / cp)) : cols;
     const r0 = patch ? Math.max(0, Math.floor(patch.y0 / cp)) : 0, r1 = patch ? Math.min(rows, Math.ceil(patch.y1 / cp)) : rows;
     if (c0 >= c1 || r0 >= r1) return;
@@ -59,7 +62,7 @@
     if (fade > 0.01)
       for (let y = r0 - shift; y < r1 - shift; y++) {
         if (y < 0) continue;
-        const py = (y + 0.5) * cp * squeeze, rs = (band ? ss(band, band - 30, (y + 0.5) * cp) : 1) * fade, yy = y + shift;
+        const py = (y + 0.5) * cp, rs = fade, yy = y + shift;
         if (rs <= 0 || yy >= rows) continue;
         for (let x = c0; x < c1; x++) {
           let glow = 0;

@@ -13,10 +13,20 @@ stylesheet and dark for dark artwork.
       <button class="theme-toggle" type="button" aria-label="Theme">
         <span class="tt-auto">{% include icon.html id="auto" size=18 %}</span><span class="tt-light">{% include icon.html id="sun" size=18 %}</span><span class="tt-dark">{% include icon.html id="moon" size=18 %}</span>
       </button>
+      <button class="menu-btn" type="button" popovertarget="site-menu" aria-label="Menu">{% include icon.html id="dots" size=18 %}</button>
     </nav>
+    <div class="menu" id="site-menu" popover>
+      <a href="{{ '/about/' | relative_url }}">About</a>
+      {%- for l in site.data.links %}
+      <a href="{{ l.url }}">{% include icon.html id=l.id size=16 %}{{ l.label }}</a>
+      {%- endfor %}
+      <button class="theme-toggle" type="button" aria-label="Theme">
+        <span class="tt-auto">{% include icon.html id="auto" size=16 %}Theme: auto</span><span class="tt-light">{% include icon.html id="sun" size=16 %}Theme: light</span><span class="tt-dark">{% include icon.html id="moon" size=16 %}Theme: dark</span>
+      </button>
+    </div>
   </div>
 </div>
-<header class="hd {{ kind }}{% if include.class %} {{ include.class }}{% endif %}{% if dark %} on-art{% endif %}">
+<header class="hd {{ kind }}{% if kind != "home" and include.art == nil %} fit{% endif %}{% if include.class %} {{ include.class }}{% endif %}{% if dark %} on-art{% endif %}">
   {%- if include.art %}
   <div class="hd-art">{% include headers/{{ include.art }} %}</div>
   {%- else %}
