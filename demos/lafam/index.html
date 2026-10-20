@@ -100,6 +100,7 @@ image:
                     <select id="palette-select" class="lafam-select">
                     </select>
                 </div>
+                <p id="model-note" class="model-note" hidden></p>
                 <div id="slider-container">
                     <div class="slider-label">
                         <label for="heatmap-opacity">Heatmap Opacity</label>
@@ -179,7 +180,19 @@ image:
             step, its answer can be read for every region, and the average of these answers is exactly its prediction.
             This shows where it sees each class (CAM, class activation map) and lets it find several objects in one
             image (<a href="https://arxiv.org/abs/2606.14555" target="_blank" rel="noopener">Karjauv, 2026</a>).</p>
+        <p>Models with another pooling, such as CLIP (attention pooling or a class token), give their own
+            prediction; their regions are each classified on their own, as in MaskCLIP (<a
+                href="https://arxiv.org/abs/2112.01071" target="_blank" rel="noopener">Zhou et al., 2022</a>),
+            so the regions no longer average to the prediction.</p>
+        <p>The pathology models expect H&amp;E tissue at about 0.5 µm per pixel (20×), the tumour detector at about
+            0.4 µm per pixel; at other scales their maps are unreliable. The tissue head of Hibou-B was trained with
+            one label per tile on breast cancer tiles (BCSS) with no lobular case among them.</p>
         <p>Everything runs in your browser, and your images never leave your device.</p>
+        <p class="credits">Examples: breast tissue from <a href="https://github.com/PathologyDataScience/BCSS"
+                target="_blank" rel="noopener">BCSS</a> (TCGA-BRCA; CC0); apple photos from <a
+                href="https://distill.pub/2021/multimodal-neurons/" target="_blank" rel="noopener">Goh et al.,
+                2021</a> (CC-BY 4.0). Model licences: see the <a href="https://huggingface.co/karay/demo-models"
+                target="_blank" rel="noopener">model files</a>.</p>
         <h3>How to use</h3>
         <p>Pick an example, upload an image or video, or use your camera. Pause a video to interact with it.</p>
         <ul>

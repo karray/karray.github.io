@@ -1,16 +1,10 @@
-// The region similarity demo: which regions of two images look alike to a model. The model describes
-// every cell of its last feature map with a feature vector (../js/inference.js); the similarity of two
-// cells, one in each image, is the dot product of their vectors. The lines connect the most similar
-// pairs of cells:
-//   a cell under the pointer (or keyboard focus)   its strongest connections to the other image
-//   selected cells                                 the strongest connections that start at them
-//   otherwise                                      the strongest connections between the images
-
 const SIDES = ["Image A", "Image B"];
-const lower = (side) => SIDES[side].replace("Image", "image");   // "image A", inside a sentence
+const lower = (side) => SIDES[side].replace("Image", "image");
 const START_IMAGES = ["Bus & taxi", "Bus sign"];
+const PATHOLOGY_IMAGES = ["Breast, ductal carcinoma 1", "Breast, lobular carcinoma 1"];
+const GROUP_TITLES = { photo: "Photos", pathology: "Breast tissue (BCSS, H&E)" };
 const START_MODEL = "clip_resnet101";
-const MAX_CANVAS = 1024;   // the image canvas never needs more pixels than it is shown with
+const MAX_CANVAS = 1024;
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -18,6 +12,7 @@ const els = {
   links: $("links"),
   status: $("status"),
   modelSelect: $("model-select"),
+  modelNote: $("model-note"),
   countInput: $("count-input"),
   clearButton: $("clear-button"),
 };
@@ -49,6 +44,7 @@ function createPanel(side) {
     cells: [],
     selected: new Set(),
     source: null,       // ImageBitmap
+    example: null,      // the entry of SAMPLES shown, null for the user's own image
     result: null,       // the model's output for this image, with the model's id
   };
   const pickerId = `picker-${side}`;
@@ -63,8 +59,7 @@ function createPanel(side) {
   choose.setAttribute("aria-label", `Change ${lower(side)}`);
   q(".close").onclick = () => panel.picker.hidePopover();
 
-  // the example images, then an upload button
-  q(".thumbs").replaceChildren(...SAMPLES.map((sample) => {
+  const thumb = (sample) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "thumb";
@@ -73,10 +68,14 @@ function createPanel(side) {
     button.append(image, label);
     button.onclick = async () => {
       panel.picker.hidePopover();
-      await setImage(panel, await fetch(sample.url).then((r) => r.blob()), sample.label);
+      await showExample(panel, sample);
     };
     return button;
-  }));
+  };
+  q(".thumbs").replaceChildren(...Object.entries(GROUP_TITLES).flatMap(([group, title]) => [
+    Object.assign(document.createElement("h4"), { className: "thumb-group", textContent: title }),
+    ...SAMPLES.filter((s) => sampleGroup(s) === group).map(thumb),
+  ]));
   panel.picker.addEventListener("toggle", (e) => {
     if (e.newState === "open") panel.picker.querySelector(".thumb").focus();
   });
@@ -87,6 +86,7 @@ function createPanel(side) {
     panel.picker.hidePopover();
     if (file) await setImage(panel, file, file.name);
   };
+
 
   // dropping an image file onto the panel
   root.addEventListener("dragover", (e) => {
@@ -178,6 +178,11 @@ function showBusy(panel, text) {
 let queue = Promise.resolve();
 const enqueue = (task) => (queue = queue.then(task, task));
 
+async function showExample(panel, sample) {
+  await setImage(panel, await fetch(sample.url).then((r) => r.blob()), sample.label);
+  panel.example = sample;
+}
+
 async function setImage(panel, blob, name) {
   let bitmap;
   try {
@@ -188,6 +193,7 @@ async function setImage(panel, blob, name) {
   }
   panel.source?.close();
   panel.source = bitmap;
+  panel.example = null;
   panel.name.textContent = `· ${name}`;
   // the centred square of the image
   const side = Math.min(bitmap.width, bitmap.height);
@@ -241,7 +247,17 @@ async function selectModel(entry) {
     }
   });
   els.modelSelect.disabled = false;
-  await Promise.all(state.panels.map(analyze));
+  showModelNote(entry);
+  const wanted = entry.group === "pathology" ? "pathology" : "photo";
+  const labels = wanted === "pathology" ? PATHOLOGY_IMAGES : START_IMAGES;
+  await Promise.all(state.panels.map((panel, side) => panel.example && sampleGroup(panel.example) !== wanted
+    ? showExample(panel, SAMPLES.find((s) => s.label === labels[side]))
+    : analyze(panel)));
+}
+
+function showModelNote(entry) {
+  els.modelNote.textContent = entry.scale ? `${entry.label} expects ${entry.scale}.` : "";
+  els.modelNote.hidden = !entry.scale;
 }
 
 // ── similarity and connections ────────────────────────────────────────────────
@@ -380,8 +396,7 @@ function init() {
   els.modelSelect.value = START_MODEL;
   selectModel(MODELS.find((m) => m.id === START_MODEL));
   state.panels.forEach(async (panel, side) => {
-    const sample = SAMPLES.find((s) => s.label === START_IMAGES[side]);
-    await setImage(panel, await fetch(sample.url).then((r) => r.blob()), sample.label);
+    await showExample(panel, SAMPLES.find((s) => s.label === START_IMAGES[side]));
   });
 }
 

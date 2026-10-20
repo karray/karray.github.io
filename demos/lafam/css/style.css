@@ -733,3 +733,16 @@ textarea {
     cursor: pointer;
     color: var(--text-muted);
 }
+
+/* what the selected model expects (tissue scale) and how it pools */
+.model-note {
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.credits {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}

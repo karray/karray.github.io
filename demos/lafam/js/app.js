@@ -1,13 +1,3 @@
-// The LaFAM demo. The selected model (../js/inference.js) returns, for every cell of the last feature
-// map, the features and the classification head applied to that cell ("cell logits"). For a global-
-// average-pooling classifier the mean of the cell logits is the model's prediction, so every view
-// below is computed exactly from these two arrays:
-//   LaFAM          the mean of the (ReLU) features of each cell
-//   CAM            the selected classes' cell logits
-//   region         the mean of the selected cells' logits
-//   per-cell class the top class of each cell's logits
-//   tracking       the cosine similarity of each cell's features to an object's mean features
-
 const TOP_N = 14;
 const CLASS_MODES = ["imagenet_classes", "groupmap_bbs"];   // modes that need a classifier
 const MAX_CANVAS = 1024;   // the image canvas never needs more pixels than it is shown with
@@ -22,6 +12,7 @@ const els = {
   loading: $("loading-indicator"),
   loadingText: $("loading-text"),
   modelSelect: $("model-select"),
+  modelNote: $("model-note"),
   modeSelect: $("mode-select"),
   paletteSelect: $("palette-select"),
   opacity: $("heatmap-opacity"),
@@ -82,14 +73,18 @@ async function selectModel(entry) {
 
     state.model = entry;
     state.classNames = classNames;
-    // the modes that name classes need a classifier
-    for (const option of els.modeSelect.options) option.disabled = !entry.classes && CLASS_MODES.includes(option.value);
+    for (const option of els.modeSelect.options) {
+      option.disabled = (!entry.classes && CLASS_MODES.includes(option.value)) ||
+        (option.value === "groupmap_bbs" && entry.classes !== IMAGENET_CLASSES);
+    }
     if (els.modeSelect.selectedOptions[0].disabled) els.modeSelect.value = "predict";
     state.result = null;
     state.objects = [];          // object features belong to the previous model
     state.activeObject = null;
     renderObjectList();
     clearSelections();
+    showModelNote(entry);
+    await matchExample(entry);
     state.ready = true;
     els.main.classList.add("ready");
     showLoading("");
@@ -100,6 +95,25 @@ async function selectModel(entry) {
   } finally {
     els.modelSelect.disabled = false;
   }
+}
+
+function showModelNote(entry) {
+  const notes = [];
+  if (entry.scale) notes.push(`Expects ${entry.scale}.`);
+  if (entry.pooling) {
+    notes.push(`The prediction is the model's own (${entry.pooling === "attention" ? "attention pooling" : "class token"}); ` +
+      "each region is classified on its own, so the mean of the regions is not the prediction.");
+  }
+  els.modelNote.textContent = notes.join(" ");
+  els.modelNote.hidden = !notes.length;
+}
+
+async function matchExample(entry) {
+  const shown = SAMPLES.find((s) => s.url === els.presets.value);
+  const wanted = entry.group === "pathology" ? "pathology" : "photo";
+  if (!shown || sampleGroup(shown) === wanted) return;
+  els.presets.value = SAMPLES.find((s) => sampleGroup(s) === wanted).url;
+  await els.presets.onchange();
 }
 
 // ── sources: image, video file, camera ────────────────────────────────────────
@@ -225,9 +239,10 @@ const cellCount = (r) => r.height * r.width;
 const allCells = (r) => [...Array(cellCount(r)).keys()];
 
 // the exact readout of a region: the mean of its cells' logits (all cells: the model's logits);
-// null for a model without a classifier
-function regionLogits(r, cells = allCells(r)) {
+function regionLogits(r, cells = null) {
   if (!r.cellLogits) return null;
+  if (!cells && r.logits) return r.logits;
+  cells ??= allCells(r);
   const n = cellCount(r);
   const logits = new Float32Array(r.classes);
   for (let k = 0; k < r.classes; k++) {
@@ -434,7 +449,7 @@ const views = {
     drawMap(r, minMax(classes.length ? camMap(r, classes) : lafamMap(r)), paletteColor);
     const cells = [...state.selectedCells];
     cells.forEach((i) => markCell(i));
-    showPredictions(cells.length ? regionLogits(r, cells) : regionLogits(r), cells.length ? -Infinity : 1.7);
+    showPredictions(cells.length ? regionLogits(r, cells) : regionLogits(r), cells.length || r.classes <= 20 ? -Infinity : 1.7);
   },
 
   // the top class of every cell
@@ -697,7 +712,8 @@ async function init() {
   els.paletteSelect.replaceChildren(...Object.keys(palettes).map((p) => new Option(p, p)));
   fillModelMenu(els.modelSelect);
 
-  els.presets.querySelector('option[value$=".mp4"]').before(...SAMPLES.map((s) => new Option(`🖼️ ${s.label}`, s.url)));
+  els.presets.querySelector('option[value$=".mp4"]').before(
+    ...SAMPLES.map((s) => new Option(`${sampleGroup(s) === "pathology" ? "🔬" : "🖼️"} ${s.label}`, s.url)));
   els.presets.selectedIndex = 1;          // start with the first example image
   els.presets.onchange();
   await selectModel(MODELS[0]);

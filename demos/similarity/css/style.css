@@ -459,3 +459,15 @@ h1 {
         animation-duration: 3s;
     }
 }
+
+/* the example groups in the image picker */
+.thumb-group {
+    grid-column: 1 / -1;
+    margin: 4px 0 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.model-note {
+    color: var(--text-muted);
+}

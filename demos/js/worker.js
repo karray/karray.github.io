@@ -1,14 +1,10 @@
-// Runs the selected model off the main thread (see inference.js). A model takes an RGB image in [0, 1]
-// and returns its last feature map and, for a classifier, the classification head applied to every
-// cell (see ../models/models.js); the demos compute everything else from these outputs.
 import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.webgpu.min.mjs";
 
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/";
 
-let session = null;    // the selected model; only one is kept, so that memory does not grow with every model tried
-let model = null;      // its entry of MODELS
+let session = null;
+let model = null;
 
-// WebGPU only on a real GPU: a software (fallback) adapter is far slower than WebAssembly
 const backend = (async () => {
   if (!navigator.gpu) return { name: "wasm", reason: "this browser offers no WebGPU" };
   const adapter = await navigator.gpu.requestAdapter().catch(() => null);
@@ -53,6 +49,7 @@ const handlers = {
     return {
       features: (await out.features.getData()).slice(),       // copies, so that they can be transferred
       cellLogits: out.cell_logits ? (await out.cell_logits.getData()).slice() : null,   // null: no classifier
+      logits: out.logits ? (await out.logits.getData()).slice() : null,   // null: the mean of the cells is the prediction
       channels, classes: out.cell_logits?.dims[1] ?? 0, height, width,
     };
   },
@@ -61,7 +58,7 @@ const handlers = {
 async function handle(data) {
   try {
     const result = await handlers[data.type](data);
-    const transfer = [result.features?.buffer, result.cellLogits?.buffer].filter(Boolean);
+    const transfer = [result.features?.buffer, result.cellLogits?.buffer, result.logits?.buffer].filter(Boolean);
     postMessage({ id: data.id, ...result }, transfer);
   } catch (err) {
     console.error(err);
@@ -69,6 +66,5 @@ async function handle(data) {
   }
 }
 
-// one request at a time, in the order they arrive: a new model is never loaded during a run
 let queue = Promise.resolve();
 onmessage = ({ data }) => (queue = queue.then(() => handle(data)));
