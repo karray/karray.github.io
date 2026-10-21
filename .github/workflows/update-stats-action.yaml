@@ -42,9 +42,10 @@ jobs:
               def bar: (. * 0.25) as $x | ($x | floor) as $n | "█" * $n + (if $x - $n > 0.5 then "▓" else "▒" end) + "░" * (24 - $n);
               def pct: (. * 100 | round + 10000 | tostring) as $s | $s[1:3] + "." + $s[3:] + "%";
               .data
+              | (.total_seconds_including_other_language // .total_seconds) as $total
               | (.languages | map(select(.percent >= 1 and (.name | test("other|text|git|nginx|csv|json|yaml|markdown|roff|ini|toml"; "i") | not)))) as $l
-              | {start, end, total: (.total_seconds | dhm),
-                 languages: ($l + [{name: "Other", percent: (100 - ($l | map(.percent) | add)), total_seconds: (.total_seconds - ($l | map(.total_seconds) | add))}]
+              | {start, end, total: ($total | dhm),
+                 languages: ($l + [{name: "Other", percent: (100 - ($l | map(.percent) | add)), total_seconds: ($total - ($l | map(.total_seconds) | add))}]
                    | map({name, time: (.total_seconds | dhm), bar: (.percent | bar), percent: (.percent | pct)}))}
             ' /tmp/waka.json > _data/waka.json
           else
