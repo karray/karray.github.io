@@ -1,5 +1,5 @@
 /* --nh: the name's size, --k: its scale once docked, --m: the space above and below the header's text */
-:root { --pad: 32px; --navw: 124px; --bar: 60px; --nh: 59px; --k: calc(19 / 59); --m: 40px; }
+:root { --pad: 32px; --navw: 193px; --bar: 60px; --nh: 59px; --k: calc(19 / 59); --m: 40px; }
 .col { width: min(720px, 100% - 2 * var(--pad)); margin: 0 auto; }
 
 .hd-bar { pointer-events: none; position: sticky; z-index: 20; top: 0; height: var(--bar); margin-bottom: calc(-1 * var(--bar)); color: var(--ink); transition: transform .3s; }
@@ -14,7 +14,7 @@
 .navpill { box-sizing: border-box; margin-left: auto; flex: none; pointer-events: auto; width: var(--navw); justify-content: flex-end; display: flex; align-items: center; gap: 4px; padding: 3px 3px 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--head) 88%, transparent); }
 .navpill a { display: grid; place-items: center; height: 34px; min-width: 34px; border-radius: 999px; color: var(--muted); text-decoration: none; font: 500 15px/1 var(--sans); }
 .navpill a:hover { color: var(--accent); }
-.navpill .about { padding: 0 10px; }
+.navpill :is(.demos, .about) { padding: 0 10px; }
 .theme-toggle { all: unset; cursor: pointer; display: grid; place-items: center; width: 36px; height: 36px; margin-left: 4px; border-radius: 50%; color: var(--ink); border: 1px solid var(--line); }
 .theme-toggle:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
 .menu-btn { all: unset; cursor: pointer; display: none; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: var(--ink); border: 1px solid var(--line); }
@@ -98,7 +98,7 @@
 @media (max-width: 600px) {
   :root { --navw: 42px; }
   .navpill { padding: 3px; }
-  .navpill > :is(.about, .theme-toggle) { display: none; }
+  .navpill > :is(.demos, .about, .theme-toggle) { display: none; }
   .menu-btn { display: grid; }
 }
 .hd-art { transition: opacity .25s; }

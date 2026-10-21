@@ -9,6 +9,7 @@ stylesheet and dark for dark artwork.
     <a class="brand" href="{{ '/' | relative_url }}">{{ site.title | escape }}</a>
     {%- if kind == "post" %}<span class="ttl">{{ include.title | escape }}</span>{% endif %}
     <nav class="navpill">
+      <a class="demos" href="{{ '/demos/' | relative_url }}">Demos</a>
       <a class="about" href="{{ '/about/' | relative_url }}">About</a>
       <button class="theme-toggle" type="button" aria-label="Theme">
         <span class="tt-auto">{% include icon.html id="auto" size=18 %}</span><span class="tt-light">{% include icon.html id="sun" size=18 %}</span><span class="tt-dark">{% include icon.html id="moon" size=18 %}</span>
@@ -16,6 +17,7 @@ stylesheet and dark for dark artwork.
       <button class="menu-btn" type="button" popovertarget="site-menu" aria-label="Menu">{% include icon.html id="dots" size=18 %}</button>
     </nav>
     <div class="menu" id="site-menu" popover>
+      <a href="{{ '/demos/' | relative_url }}">Demos</a>
       <a href="{{ '/about/' | relative_url }}">About</a>
       {%- for l in site.data.links %}
       <a href="{{ l.url }}">{% include icon.html id=l.id size=16 %}{{ l.label }}</a>
