@@ -30,20 +30,26 @@ jobs:
           chmod +x /tmp/fetch_json.sh
 
       - name: Fetch waka stats
+        env:
+          WAKATIME_API_KEY: ${{ secrets.WAKATIME_API_KEY }}
         run: |
-          # fetch json using curl, if error, retry 3 times
-          for i in {1..3}; do 
-            curl -s "https://wakatime.com/share/@0269a873-ebe8-43fc-8ead-f0560fa51bae/51e6363c-2acb-4d8c-b282-835d52d97893.json" > assets/misc/waka_tmp.json
-            if ! grep -q "error" assets/misc/waka_tmp.json;
-              then
-                echo "Waka stats fetched successfully"
-                mv assets/misc/waka_tmp.json assets/misc/waka.json
-                break
-              else
-                echo "Waka stats fetch failed, retrying..."
-                rm assets/misc/waka_tmp.json
-            fi
-          done
+          # the secret is a WakaTime OAuth token (API keys only work in plugins from November 2026);
+          # the stats are shaped into the rows the About page prints
+          curl -s "https://wakatime.com/api/v1/users/current/stats/all_time?api_key=$WAKATIME_API_KEY" > /tmp/waka.json
+          if jq -e '.data.languages | length > 0' /tmp/waka.json > /dev/null 2>&1; then
+            jq '
+              def dhm: (. / 60 | floor) as $m | "\($m / 1440 | floor)d \($m % 1440 / 60 | floor)h \($m % 60)m";
+              def bar: (. * 0.25) as $x | ($x | floor) as $n | "█" * $n + (if $x - $n > 0.5 then "▓" else "▒" end) + "░" * (24 - $n);
+              def pct: (. * 100 | round + 10000 | tostring) as $s | $s[1:3] + "." + $s[3:] + "%";
+              .data
+              | (.languages | map(select(.percent >= 1 and (.name | test("other|text|git|nginx|csv|json|yaml|markdown|roff|ini|toml"; "i") | not)))) as $l
+              | {start, end, total: (.total_seconds | dhm),
+                 languages: ($l + [{name: "Other", percent: (100 - ($l | map(.percent) | add)), total_seconds: (.total_seconds - ($l | map(.total_seconds) | add))}]
+                   | map({name, time: (.total_seconds | dhm), bar: (.percent | bar), percent: (.percent | pct)}))}
+            ' /tmp/waka.json > _data/waka.json
+          else
+            echo "::warning::kept the previous _data/waka.json (no languages from WakaTime)"
+          fi
 
       - name: Fetch stackoverflow reputation
         run: |
