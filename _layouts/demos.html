@@ -15,9 +15,13 @@
         {%- assign post = site.posts | where: "path", post_path | first -%}
         {%- endif -%}
         <li>
+          {%- if demo.image %}
+          {%- include post-card.html href=demo.url img=demo.image title=demo.title %}
+          {%- else %}
           <h3>
             <a class="post-link" href="{{ demo.url | relative_url }}">{{ demo.title | escape }}</a>
           </h3>
+          {%- endif %}
           <p>{{ demo.description | escape }}</p>
           {%- if post %}
           <p class="post-meta">Read more in <a href="{{ post.url | relative_url }}">{{ post.title | escape }}</a></p>

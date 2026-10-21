@@ -12,7 +12,6 @@
   {%- for stylesheet in page.styles %}
   <link rel="stylesheet" href="{{ stylesheet | relative_url }}">
   {%- endfor %}
-  <link rel="canonical" href="https://karay.me{{ page.url | replace:'index.html','' }}" />
   {%- feed_meta -%}
   {%- if jekyll.environment == 'production' and site.google_analytics -%}
   {%- include google-analytics.html -%}

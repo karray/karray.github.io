@@ -11,7 +11,7 @@ date: 2026-10-01 11:40:00 +0200
 tags: XAI, CNN, ViT, Foundation Models, Self-Supervised Learning
 description: How activation maps and relevance propagation can shed light on deep models without any labels.
 image:
-  path: /assets/img/posts/lafam/preview.png
+  path: /assets/img/posts/lafam/preview.jpg
   width: 1200
   height: 630
   alt: Two images beside heatmaps for a MaxViT encoder, produced by averaging, AnyUp, and LRP.

@@ -12,10 +12,8 @@
         <li>
           {%- assign img = post.image.path | default: post.image %}
           {%- if img %}
-          <a class="post-card" href="{{ post.url | relative_url }}">
-            <img src="{{ img | relative_url }}" alt="" loading="lazy">
-            <div class="post-head"><span class="post-meta">{{ post.date | date: date_format }}</span><h3>{{ post.title | escape }}</h3></div>
-          </a>
+          {%- assign date = post.date | date: date_format %}
+          {%- include post-card.html href=post.url img=img meta=date title=post.title %}
           {%- else %}
           <span class="post-meta">{{ post.date | date: date_format }}</span>
           <h3><a class="post-link" href="{{ post.url | relative_url }}">{{ post.title | escape }}</a></h3>

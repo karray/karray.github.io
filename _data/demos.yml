@@ -2,6 +2,7 @@
 # (optional).
 - title: LaFAM
   url: /demos/lafam/
+  image: /assets/img/demos/lafam.jpg
   description: >-
     Where does a vision model look when nobody tells it what to find? Label-free activation maps
     answer this for classifiers, self-supervised and CLIP models, on example images, your own
@@ -10,12 +11,14 @@
 
 - title: Region similarity
   url: /demos/similarity/
+  image: /assets/img/demos/similarity.jpg
   description: >-
     Which parts of two images look alike to a vision model? Lines connect the regions whose
     features match best, for every pair, the regions you select or the one under your pointer.
 
 - title: Latent space browser
   url: /demos/scv_browser.html
+  image: /assets/img/demos/latent-browser.jpg
   description: >-
     UMAP maps of image features from supervised, self-supervised and CLIP models, pathology
     foundation models and StyleGAN encoders. Hover over the points to see the images behind them

@@ -1,9 +1,22 @@
+---
+layout: null
+title: Latent Space Browser
+description: >-
+  UMAP maps of image features from supervised, self-supervised and CLIP models, pathology foundation
+  models and StyleGAN encoders. Hover over the points to see the images behind them.
+image:
+  path: /assets/img/demos/latent-browser.jpg
+  width: 1200
+  height: 630
+  alt: A UMAP map of chest X-ray patches with outlined clusters for text, arrows and the lateral edge.
+---
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
-    <title>Latent representation browser</title>
+    {% seo %}
     <style>
       html, body {
         box-sizing: border-box;

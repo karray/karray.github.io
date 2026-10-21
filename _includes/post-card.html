@@ -1,0 +1,4 @@
+<a class="post-card" href="{{ include.href | relative_url }}">
+  <img src="{{ include.img | relative_url }}" alt="" loading="lazy">
+  <div class="post-head">{% if include.meta %}<span class="post-meta">{{ include.meta }}</span>{% endif %}<h3>{{ include.title | escape }}</h3></div>
+</a>
