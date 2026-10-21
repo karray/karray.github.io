@@ -6,7 +6,7 @@
     3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21].map((v) => (v + 0.5) / 64);
   // back to front: height (fraction of the header), amplitude (px), frequency, phase
   const RIDGES = [[0.32, 14, 0.00952, 4.58], [0.47, 23.6, 0.00598, 3.41], [0.62, 26.3, 0.00782, 2.35], [0.77, 26.7, 0.00819, 2.94], [0.92, 30.6, 0.00884, 5.8]];
-  const CELL = 3, MID = 0.25;
+  const CELL = 3;
   const ss = (a, b, x) => { x = Math.min(1, Math.max(0, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
   const rgb = (s) => { const n = parseInt(s.trim().slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -27,8 +27,8 @@
     canvas.width = cols; canvas.height = rows;
     canvas.style.width = cols * cp + "px"; canvas.style.height = rows * cp + "px";
     img = ctx.createImageData(cols, rows);
-    // narrower headers get narrower dunes, so a phone still shows whole ones; the dunes are grey and
-    // sparse in the middle, about the text column wide on a wide screen and 60% of a narrow one
+    // narrower headers get narrower dunes, so a phone still shows whole ones; in the middle, about the
+    // text column wide on a wide screen and 60% of a narrow one, the dunes turn grey and only their crests remain
     const sx = Math.sqrt(1440 / W), grey = Math.min(290, W * 0.3);
     colSide = new Float32Array(cols); crest = new Float32Array(RIDGES.length * cols);
     for (let x = 0; x < cols; x++) {
@@ -72,9 +72,11 @@
           let v = 0;
           for (let k = RIDGES.length - 1; k >= 0; k--) {
             const c = crest[k * cols + x];
-            if (qy >= c - 3) { v = (0.55 + 0.12 * k) * ss(c - 3, c + 2, qy) * (1 - 0.82 * ss(c, c + 46, qy)); break; }
+            // the body, thinning out toward the middle, and the crest, a solid line 3px thick everywhere: a
+            // thinned-out crest would break into the dither's sparse grid
+            if (qy >= c - 3) { v = Math.max((0.55 + 0.12 * k) * ss(c - 3, c + 2, qy) * (1 - 0.82 * ss(c, c + 46, qy)) * colSide[x] ** 1.4, ss(c - 3, c - 1, qy) * (1 - ss(c + 2, c + 4, qy))); break; }
           }
-          if (v * (1 + GLOW * glow) * (MID + (1 - MID) * colSide[x] ** 1.4) * rs <= BAYER[(yy & 7) * 8 + (x & 7)]) continue;
+          if (v * (1 + GLOW * glow) * rs <= BAYER[(yy & 7) * 8 + (x & 7)]) continue;
           const i = (yy * cols + x) * 4, c = x * 3;
           d[i] = colour[c]; d[i + 1] = colour[c + 1]; d[i + 2] = colour[c + 2]; d[i + 3] = 255;
         }

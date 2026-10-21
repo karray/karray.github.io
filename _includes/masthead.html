@@ -33,6 +33,7 @@ stylesheet and dark for dark artwork.
   <div class="hd-art">{% include headers/{{ include.art }} %}</div>
   {%- else %}
   <canvas class="fx" aria-hidden="true"></canvas>
+  <div class="pane"></div>
   {%- endif %}
   <div class="col hd-text">
     {%- if kind == "home" %}

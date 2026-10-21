@@ -11,7 +11,7 @@
 .ttl { font: 400 15px/1 var(--serif); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); opacity: 0; transition: opacity .25s; }
 .hd-bar .brand { opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
 .is-docked :is(.ttl, .brand) { opacity: 1; visibility: visible; }
-.navpill { box-sizing: border-box; margin-left: auto; flex: none; pointer-events: auto; width: var(--navw); justify-content: flex-end; display: flex; align-items: center; gap: 4px; padding: 3px 3px 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--head) 88%, transparent); }
+.navpill { box-sizing: border-box; margin-left: auto; flex: none; pointer-events: auto; width: var(--navw); justify-content: flex-end; display: flex; align-items: center; gap: 4px; padding: 3px 3px 3px 10px; }
 .navpill a { display: grid; place-items: center; height: 34px; min-width: 34px; border-radius: 999px; color: var(--muted); text-decoration: none; font: 500 15px/1 var(--sans); }
 .navpill a:hover { color: var(--accent); }
 .navpill :is(.demos, .about) { padding: 0 10px; }
@@ -25,10 +25,19 @@
 .menu > a:hover, .menu .theme-toggle:hover { background: var(--head); color: var(--accent); }
 .menu .theme-toggle > span { gap: 10px; align-items: center; }
 
-.hd { --h: calc(var(--m) + 32px + var(--nh) + 52px + var(--m)); container-type: inline-size; position: sticky; z-index: 19; top: calc(var(--bar) - var(--h)); height: var(--h); overflow: clip; background: var(--head); color: var(--ink); border-bottom: 1px solid var(--line); transition: transform .3s; }
-.hd.is-docked { box-shadow: 0 10px 30px -22px rgba(40, 20, 10, .55); }
+.hd { --h: calc(var(--m) + 32px + var(--nh) + 52px + var(--m)); container-type: inline-size; position: sticky; z-index: 19; top: calc(var(--bar) - var(--h)); height: var(--h); overflow: clip; background: var(--head); color: var(--ink); border-bottom: 1px solid var(--line); transition: transform .3s, background-color .3s; }
+/* docked, the bar is matte glass over the page scrolling under it; the pane, which would blur the glass
+   again, goes, as the dunes are gone by then */
+.hd.is-docked { box-shadow: 0 10px 30px -22px rgba(40, 20, 10, .55); background: color-mix(in srgb, var(--head) 40%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.hd.is-docked .pane { display: none; }
+/* the dark bar's pale text needs more tint over light figures */
+:root[data-theme="dark"] .hd.is-docked { background: color-mix(in srgb, var(--head) 75%, transparent); }
 .hd .fx { position: absolute; left: 0; top: 0; image-rendering: pixelated; --fx-ink: #d4a489; --fx-ink2: #dbbd84; --fx-mid: #d6cfc3; }
 :root[data-theme="dark"] .hd .fx { --fx-ink: #684430; --fx-ink2: #69552e; --fx-mid: #3a3632; }
+/* the dunes behind the text column and 70px either side soften, the blur fading in from the pane's edges,
+   which on a narrow screen are the header's */
+.hd .pane { position: absolute; inset: 0 max(0px, 50% - min(720px, 100% - 2 * var(--pad)) / 2 - 70px); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  mask: linear-gradient(90deg, transparent, #000 64px, #000 calc(100% - 64px), transparent); }
 .hd-text { position: relative; height: 100%; --top: calc(var(--m) + 32px); }
 .kicker { font: 600 12.5px/1.4 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0; }
 .hd :is(.kicker, .hd-name, h1, .meta) { text-shadow: 0 0 2px var(--head), 0 0 6px var(--head), 0 0 12px var(--head); }
