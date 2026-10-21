@@ -1,6 +1,6 @@
 /* --nh: the name's size, --k: its scale once docked, --m: the space above and below the header's text */
 :root { --pad: 32px; --navw: 193px; --bar: 60px; --nh: 59px; --k: calc(19 / 59); --m: 40px; }
-.col { width: min(720px, 100% - 2 * var(--pad)); margin: 0 auto; }
+.col { width: min(var(--col), 100% - 2 * var(--pad)); margin: 0 auto; }
 
 .hd-bar { pointer-events: none; position: sticky; z-index: 20; top: 0; height: var(--bar); margin-bottom: calc(-1 * var(--bar)); color: var(--ink); transition: transform .3s; }
 :is(.hd-bar, .hd).is-hidden { transform: translateY(calc(-1 * var(--bar) - 1rem)); }
@@ -32,11 +32,11 @@
 .hd.is-docked .pane { display: none; }
 /* the dark bar's pale text needs more tint over light figures */
 :root[data-theme="dark"] .hd.is-docked { background: color-mix(in srgb, var(--head) 75%, transparent); }
-.hd .fx { position: absolute; left: 0; top: 0; image-rendering: pixelated; --fx-ink: #d4a489; --fx-ink2: #dbbd84; --fx-mid: #d6cfc3; }
+.hd .fx { position: absolute; left: 0; top: 0; image-rendering: pixelated; --fx-ink: #d4a489; --fx-ink2: #dbbd84; --fx-mid: #c0b7a8; }
 :root[data-theme="dark"] .hd .fx { --fx-ink: #684430; --fx-ink2: #69552e; --fx-mid: #3a3632; }
 /* the dunes behind the text column and 70px either side soften, the blur fading in from the pane's edges,
    which on a narrow screen are the header's */
-.hd .pane { position: absolute; inset: 0 max(0px, 50% - min(720px, 100% - 2 * var(--pad)) / 2 - 70px); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+.hd .pane { position: absolute; inset: 0 max(0px, 50% - min(var(--col), 100% - 2 * var(--pad)) / 2 - 70px); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   mask: linear-gradient(90deg, transparent, #000 64px, #000 calc(100% - 64px), transparent); }
 .hd-text { position: relative; height: 100%; --top: calc(var(--m) + 32px); }
 .kicker { font: 600 12.5px/1.4 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0; }
@@ -65,7 +65,7 @@
 .home .hd-links { --dy: calc(var(--h) - var(--bar) / 2 - var(--top) - var(--nh) - 36px); }
 /* to its toolbar slot: --step apart, the last 14px left of the About group, which ends with the
    column (its width from the header's, 100cqw) */
-.home .hd-links a { --dx: calc(min(720px, 100cqw - 2 * var(--pad)) - var(--navw) - 14px - 17px - (var(--n) - 1 - var(--i)) * var(--step) - var(--x) - var(--ip)); }
+.home .hd-links a { --dx: calc(min(var(--col), 100cqw - 2 * var(--pad)) - var(--navw) - 14px - 17px - (var(--n) - 1 - var(--i)) * var(--step) - var(--x) - var(--ip)); }
 @keyframes name-y { to { translate: 0 var(--dy); } }
 @keyframes name-scale { to { scale: var(--k); } }
 @keyframes links-y { to { translate: 0 var(--dy); } }

@@ -2,7 +2,7 @@
 @font-face { font-family: "Figtree"; font-weight: 400 600; font-display: swap; src: url("../fonts/figtree-latin.woff2") format("woff2"); }
 
 :root {
-  --serif: "Newsreader", Georgia, serif; --sans: "Figtree", system-ui, sans-serif;
+  --serif: "Newsreader", Georgia, serif; --sans: "Figtree", system-ui, sans-serif; --col: clamp(720px, 25vw + 400px, 880px);
   --bg: #f6f2ea; --surface: #fbf8f2; --ink: #26211c; --muted: #6f675d; --line: #e3dbcd; --accent: #b4532a; --head: #eee6d7;
   color-scheme: light;
 }
@@ -11,7 +11,7 @@
   color-scheme: dark;
 }
 
-body { background: var(--bg); color: var(--ink); font: 400 17.5px/1.7 var(--sans); }
+body { background: var(--bg); color: var(--ink); font: 400 calc(var(--col) / 41.14)/1.7 var(--sans); }
 h1, h2, h3, h4, h5, h6 { font-family: var(--serif); font-weight: 400; color: var(--ink); }
 a, a:visited { color: var(--accent); }
 a:hover { color: var(--ink); }
@@ -22,29 +22,30 @@ pre, code { background: var(--surface); border-color: var(--line); }
 table { color: var(--ink); border-color: var(--line); }
 table th, table td { border-color: var(--line); }
 table th, table tr:nth-child(even) { background: var(--surface); }
-.wrapper { max-width: calc(720px + 2 * var(--pad, 32px)); padding: 0 var(--pad, 32px); }
+.wrapper { width: auto; max-width: calc(var(--col) + 2 * var(--pad, 32px)); padding: 0 var(--pad, 32px); font-size: inherit; }
 .page-content { padding: 52px 0 40px; }
 
 .post-list { list-style: none; margin: 0; }
 .post-list > li + li { margin-top: 34px; }
-.post-list h3 { font: 400 27px/1.15 var(--serif); margin: 0 0 8px; }
+.post-list h3 { font: 400 1.54em/1.15 var(--serif); margin: 0 0 8px; }
 .post-list .post-link, .post-list .post-link:visited { color: var(--ink); font-size: inherit; }
 .post-list .post-link:hover { color: var(--accent); text-decoration: none; }
 .post-list p { color: var(--muted); margin: 0; }
-.post-meta { font: 500 13px/1 var(--sans); color: var(--muted); }
-.post-card { --bg: #191613; --ink: #ece4d6; --accent: #e08a5c; position: relative; isolation: isolate; display: grid; align-content: end; aspect-ratio: 3; margin-bottom: 14px; clip-path: inset(0 round 12px); text-decoration: none; }
+.post-meta { font: 500 .743em/1 var(--sans); color: var(--muted); }
+.post-card { --bg: #191613; --ink: #ece4d6; --accent: #e08a5c; position: relative; isolation: isolate; display: grid; align-content: end; aspect-ratio: 3; --f: 48px; margin-bottom: 14px; clip-path: inset(0 round 12px); text-decoration: none; }
 .post-card, .post-card:visited { color: var(--ink); }
 .post-card::before { content: ""; position: absolute; z-index: 2; inset: 0; border: 1px solid var(--line); border-radius: 12px; pointer-events: none; }
 .post-card img { position: absolute; inset: -2px; width: calc(100% + 4px); height: calc(100% + 4px); max-width: none; object-fit: cover; }
-.post-card .post-head { position: relative; margin: 0 -2px -2px; padding: 48px 18px 8px; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 55%, transparent) 48px); mask: linear-gradient(transparent, #000 48px); }
+.post-card .post-head { position: relative; padding: var(--f) 18px 8px; border-radius: 0 0 12px 12px; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 55%, transparent) var(--f)); mask: linear-gradient(transparent, #000 var(--f)); }
 .post-card .post-meta { color: var(--ink); }
 .post-list .post-card h3 { margin: 0; }
 .post-card:hover { text-decoration: none; }
 .post-card:hover h3 { color: var(--accent); }
+@media (max-width: 600px) { .post-card { aspect-ratio: 2; --f: 28px; } .post-card .post-head { padding: var(--f) 14px 8px; } .post-list .post-card h3 { font-size: 1.1em; } }
 .rss-subscribe { color: var(--muted); margin-top: 40px; }
-.post-content h2 { font-size: 32px; line-height: 1.15; }
-.post-content h3 { font-size: 24px; }
+.post-content h2 { font-size: 1.83em; line-height: 1.15; }
+.post-content h3 { font-size: 1.37em; }
 
 .site-footer { border-top: 1px solid var(--line); color: var(--muted); background: none; }
 .site-footer .p-name { color: var(--ink); }
