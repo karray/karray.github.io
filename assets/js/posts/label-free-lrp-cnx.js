@@ -9,7 +9,7 @@
   const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
   const gelu = (x) => 0.5 * x * (1 + erf(x / Math.SQRT2));
   const slope = (x) => 0.5 * (1 + erf(x / Math.SQRT2)) + x * Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI);
-  const RULES = { add: 'split', ln: 'rule', gelu: 'rule', ls: 'rule' };
+  const RULES = { add: 'split', ln: 'rule', gelu: 'rule', ls: 'rule' }, ZLO = -3, ZHI = 3, NB = 24;
 
   const model = (d) => {
     const C = d.channels, G = d.grid, N = G * G, H = 4 * C;
@@ -19,25 +19,24 @@
       const sd = Math.sqrt(s / x.length + 1e-5);
       return { m, sd, n: x.map((v, i) => gam[i] * (v - m) / sd) };
     };
-    const zplus = (a, W, R, I, O, F) => {
+    const zplus = (a, W, R, I, O) => {
       const out = new Float64Array(I);
       for (let o = 0; o < O; o++) {
         if (!R[o]) continue;
         let z = 0; for (let i = 0; i < I; i++) { const c = a[i] * W[o * I + i]; if (c > 0) z += c; }
         if (z <= 0) continue;
-        for (let i = 0; i < I; i++) { const c = a[i] * W[o * I + i]; if (c > 0) { const v = c * R[o] / z; out[i] += v; if (F) F[o][i] += v; } }
+        for (let i = 0; i < I; i++) { const c = a[i] * W[o * I + i]; if (c > 0) out[i] += c * R[o] / z; }
       }
       return out;
     };
-    const normBack = (x, gam, Rn, mode, F) => {
+    const normBack = (x, gam, Rn, mode) => {
       const n = x.length, { m, sd } = norm(x, gam), out = new Float64Array(n);
-      const add = (i, j, v) => { out[j] += v; if (F) F[i][j] += v; };
       for (let i = 0; i < n; i++) {
         if (!Rn[i]) continue;
-        if (mode === 'none') { const xi = (x[i] - m) / sd; for (let j = 0; j < n; j++) add(i, j, gam[i] / sd * ((i === j) - 1 / n - xi * (x[j] - m) / sd / n) * Rn[i]); continue; }
+        if (mode === 'none') { const xi = (x[i] - m) / sd; for (let j = 0; j < n; j++) out[j] += gam[i] / sd * ((i === j) - 1 / n - xi * (x[j] - m) / sd / n) * Rn[i]; continue; }
         const ni = gam[i] * (x[i] - m) / sd;
         if (Math.abs(ni) < 1e-12) continue;
-        for (let j = 0; j < n; j++) add(i, j, gam[i] / sd * ((i === j) - 1 / n) * x[j] * Rn[i] / ni);
+        for (let j = 0; j < n; j++) out[j] += gam[i] / sd * ((i === j) - 1 / n) * x[j] * Rn[i] / ni;
       }
       return out;
     };
@@ -92,17 +91,20 @@
           if (Math.abs(st.out[i]) > 1e-12) { Rx[i] = st.x[i] / st.out[i] * Rh[i]; Rv[i] = st.v[i] / st.out[i] * Rh[i]; }
         }
         const Rd = new Float64Array(C * N), t = { in: sum(Rv), skip: sum(Rx), ls: 0, f2: 0, gelu: 0, f1: 0, ln: 0, dw: 0 };
-        const vec = (n) => new Float64Array(n), mat = (a, b2) => [...Array(a)].map(() => new Float64Array(b2));
-        const agg = { Rin: vec(C), Rx: vec(C), Rv: vec(C), Ru: vec(C), F2: mat(C, H), Rg: vec(H), Rz: vec(H), F1: mat(H, C), Rn: vec(C), FL: mat(C, C), Rd: vec(C), Rw: vec(C) };
+        const vec = () => new Float64Array(C), split = [0, 0];
+        for (let i = 0; i < C * N; i++) if (Math.abs(st.out[i]) > 1e-12) { split[0] += st.x[i] / st.out[i] * Rh[i]; split[1] += st.v[i] / st.out[i] * Rh[i]; }
+        const card = { add: { in: sum(Rh), split, copy: [sum(Rh), sum(Rh)] }, ln: { in: 0, rule: vec(), none: vec() }, gelu: { in: 0, rule: new Float64Array(NB), none: new Float64Array(NB) }, ls: { in: t.in, rule: vec(), none: vec() } };
         for (let p = 0; p < N; p++) {
+          for (let c = 0; c < C; c++) { card.ls.rule[c] += Rv[c * N + p]; card.ls.none[c] += b.gamma[c] * Rv[c * N + p]; }
           const Ru = Float64Array.from({ length: C }, (_, c) => (cfg.ls === 'rule' ? 1 : b.gamma[c]) * Rv[c * N + p]);
-          const Rg = zplus(st.g[p], b.f2, Ru, H, C, agg.F2);
+          const Rg = zplus(st.g[p], b.f2, Ru, H, C);
+          for (let o = 0; o < H; o++) { const z = st.z[p][o], bin = clamp(Math.floor((z - ZLO) / (ZHI - ZLO) * NB), 0, NB - 1); card.gelu.in += Rg[o]; card.gelu.rule[bin] += Rg[o]; card.gelu.none[bin] += slope(z) * Rg[o]; }
           const Rz = cfg.gelu === 'rule' ? Rg : Rg.map((r, o) => slope(st.z[p][o]) * r);
-          const Rn = zplus(st.n[p], b.f1, Rz, C, H, agg.F1);
-          const Rdp = normBack(col(st.d, p), b.ln, Rn, cfg.ln, agg.FL);
+          const Rn = zplus(st.n[p], b.f1, Rz, C, H);
+          const Rdp = normBack(col(st.d, p), b.ln, Rn, cfg.ln), other = normBack(col(st.d, p), b.ln, Rn, cfg.ln === 'rule' ? 'none' : 'rule');
           t.ls += sum(Ru); t.f2 += sum(Rg); t.gelu += sum(Rz); t.f1 += sum(Rn); t.ln += sum(Rdp);
-          for (let c = 0; c < C; c++) { Rd[c * N + p] = Rdp[c]; agg.Rin[c] += Rh[c * N + p]; agg.Rx[c] += Rx[c * N + p]; agg.Rv[c] += Rv[c * N + p]; agg.Ru[c] += Ru[c]; agg.Rn[c] += Rn[c]; agg.Rd[c] += Rdp[c]; }
-          for (let o = 0; o < H; o++) { agg.Rg[o] += Rg[o]; agg.Rz[o] += Rz[o]; }
+          card.ln.in += sum(Rn);
+          for (let c = 0; c < C; c++) { Rd[c * N + p] = Rdp[c]; card.ln[cfg.ln][c] += Rdp[c]; card.ln[cfg.ln === 'rule' ? 'none' : 'rule'][c] += other[c]; }
         }
         const Rw = new Float64Array(C * N);
         for (let c = 0; c < C; c++) for (let p = 0; p < N; p++) {
@@ -114,8 +116,7 @@
               if (pass === 0) z += cc; else Rw[q] += cc * r / z; } }
         }
         t.dw = sum(Rw); t.bands = { skip: pn(Rx), in: pn(Rv), out: pn(Rw) };
-        for (let c = 0; c < C; c++) for (let p = 0; p < N; p++) agg.Rw[c] += Rw[c * N + p];
-        t.agg = agg;
+        t.card = card;
         Rh = Float64Array.from(Rx, (v, i) => v + Rw[i]);
         flows[bi] = t;
         maps.push(Rh);
@@ -153,9 +154,9 @@
     let data;
     try { data = await (await fetch(root.dataset.src)).json(); } catch (e) { readoutEl.textContent = 'The network could not be loaded.'; return; }
     const M = model(data), B = data.blocks.length;
-    const state = { pixels: data.start, cfg: { ...RULES }, classHover: null, look: null };
-    const panel = root.querySelector('.lrpc-inside'), panelText = root.querySelector('.lrpc-inside-text');
-    let f, pred, cls, ex;
+    const state = { pixels: data.start, cfg: { ...RULES }, look: null };
+    const cardsEl = root.querySelector('.lrpc-cards'), summaryEl = root.querySelector('.lrpc-more summary'), panelText = root.querySelector('.lrpc-inside-text');
+    let f, pred, ex;
     const cache = new Map();
 
     const arrow = (g, d, cls) => S('path', { d, class: cls, 'marker-end': 'url(#lrpc-head)' }, g);
@@ -214,7 +215,7 @@
           } else {
             S('circle', { class: 'lrpc-junction', cx: L, cy: y, r: 3.5 }, g);
             const sp = `M${L},${y - 4} L${L},${y - ARC + 10} Q${L},${y - ARC} ${L + 10},${y - ARC} L${px - 10},${y - ARC} Q${px},${y - ARC} ${px},${y - ARC + 10} L${px},${y - 14}`;
-            out.skips.push({ path: arrow(g, sp, 'lrpc-skip'), label: T(g, (L + px) / 2, y - ARC - 7, k ? '' : 'skip', 'lrpc-skiplabel') });
+            out.skips.push({ path: arrow(g, sp, 'lrpc-skip'), label: T(g, (L + px) / 2, y - ARC - 7, 'skip', 'lrpc-skiplabel') });
           }
         });
         dir(XS[B] + MS / 2 + 3, XHEAD - 38);
@@ -228,10 +229,6 @@
         const y = cy + (k - 4.5) * 25, g = S('g', { class: 'lrpc-class' }, gC);
         S('circle', { class: 'lrpw-node', cx: XCLS, cy: y, r: 10 }, g);
         T(g, XCLS, y + 4, String(k), 'lrpw-digit');
-        const hit = S('rect', { x: XCLS - 22, y: y - 12.5, width: 44, height: 25, fill: 'transparent', style: 'cursor: pointer' }, gC);
-        hit.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') showClass(k); });
-        hit.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') showClass(null); });
-        hit.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') showClass(state.classHover === k ? null : k); });
         return g;
       });
       arrow(svg, `M${XHEAD + 38},${R1} C${XCLS - 30},${R1} ${XCLS - 40},${cy - 120} ${XCLS - 15},${cy - 115}`, 'lrpc-wire');
@@ -248,8 +245,8 @@
       [f.stem, ...f.blocks.map((b) => b.out)].forEach((h, k) => { const m = mag(h), mx = Math.max(...m); row.maps[k].setAttribute('href', image(m, M.G, (v) => grey(v / mx))); });
     };
     const paint = () => {
-      const key = `${cls}|${state.cfg.add}|${state.cfg.ln}|${state.cfg.gelu}|${state.cfg.ls}`;
-      if (!cache.has(key)) cache.set(key, M.explain(f, cls, state.cfg));
+      const key = `${pred}|${state.cfg.add}|${state.cfg.ln}|${state.cfg.gelu}|${state.cfg.ls}`;
+      if (!cache.has(key)) cache.set(key, M.explain(f, pred, state.cfg));
       ex = cache.get(key);
       const row = scene.rows[1], chan = (R) => Float64Array.from({ length: M.N }, (_, p) => { let s = 0; for (let c = 0; c < M.C; c++) s += R[c * M.N + p]; return s; });
       row.input.setAttribute('href', signed(ex.maps[0], 28));
@@ -274,103 +271,146 @@
           draw(skip[side], ws, `M${nx - MS / 2},${cr} L${px + R},${cr} Q${px},${cr} ${px},${cr + s * R} L${px},${top - s * R} Q${px},${top} ${px - R},${top} L${L + R},${top} Q${L},${top} ${L},${top - s * R} L${L},${cl + s * R} Q${L},${cl} ${L - R},${cl} L${x + MS / 2},${cl}`);
         });
       });
-      row.parts.forEach((el) => { const [P, N] = el.dataset.pn.split(',').map(Number); el.textContent = width(N) >= 2 ? `+${fmt(P)} and ${fmt(-N)}` : ''; });
+      row.parts.forEach((el) => { const [P, N] = el.dataset.pn.split(',').map(Number); el.textContent = width(N) > 0 ? `+${fmt(P)} and ${fmt(-N)}` : ''; });
       ex.flows.forEach((t, k) => {
         const [, a, b] = row.boxes[k].texts, [P, N] = t.bands.in;
-        a.textContent = width(P) >= 2 ? `through ${fmt(P)}` : ''; b.textContent = width(N) >= 2 ? fmt(-N) : '';
+        a.textContent = width(P) > 0 ? `through ${fmt(P)}` : ''; b.textContent = width(N) > 0 ? fmt(-N) : '';
         b.classList.add('lrpc-boxsub--neg');
         const [SP, SN] = t.bands.skip;
-        row.skips[k].pos.textContent = width(SP) >= 2 ? fmt(SP) : '';
-        row.skips[k].neg.textContent = width(SN) >= 2 ? fmt(-SN) : '';
+        row.skips[k].pos.textContent = width(SP) > 0 ? fmt(SP) : '';
+        row.skips[k].neg.textContent = width(SN) > 0 ? fmt(-SN) : '';
       });
-      scene.cls.forEach((g, k) => { g.classList.toggle('lrpw-explained', k === cls); g.classList.toggle('lrpw-hover', k === state.classHover); });
-      const cy = (R1 + R2) / 2, y = cy + (cls - 4.5) * 25;
+      scene.cls.forEach((g, k) => g.classList.toggle('lrpw-explained', k === pred));
+      const cy = (R1 + R2) / 2, y = cy + (pred - 4.5) * 25;
       scene.back.shape = (sign, w) => { const o = sign * (GAP / 2 + w / 2); return `M${XCLS},${y} C${XCLS - 40},${y} ${XCLS - 30},${R2 + o} ${XHEAD + 35},${R2 + o}`; };
       setBand(scene.back, [Math.max(0, ex.start), Math.max(0, -ex.start)]);
       if (!state.look) state.look = 1 + ex.flows.reduce((best, t, k) => (Math.abs(t.in) > Math.abs(ex.flows[best].in) ? k : best), 0);
-      paintInside();
+      paintCards();
       readout();
     };
 
     const readout = () => {
       const c = state.cfg, parts = [];
       const tops = ex.maps.slice(1).map(sum), pix = sum(ex.maps[0]);
-      if (state.classHover !== null) parts.push(`<b>Class ${cls}</b> has a score of <b>${f.logits[cls].toFixed(1).replace('-', '−')}</b>${cls !== pred ? `, and the network predicts ${pred}` : ''}.`);
-      parts.push(`The relevance starts with <b>${fmt(ex.start)}</b> at class ${cls}.`);
+      parts.push(`The network predicts <b>${pred}</b>, and the relevance starts there with <b>${fmt(ex.start)}</b>.`);
       const none = Object.keys(RULES).filter((k) => c[k] !== RULES[k]);
-      parts.push(c.add === 'split' ? '<b>The additions</b> split the relevance between the skip and the block, in proportion to what each added, so nothing is created.'
-        : `<b>The additions</b> copy, so the skip and the block each receive the full amount, and the total doubles at every block, up to <b>${fmt(tops[0])}</b> after the stem.`);
+      const shares = ex.flows.filter((t) => Math.abs(t.f2) > 1e-9).map((t) => Math.round(100 * (1 - t.gelu / t.f2)));
+      const lost = [Math.min(...shares), Math.max(...shares)];
+      parts.push(c.add === 'split' ? '<b>The additions</b> split the relevance. An addition is a neuron whose two weights are 1, so its rule gives the skip and the block the share each contributed, and nothing is created.'
+        : `<b>The additions</b> without their rule follow the gradient. The gradient of a sum is 1 for both inputs, so the skip and the block each receive a full copy, and the total doubles at every block, up to <b>${fmt(tops[0])}</b> after the stem.`);
       parts.push(c.ln === 'rule' ? '<b>LayerNorm</b> holds its spread fixed, so the relevance passes back through it like a layer with weights and keeps its total.'
-        : '<b>LayerNorm</b> without its rule turns what reaches it into positive and negative amounts that add up to zero. The norm in the head does this to the whole start, and what remains after it is noise.');
+        : '<b>LayerNorm</b> without its rule follows its gradient, which turns what reaches it into positive and negative amounts that add up to zero. The norm in the head does this to the whole start, and every block does it to its own share. The totals that remain below are leftovers of amounts that no longer cancel exactly, and the maps are noise.');
       parts.push(c.gelu === 'rule' ? '<b>GELU</b> passes the relevance on unchanged, because it changes each value on its own and mixes nothing.'
-        : '<b>GELU</b> without its rule multiplies the relevance by its slope, and a little leaks away in every block.');
+        : `<b>GELU</b> without its rule follows the gradient and multiplies the relevance by its slope. The slope is close to zero for negative inputs${c.ln === 'rule' ? `, so each block loses ${lost[0]} to ${lost[1]} percent of what enters it` : ''}.`);
       parts.push(c.ls === 'rule' ? '<b>Layer scale</b> passes the relevance on unchanged, because it only rescales what the block computed.'
-        : '<b>Layer scale</b> without its rule multiplies the relevance by its learned numbers, some of them negative, and part of what enters each block cancels.');
-      if (!none.length) parts.push(`The stream holds <b>${fmt(tops[B])}</b> after every block. Only the first block and the last step lose a little, where the z⁺ rule finds no positive contribution to follow, and <b>${fmt(pix)}</b> arrives at the pixels.`);
-      else parts.push(c.ln === 'rule' ? `The maps still look plausible, but <b>${fmt(pix)}</b> arrives at the pixels.` : `<b>${fmt(pix)}</b> arrives at the pixels.`);
-      parts.push('Click a block to open it below.');
+        : '<b>Layer scale</b> without its rule follows the gradient and multiplies the relevance by its learned numbers γ. Channels with a small γ shrink, those with a large one grow, and negative ones flip their sign, so the amount drifts from block to block.');
+      if (!none.length) parts.push(`The blocks keep the total, and <b>${fmt(tops[0])}</b> reaches the stem. The stem loses more. Where no pixel contributes positively to a cell, the z⁺ rule has nothing to follow and drops that cell's relevance, so <b>${fmt(pix)}</b> arrives at the pixels.`);
+      else if (c.ln === 'rule') {
+        const key = `${pred}|split|rule|rule|rule`;
+        if (!cache.has(key)) cache.set(key, M.explain(f, pred, RULES));
+        parts.push(`The maps keep their shape, but <b>${fmt(pix)}</b> arrives at the pixels, against <b>${fmt(sum(cache.get(key).maps[0]))}</b> with every rule.`);
+      }
+      parts.push('Click a block to describe it below.');
       readoutEl.innerHTML = parts.join(' ');
     };
 
-    const IX = { skip: 120, w: 300, d: 450, n: 600, z: 780, g: 900, u: 1070, v: 1190, in: 1320 }, PY0 = 78, PY1 = 282, PH = 344;
-    const pane = {};
-    const buildInside = () => {
-      panel.replaceChildren();
-      pane.title = T(panel, 0, 22, '', 'lrpc-row lrpc-row--small', 'start');
-      T(panel, 0, 42, 'Click another block above to open it. Each line carries the relevance along one connection, added up over all cells of the grid.', 'lrpc-label', 'start');
-      const gE = S('g', {}, panel), gN = S('g', {}, panel), ys = (n) => Array.from({ length: n }, (_, i) => PY0 + (i + 0.5) * (PY1 - PY0) / n);
-      const y16 = ys(M.C), y64 = ys(M.H);
-      const col = (key, n, label, sub) => {
-        const yy = n === M.C ? y16 : y64, h = n === M.C ? 9 : 2.4;
-        T(panel, IX[key], PH - 12, label, 'lrpc-label');
-        if (sub) T(panel, IX[key], PH, sub, 'lrpc-label');
-        pane[`t_${key}`] = T(panel, IX[key], PY1 + 22, '', 'lrpc-total');
-        if (n !== M.C) S('rect', { class: 'lrpc-frame', x: IX[key] - 7, y: PY0 - 1, width: 14, height: PY1 - PY0 + 2 }, gN);
-        return yy.map((y) => S('rect', { class: n === M.C ? 'lrpc-unit' : 'lrpc-unit lrpc-unit--small', x: IX[key] - 6, y: y - h / 2, width: 12, height: h }, gN));
-      };
-      pane.nodes = { in: col('in', M.C, 'at the plus sign'), v: col('v', M.C, 'into the block'), u: col('u', M.C, 'layer scale'), g: col('g', M.H, 'second linear'), z: col('z', M.H, 'GELU'),
-        n: col('n', M.C, 'first linear'), d: col('d', M.C, 'LayerNorm'), w: col('w', M.C, 'convolution', 'back to the stream'), skip: col('skip', M.C, 'skip', 'past the block') };
-      const line = (x1, y1, x2, y2) => S('path', { class: 'lrpc-edge', d: `M${x1 + 6},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2 - 6},${y2}` }, gE);
-      const back = (a, b, ya, yb, na, nb) => Array.from({ length: na }, (_, i) => Array.from({ length: nb }, (_, j) => line(IX[b], yb[j], IX[a], ya[i])));
-      pane.edges = {
-        v: y16.map((y) => line(IX.v, y, IX.in, y)), u: y16.map((y) => line(IX.u, y, IX.v, y)),
-        g: back('u', 'g', y16, y64, M.C, M.H), z: y64.map((y) => line(IX.z, y, IX.g, y)),
-        n: back('z', 'n', y64, y16, M.H, M.C), d: back('n', 'd', y16, y16, M.C, M.C), w: y16.map((y) => line(IX.w, y, IX.d, y)),
-        skip: y16.map((y, j) => S('path', { class: 'lrpc-edge', d: `M${IX.in},${y - 5} L${IX.in},${58 + j * 1.2} L${IX.skip},${58 + j * 1.2} L${IX.skip},${y - 5}` }, gE)),
-      };
+    const CW = 300, CH = 206, TOP = 30, BOT = 150;
+    const OPS = [
+      { op: 'add', name: 'Addition', vals: ['split', 'copy'], labels: ['Split', 'Copy'], reach: 'reaches it', note: 'An addition is a neuron whose two weights are 1. The rule splits the relevance, giving the skip and the block the share each contributed. Without it, the relevance follows the gradient, which is 1 for both, so each gets a full copy.' },
+      { op: 'ln', name: 'LayerNorm', vals: ['rule', 'none'], labels: ['Fixed spread', 'Gradient'], reach: 'reaches it', note: 'Each bar is one channel, added up over all cells. Without the rule, the bars always add up to zero.' },
+      { op: 'gelu', name: 'GELU', vals: ['rule', 'none'], labels: ['Pass on', '× slope'], reach: 'reaches it', note: 'Each bar adds up the units whose value entering GELU falls in its range. Without the rule, their relevance is multiplied by the slope of GELU, which is close to zero for negative values.' },
+      { op: 'ls', name: 'Layer scale', vals: ['rule', 'none'], labels: ['Pass on', '× γ'], reach: 'reaches it', note: 'Each bar is one channel. Without the rule, its relevance is multiplied by the number the channel learned, and some of these numbers are negative.' },
+    ];
+    const cards = {};
+    const buildCards = () => {
+      cardsEl.replaceChildren();
+      OPS.forEach((o) => {
+        const el = document.createElement('div'), head = document.createElement('p'), note = document.createElement('p');
+        el.className = 'lrpc-card'; head.className = 'lrpc-card-head'; note.className = 'lrpc-card-note'; note.textContent = o.note;
+        const plot = S('svg', { viewBox: `0 0 ${CW} ${CH}`, class: 'lrpc-card-plot', role: 'img', 'aria-label': `${o.name} with and without its rule` });
+        el.append(head, plot, note); cardsEl.append(el);
+        cards[o.op] = { head, plot };
+      });
     };
-    const paintInside = () => {
-      const k = state.look, r = ex.flows[k - 1].agg;
-      pane.title.textContent = `Inside block ${k}: the relevance that reaches it, followed back through each of its layers`;
+    const pane = (svg, o, i) => {
+      const g = S('g', { class: state.cfg[o.op] === o.vals[i] ? 'lrpc-pane lrpc-pane--on' : 'lrpc-pane' }, svg);
+      g.addEventListener('click', () => setOp(o.op, o.vals[i]));
+      return g;
+    };
+    const axis = (vals) => {
+      const mp = Math.max(0, ...vals), mn = Math.max(0, ...vals.map((v) => -v)), k = (BOT - TOP) / Math.max(1e-12, mp + mn);
+      const base = TOP + k * mp;
+      return { base, y: (v) => base - k * v };
+    };
+    const bars = (g, vals, x0, w, ax, ticks) => {
+      const bw = w / vals.length;
+      S('line', { x1: x0, x2: x0 + w, y1: ax.base, y2: ax.base, class: 'lrpc-axis' }, g);
+      vals.forEach((v, i) => {
+        const y = ax.y(v), h = Math.abs(y - ax.base);
+        if (h >= 0.4) S('rect', { x: x0 + i * bw + bw * 0.18, y: Math.min(y, ax.base), width: bw * 0.64, height: h, rx: Math.min(2, bw * 0.15), class: v >= 0 ? 'lrpc-bar' : 'lrpc-bar lrpc-bar--neg' }, g);
+        if (ticks) T(g, x0 + (i + 0.5) * bw, BOT + 14, ticks[i], 'lrpc-card-tick');
+      });
+    };
+    const paintBars = (plot, o, d) => {
+      const half = CW / 2, sets = o.op === 'add' ? [d.split, d.copy] : [d.rule, d.none].map((a) => Array.from(a));
+      const ax = axis([...sets.flat(), ...(o.op === 'add' ? [d.in] : [])]);
+      sets.forEach((vals, i) => {
+        const g = pane(plot, o, i), x0 = i * half;
+        S('rect', { x: x0, y: 0, width: half, height: CH, class: 'lrpc-hit' }, g);
+        T(g, x0 + half / 2, 14, o.labels[i], 'lrpc-card-label');
+        bars(g, vals, x0 + 16, half - 32, ax, o.op === 'add' ? ['skip', 'block'] : null);
+        if (o.op === 'add') S('line', { x1: x0 + 10, x2: x0 + half - 10, y1: ax.y(d.in), y2: ax.y(d.in), class: 'lrpc-reach' }, g);
+        T(g, x0 + half / 2, CH - 6, `adds up to ${fmt(sum(vals))}`, 'lrpc-card-total');
+      });
+      S('line', { x1: half, x2: half, y1: 4, y2: CH - 24, class: 'lrpc-divider' }, plot);
+    };
+    const paintGelu = (plot, o, d) => {
+      const half = CW / 2, ax = axis([...d.rule, ...d.none]);
+      [d.rule, d.none].forEach((vals, i) => {
+        const g = pane(plot, o, i), x0 = i * half + 16, w = half - 32, X = (z) => x0 + w * (z - ZLO) / (ZHI - ZLO);
+        S('rect', { x: i * half, y: 0, width: half, height: CH, class: 'lrpc-hit' }, g);
+        T(g, i * half + half / 2, 14, o.labels[i], 'lrpc-card-label');
+        if (i) {
+          let path = '';
+          for (let s2 = 0; s2 <= 60; s2++) { const z = ZLO + (ZHI - ZLO) * s2 / 60; path += `${s2 ? 'L' : 'M'}${X(z).toFixed(1)},${(ax.base - (ax.base - TOP) * clamp(slope(z), 0, 1.2) / 1.2).toFixed(1)}`; }
+          S('path', { d: path, class: 'lrpc-curve' }, g);
+          T(g, X(ZHI), TOP - 2, 'slope', 'lrpc-card-tick', 'end');
+        }
+        bars(g, Array.from(vals), x0, w, ax, null);
+        [-2, 0, 2].forEach((z) => T(g, X(z), BOT + 14, String(z).replace('-', '−'), 'lrpc-card-tick'));
+        T(g, i * half + half / 2, CH - 6, `adds up to ${fmt(sum(vals))}`, 'lrpc-card-total');
+      });
+      S('line', { x1: half, x2: half, y1: 4, y2: CH - 24, class: 'lrpc-divider' }, plot);
+      T(plot, half, BOT + 30, 'value entering GELU', 'lrpc-card-tick');
+    };
+    const paintCards = () => {
+      const k = state.look, t = ex.flows[k - 1];
       scene.rows.forEach((row) => row.boxes.forEach((bx, i) => bx.g.classList.toggle('lrpc-open', i === k - 1)));
-      const top = (...arrs) => Math.max(1e-15, ...arrs.flatMap((a) => Array.from(a, Math.abs)));
-      const setE = (el, v, mx) => { const w = 4.5 * Math.abs(v) / mx; el.style.strokeWidth = w; el.style.display = w >= 0.15 ? '' : 'none'; el.classList.toggle('lrpc-edge--neg', v < 0); };
-      const split = top(r.Rv, r.Rx), m2 = top(...r.F2), m1 = top(...r.F1), mL = top(...r.FL);
-      r.Rv.forEach((v, i) => setE(pane.edges.v[i], v, split)); r.Rx.forEach((v, i) => setE(pane.edges.skip[i], v, split));
-      r.Ru.forEach((v, i) => setE(pane.edges.u[i], v, top(r.Ru)));
-      r.F2.forEach((row, i) => row.forEach((v, j) => setE(pane.edges.g[i][j], v, m2))); r.Rz.forEach((v, i) => setE(pane.edges.z[i], v, top(r.Rz)));
-      r.F1.forEach((row, i) => row.forEach((v, j) => setE(pane.edges.n[i][j], v, m1))); r.FL.forEach((row, i) => row.forEach((v, j) => setE(pane.edges.d[i][j], v, mL)));
-      r.Rw.forEach((v, i) => setE(pane.edges.w[i], v, top(r.Rw)));
-      const fill = (nodes, vals) => { let m = 1e-12; for (const v of vals) m = Math.max(m, Math.abs(v)); nodes.forEach((el, i) => { const t = vals[i] / m; el.style.fill = `rgb(${(t >= 0 ? red(t) : blue(-t)).join(',')})`; }); };
-      const t = ex.flows[k - 1], arrive = ex.maps[k + 1], after = ex.maps[k], both = ([P, N]) => (width(N) >= 2 && width(P) >= 2 ? ` (+${fmt(P)} and ${fmt(-N)})` : '');
-      panelText.innerHTML = [`<b>${fmt(sum(arrive))}</b>${both(pn(arrive))} arrives at the plus sign after <b>block ${k}</b>, opened below. The skip takes <b>${fmt(t.skip)}</b>${both(t.bands.skip)}, and <b>${fmt(t.in)}</b>${both(t.bands.in)} enters the block.`,
+      const arrive = ex.maps[k + 1], after = ex.maps[k], both = ([P, N]) => (width(N) > 0 && width(P) > 0 ? ` (+${fmt(P)} and ${fmt(-N)})` : '');
+      panelText.innerHTML = [`<b>${fmt(sum(arrive))}</b>${both(pn(arrive))} arrives at the plus sign after <b>block ${k}</b>. The skip takes <b>${fmt(t.skip)}</b>${both(t.bands.skip)}, and <b>${fmt(t.in)}</b>${both(t.bands.in)} enters the block.`,
         `Going back through it, <b>layer scale</b> passes on <b>${fmt(t.ls)}</b>, the <b>second linear layer</b> <b>${fmt(t.f2)}</b>, <b>GELU</b> <b>${fmt(t.gelu)}</b>, the <b>first linear layer</b> <b>${fmt(t.f1)}</b>, and <b>LayerNorm</b> <b>${fmt(t.ln)}</b>.`,
         `The <b>convolution</b> hands <b>${fmt(t.dw)}</b> back to the stream, and together with the skip, <b>${fmt(sum(after))}</b> arrives ${k > 1 ? `after block ${k - 1}` : 'after the stem'}.`].join(' ');
-      [['in', r.Rin], ['v', r.Rv], ['u', r.Ru], ['g', r.Rg], ['z', r.Rz], ['n', r.Rn], ['d', r.Rd], ['w', r.Rw], ['skip', r.Rx]].forEach(([key, vals]) => { fill(pane.nodes[key], vals); pane[`t_${key}`].textContent = fmt(sum(vals)); });
+      summaryEl.textContent = `What each operation in block ${k} does with the relevance`;
+      OPS.forEach((o) => {
+        const { head, plot } = cards[o.op], d = t.card[o.op];
+        head.innerHTML = `<b>${o.name}</b> in block ${k}. <b>${fmt(d.in)}</b> ${o.reach}.`;
+        plot.replaceChildren();
+        (o.op === 'gelu' ? paintGelu : paintBars)(plot, o, d);
+      });
     };
-    const look = (k) => { if (state.look === k) return; state.look = k; paintInside(); };
+    const look = (k) => { if (state.look === k) return; state.look = k; paintCards(); };
 
-    const showClass = (k) => { state.classHover = k; cls = k ?? pred; paint(); };
     const load = () => {
       f = M.forward(state.pixels); cache.clear(); state.look = null;
-      pred = cls = f.logits.indexOf(Math.max(...f.logits)); state.classHover = null;
+      pred = f.logits.indexOf(Math.max(...f.logits));
       paintForward(); paint();
     };
-    root.querySelectorAll('.lrpw-op').forEach((b) => b.addEventListener('click', () => {
-      state.cfg[b.dataset.op] = b.dataset.val;
-      root.querySelectorAll(`.lrpw-op[data-op=${b.dataset.op}]`).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    const setOp = (op, val) => {
+      state.cfg[op] = val;
+      root.querySelectorAll(`.lrpw-op[data-op=${op}]`).forEach((o) => o.setAttribute('aria-pressed', String(o.dataset.val === val)));
       paint();
-    }));
+    };
+    root.querySelectorAll('.lrpw-op').forEach((b) => b.addEventListener('click', () => setOp(b.dataset.op, b.dataset.val)));
 
     const pctx = pad.getContext('2d'), P = pad.width;
     const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
@@ -401,7 +441,7 @@
     clearBtn.addEventListener('click', () => { blank(); state.pixels = new Array(784).fill(0); load(); readoutEl.textContent = 'Draw a digit on the input, filling the square.'; });
 
     build();
-    buildInside();
+    buildCards();
     load();
   };
 

@@ -8,18 +8,18 @@
     </div>
     <div class="lrpw-modes" role="group" aria-label="LayerNorm">
       <span class="lrpw-label">LayerNorm</span>
-      <button type="button" class="lrpw-op" data-op="ln" data-val="rule" aria-pressed="true">With its rule</button>
-      <button type="button" class="lrpw-op" data-op="ln" data-val="none" aria-pressed="false">Without</button>
+      <button type="button" class="lrpw-op" data-op="ln" data-val="rule" aria-pressed="true">Fixed spread</button>
+      <button type="button" class="lrpw-op" data-op="ln" data-val="none" aria-pressed="false">Gradient</button>
     </div>
     <div class="lrpw-modes" role="group" aria-label="GELU">
       <span class="lrpw-label">GELU</span>
-      <button type="button" class="lrpw-op" data-op="gelu" data-val="rule" aria-pressed="true">With its rule</button>
-      <button type="button" class="lrpw-op" data-op="gelu" data-val="none" aria-pressed="false">Without</button>
+      <button type="button" class="lrpw-op" data-op="gelu" data-val="rule" aria-pressed="true">Pass on</button>
+      <button type="button" class="lrpw-op" data-op="gelu" data-val="none" aria-pressed="false">× slope</button>
     </div>
     <div class="lrpw-modes" role="group" aria-label="Layer scale">
       <span class="lrpw-label">layer scale</span>
-      <button type="button" class="lrpw-op" data-op="ls" data-val="rule" aria-pressed="true">With its rule</button>
-      <button type="button" class="lrpw-op" data-op="ls" data-val="none" aria-pressed="false">Without</button>
+      <button type="button" class="lrpw-op" data-op="ls" data-val="rule" aria-pressed="true">Pass on</button>
+      <button type="button" class="lrpw-op" data-op="ls" data-val="none" aria-pressed="false">× γ</button>
     </div>
   </div>
   <p class="lrpw-readout" aria-live="polite">This figure needs JavaScript.</p>
@@ -29,7 +29,10 @@
     <button class="lrpw-clear" type="button" title="Clear the input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg><span>Clear</span></button>
   </div>
   <p class="lrpc-inside-text" aria-live="polite"></p>
-  <svg class="lrpc-inside" viewBox="0 0 1400 350" role="img" aria-label="The inside of one block: the relevance at the plus sign, the part that takes the skip, and the part that passes back through layer scale, the two linear layers, GELU, LayerNorm and the convolution."></svg>
-  <figcaption>{{ include.caption | default: 'A small ConvNeXt trained on handwritten digits. The stem cuts the image into patches of two by two pixels, and four blocks follow, each with a convolution, a LayerNorm, two linear layers with a GELU between them, and layer scale. The arrow above each block is its skip, which carries the block’s input around it to the plus sign. The top row shows how strongly each cell is active. The bottom row shows the relevance on its way back, red for positive and blue for negative, with the total under each map. The bands show how much relevance flows along each path, positive amounts above the row and negative amounts below it. When the amounts grow, all bands are drawn thinner, so that the widest one still fits. The switches turn the rules for the missing parts on and off. Click a block to open it in the panel below, with every unit and every connection between them. Hover a class to explain it, and draw your own digit on the input.' }}</figcaption>
+  <details class="lrpc-more">
+    <summary>What each operation in the block does with the relevance</summary>
+    <div class="lrpc-cards"></div>
+  </details>
+  <figcaption>{{ include.caption | default: 'A small ConvNeXt trained on handwritten digits. The stem cuts the image into patches of two by two pixels, and four blocks follow, each with a convolution, a LayerNorm, two linear layers with a GELU between them, and layer scale. The arrow above each block is its skip, which carries the block’s input around it to the plus sign. The top row shows how strongly each cell is active. The bottom row shows the relevance on its way back, red for positive and blue for negative, with the total under each map. The bands show how much relevance flows along each path, positive amounts above the row and negative amounts below it. When the amounts grow, all bands are drawn thinner, so that the widest one still fits. The switches choose, for each part, between its rule and the gradient, which LRP falls back to when a rule is missing. Click a block to describe it below, and open the cards under the description to see what each of its operations does with the relevance. The relevance always starts at the predicted class. Draw your own digit on the input to change it.' }}</figcaption>
 </figure>
 <script src="{{ '/assets/js/posts/label-free-lrp-cnx.js' | relative_url }}" defer></script>

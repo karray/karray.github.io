@@ -92,7 +92,7 @@ The number under each map is how much of the starting amount of 1 arrives at the
 
 Two things meet at a residual connection. One is the block's input, which passes the block by and is called the skip. The other is the block's result, called the update. Going backward, the relevance of the sum has to be shared between the skip and the update.
 
-An addition is a neuron whose two weights are both 1, so its gradient is 1 for both inputs. Without a rule, the skip and the update therefore each receive the full relevance of the sum. The relevance is copied instead of divided.
+An addition is a neuron whose two weights are both 1. The LRP rule treats it like the neuron above. Each input receives the share it contributed, so the skip and the update divide the relevance between them. Without a rule, the relevance follows the gradient instead, which is 1 for both inputs. The skip and the update then each receive the full relevance of the sum. The relevance is copied instead of divided.
 
 To watch this happen, we gave the digit network one block of its own. The block reads the eight units, brings them into a common range with a LayerNorm, passes them through a layer with weights, and adds its result back to the same eight units. The figure below draws the addition and the LayerNorm as nodes of their own, and each has a switch for its rule.
 
