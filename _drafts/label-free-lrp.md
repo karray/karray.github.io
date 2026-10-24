@@ -23,7 +23,7 @@ It helps to think of each layer as a small network of its own, one that takes wh
 
 How the relevance is divided at each layer is decided by a rule. Each kind of layer needs one that fits what it computes, and choosing them well is most of the work. The common rules and when to use them are described in *Layer-Wise Relevance Propagation: An Overview* [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>]. Since relevance is only divided and never created, the amounts at every step should add up to what we started with. This property is called conservation. In the figure, the number under each column is the total that arrives there, and it stays the same from column to column.
 
-Usually, the relevance starts with the score of the class being explained. But here, we start with 1 instead, so that every column reads $1.00$ and conservation is easy to see. The maps stay the same. Each step only hands on fixed shares of what arrives, so every amount grows and shrinks with the start, and starting with 1 just turns each number into a share of the score. For a negative score, the figure starts with −1, so that the signs stay right.
+Usually, the relevance starts with the score of the class being explained. But here, we start with 1 instead, so that every column reads $1.00$ and conservation is easy to see. The maps stay the same. Each step only hands on fixed shares of what arrives, so every amount grows and shrinks with the start, and starting with $1$ just turns each number into a share of the score. For a negative score, the figure starts with −1, so that the signs stay right.
 
 ## Relevance Is Not a Gradient
 
@@ -49,13 +49,13 @@ For a few parts, such as a ReLU, the gradient and the rule happen to agree. For 
 
 In the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we used LRP to explain self-supervised vision encoders without any labels. An encoder is the part of a vision model that turns an image into features, a grid of vectors that describes what is where in the image. The encoders in this post come in two families. ConvNeXt is a convolutional network, like the older ResNet, redesigned with ideas from transformers. Vision transformers (ViTs) cut the image into patches of sixteen by sixteen pixels and turn each patch into a vector of numbers, called a token. Swin sits in between. It is a transformer that, like a convolutional network, looks at the image in local windows and shrinks it in stages.
 
-Both families are built as a stack of blocks, each a group of layers. The features of the image flow along one main path through the whole network, called the residual stream. Each block reads from the stream, computes something, and adds its result back to it. The stream therefore keeps everything that earlier blocks wrote, and each block only adds a small correction. The addition that writes a block's result back is called a residual connection, and it is what lets very deep networks train.
+Both families are built from residual connections. A residual connection adds the result of a few layers back to their input, instead of replacing the input with it. These networks repeat this pattern many times, and each repetition is called a block.
 
-Since every block adds to the stream, its values can grow large on the way through the network. Each block therefore brings what it read into a common range before most of its computation. This step is called LayerNorm. It subtracts the mean of each position's values and divides them by their spread.
+Since every block adds to what it received, the values can grow large on the way through the network. Each block therefore brings its input into a common range before most of its computation. This step is called LayerNorm. It subtracts the mean of each position's values and divides them by their spread.
 
 The rest of a block is mostly layers with weights, convolutions and linear layers, which combine their inputs like the neuron above. Between them sits GELU, a smooth bend applied to every value on its own, a softer version of the ReLU in older networks. Transformer blocks add one more step, called attention. There, each token collects information from the other tokens by taking a weighted average of them, with weights computed from the tokens themselves.
 
-[Figure to come. A ConvNeXt block and a ViT block on the residual stream, with each part labelled, and the parts that zennit covers marked differently from those it does not.]
+{% include posts/label-free-lrp-cnx.html %}
 
 Two libraries provide ready-made LRP rules for PyTorch. [zennit](https://github.com/chr5tphr/zennit) covers convolutional networks such as VGG and ResNet [<a href="#anders2021software" data-ref="anders2021software">Anders et al.</a>]. It never edits the model's code. It attaches its rules to the model's layers only while an explanation runs. Where a block needs a different form for a rule to apply, a canonizer rewrites the block for that time and restores it afterwards. [LXT](https://github.com/rachtibat/LRP-eXplains-Transformers), the implementation of AttnLRP, covers language models and the original vision transformer [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
 
@@ -90,7 +90,7 @@ The number under each map is how much of the starting amount of 1 arrives at the
 
 ## Residual Connections
 
-At a residual connection, a block's result is added to the residual stream. Two things meet in this addition. One is the stream as it was before the block, which passes the block by and is called the skip. The other is what the block wrote, called the update. Going backward, the relevance of the sum has to be shared between the skip and the update.
+Two things meet at a residual connection. One is the block's input, which passes the block by and is called the skip. The other is the block's result, called the update. Going backward, the relevance of the sum has to be shared between the skip and the update.
 
 An addition is a neuron whose two weights are both 1, so its gradient is 1 for both inputs. Without a rule, the skip and the update therefore each receive the full relevance of the sum. The relevance is copied instead of divided.
 

@@ -5,7 +5,6 @@
   const NS = 'http://www.w3.org/2000/svg';
   const S = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.append(e); return e; };
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const ease = (t) => t * t * (3 - 2 * t);
   const fmt = (v) => (v > 0 && v < 0.01 ? v.toFixed(3) : Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2));
   const fmtTot = (v) => (Math.abs(v) < 0.005 ? '0.00' : Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)).replace('-', '−');
 
@@ -28,7 +27,7 @@
   };
   const denseFwd = (a, w, O, g = 1) => {
     const N = a.length, z = new Float64Array(O), fwd = [...Array(N / g)].map(() => new Float64Array(O));
-    for (let o = 0; o < O; o++) for (let i = 0; i < N; i++) { const wv = w[o * N + i], v = a[i] * wv; z[o] += v; if (wv > 0) fwd[(i / g) | 0][o] += v; }
+    for (let o = 0; o < O; o++) for (let i = 0; i < N; i++) { const v = a[i] * w[o * N + i]; z[o] += v; if (v > 0) fwd[(i / g) | 0][o] += v; }
     return { z, fwd };
   };
   const relu = (z) => z.map((v) => Math.max(0, v));
@@ -52,9 +51,9 @@
     const N = a.length;
     for (let o = 0; o < O; o++) {
       if (!R[o]) continue;
-      let z = 0; for (let i = 0; i < N; i++) { const wv = w[o * N + i]; if (wv > 0) z += a[i] * wv; }
+      let z = 0; for (let i = 0; i < N; i++) { const c = a[i] * w[o * N + i]; if (c > 0) z += c; }
       if (z <= 0) continue;
-      for (let i = 0; i < N; i++) { const wv = w[o * N + i]; if (wv > 0) fn(i, o, a[i] * wv * R[o] / z); }
+      for (let i = 0; i < N; i++) { const c = a[i] * w[o * N + i]; if (c > 0) fn(i, o, c * R[o] / z); }
     }
   };
   const conv0 = (a, C, H, w, O) => (R, fn) => {
@@ -96,6 +95,36 @@
     }
   };
 
+  const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
+  const gelu = (x) => 0.5 * x * (1 + erf(x / Math.SQRT2));
+  const geluSlope = (x) => 0.5 * (1 + erf(x / Math.SQRT2)) + x * Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI);
+  const diagFwd = (a, z) => ({ z, fwd: Array.from(a, (_, i) => { const r = new Float64Array(a.length); r[i] = Math.max(0, z[i]); return r; }) });
+  const spread = (a) => { const n = a.length, m = a.reduce((s, v) => s + v, 0) / n; return { n, m, sd: Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / n + 1e-5) }; };
+  const lnOp = (gam) => ({
+    forward: (a) => {
+      const { n, m, sd } = spread(a), z = Float64Array.from(a, (v, i) => gam[i] * (v - m) / sd), fwd = [...Array(n)].map(() => new Float64Array(n));
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const c = gam[i] / sd * ((i === j) - 1 / n) * a[j]; if (c > 0) fwd[j][i] += c; }
+      return { z, fwd };
+    },
+    step: (mode, a, zr, z, cfg) => (R, fn) => {
+      const { n, m, sd } = spread(a), xh = Array.from(a, (v) => (v - m) / sd);
+      for (let i = 0; i < n; i++) {
+        if (!R[i]) continue;
+        if (cfg.ln === 'none') { for (let j = 0; j < n; j++) fn(j, i, gam[i] / sd * ((i === j) - 1 / n - xh[i] * xh[j] / n) * R[i]); continue; }
+        if (Math.abs(z[i]) < 1e-9) continue;
+        for (let j = 0; j < n; j++) fn(j, i, gam[i] / sd * ((i === j) - 1 / n) * a[j] * R[i] / z[i]);
+      }
+    },
+  });
+  const geluOp = () => ({
+    forward: (a) => diagFwd(a, a.map(gelu)),
+    step: (mode, a, zr, z, cfg) => (R, fn) => { for (let i = 0; i < a.length; i++) if (R[i]) fn(i, i, cfg.gelu === 'none' ? geluSlope(a[i]) * R[i] : R[i]); },
+  });
+  const addOp = () => ({
+    forward: (a) => diagFwd(a, Float64Array.from(a)),
+    step: (mode, a, zr, z, cfg) => (R, fn) => { for (let i = 0; i < a.length; i++) if (R[i]) fn(i, i, cfg.add === 'copy' ? R[i] : Math.abs(z[i]) > 1e-9 ? a[i] / z[i] * R[i] : 0); },
+  });
+
   const convOp = (C, H, w, O) => ({
     forward: (a) => convFwd(a, C, H, w, O),
     step: (mode, a, z) => (mode === 'lrp0' ? conv0(a, C, H, w, O) : mode === 'rules' ? conv5(a, C, H, w, O) : gconv5(C, H, w, O, z, mode === 'guided')),
@@ -122,6 +151,37 @@
       { from: 4, to: 5, op: denseOp(W4, 10) },
     ],
   });
+  const blockNet = ([W0, W1, W2, G, F1, F2, W3, W4]) => ({
+    layers: [
+      { kind: 'image', count: 1, side: 28, ms: 96, x: 56, gap: 0, name: () => 'the pixels' },
+      { kind: 'map', count: 3, side: 14, ms: 70, x: 152, gap: 100, relu: true, name: (i) => `first-layer map ${i + 1}` },
+      { kind: 'map', count: 5, side: 7, ms: 44, x: 228, gap: 62, relu: true, name: (i) => `second-layer map ${i + 1}` },
+      { kind: 'unit', count: 8, x: 286, gap: 40, relu: true, name: (i) => `unit ${i + 1} before the block` },
+      { kind: 'unit', count: 8, x: 330, gap: 40, dy: 20, label: 'LayerNorm', name: (i) => `LayerNorm unit ${i + 1}` },
+      { kind: 'unit', count: 8, x: 372, gap: 40, dy: 20, label: 'linear', name: (i) => `linear unit ${i + 1}` },
+      { kind: 'unit', count: 8, x: 414, gap: 40, dy: 20, label: 'GELU', name: (i) => `GELU unit ${i + 1}` },
+      { kind: 'unit', count: 8, x: 456, gap: 40, dy: 20, label: 'linear', name: (i) => `second linear unit ${i + 1}` },
+      { kind: 'unit', count: 8, x: 500, gap: 40, label: 'sum', name: (i) => `unit ${i + 1} after the block` },
+      { kind: 'unit', count: 5, x: 550, gap: 56, relu: true, name: (i) => `feature ${i + 1}` },
+      { kind: 'output', count: 10, x: 600, gap: 36, name: () => 'the output' },
+    ],
+    links: [
+      { from: 0, to: 1, op: convOp(1, 28, W0, 3) },
+      { from: 1, to: 2, op: convOp(3, 14, W1, 5) },
+      { from: 2, to: 3, op: denseOp(W2, 8, 49) },
+      { from: 3, to: 4, op: lnOp(G) },
+      { from: 4, to: 5, op: denseOp(F1, 8) },
+      { from: 5, to: 6, op: geluOp(), diag: true },
+      { from: 6, to: 7, op: denseOp(F2, 8) },
+      { from: 7, to: 8, op: addOp(), diag: true },
+      { from: 3, to: 8, op: addOp(), diag: true, skip: true },
+      { from: 8, to: 9, op: denseOp(W3, 5) },
+      { from: 9, to: 10, op: denseOp(W4, 10) },
+    ],
+    band: [4, 7],
+  });
+  const NETS = { digit: digitNet, block: blockNet };
+  const RULES = { add: 'split', ln: 'rule', gelu: 'rule' };
 
   /* ---------- colours and map images ---------- */
   const greyRamp = (t) => { const v = Math.round(255 - 205 * t); return [v, v, v + 2]; };
@@ -170,7 +230,6 @@
     S('rect', { class: 'lrpw-frame', x: x0, y: y0, width: s, height: s }, g);
     return { img, anchor: (side, off = 0) => [cx + side * s / 2, cy + off] };
   };
-  const D = 1, SPEED = 4.2;
   const weights = new Map();
 
   const figure = async (root) => {
@@ -181,15 +240,14 @@
       if (!weights.has(root.dataset.src)) weights.set(root.dataset.src, fetch(root.dataset.src).then((r) => r.json()));
       data = await weights.get(root.dataset.src);
     } catch (e) { readoutEl.textContent = 'The network could not be loaded.'; return; }
-    const spec = digitNet(data.weights), LY = spec.layers, LK = spec.links, L = LY.length - 1;
+    const spec = (NETS[root.dataset.net] || digitNet)(data.weights), LY = spec.layers, LK = spec.links, L = LY.length - 1;
     LY.forEach((ly) => {
       ly.group = ly.side ? ly.side * ly.side : 1;
-      ly.ys = Array.from({ length: ly.count }, (_, i) => CY + (i - (ly.count - 1) / 2) * ly.gap);
+      ly.ys = Array.from({ length: ly.count }, (_, i) => CY + (i - (ly.count - 1) / 2) * ly.gap + (ly.dy || 0));
     });
     LK.forEach((lk, n) => { lk.n = n; });
     const into = LY.map((_, l) => LK.filter((lk) => lk.to === l));
     const node = (l, p) => (p / LY[l].group) | 0;
-    const T0 = L * D + 0.6, TOTAL = T0 + L * D + 0.6;
     const isMap = (l) => LY[l].kind === 'image' || LY[l].kind === 'map';
 
     const forward = (pixels) => {
@@ -201,7 +259,7 @@
       }
       const act = LY.slice(0, L).map((ly, l) => Array.from({ length: ly.count }, (_, i) => { let s = 0; for (let p = 0; p < ly.group; p++) s += A[l][i * ly.group + p]; return s / ly.group; }));
       const cache = {};
-      const stepsFor = (mode) => (cache[mode] ??= LK.map((lk) => lk.op.step(mode, A[lk.from], LY[lk.to].relu ? Z[lk.to] : null)));
+      const stepsFor = (mode, cfg = RULES) => (cache[`${mode}|${JSON.stringify(cfg)}`] ??= LK.map((lk) => lk.op.step(mode, A[lk.from], LY[lk.to].relu ? Z[lk.to] : null, Z[lk.to], cfg)));
       return { A, Z, F, act, logits: A[L], stepsFor };
     };
 
@@ -223,7 +281,7 @@
     // LRP from the score of class cls, optionally kept to one node of one layer. Down: the relevance from the start
     // (only the node's share continues below it). Up: the part of every earlier flow that ends up in that node.
     const explain = (only) => {
-      const steps = net.stepsFor(state.mode), R = zeros();
+      const steps = net.stepsFor(state.mode, state.cfg), R = zeros();
       R[L][cls] = startOf(cls);
       const C = backward(R, L, steps);
       if (!only) return { disp: R, flows: LK.map((lk) => flowMatrix(lk, C[lk.n])) };
@@ -271,11 +329,14 @@
 
     /* ---------- state ---------- */
     // cls: the class being explained (the one under the pointer, or else the prediction); pred: the network's prediction
-    const state = { pixels: data.start, hover: null, classHover: null, t: 0, playing: false, played: false, method: root.querySelector('.lrpw-mode[aria-pressed=true]')?.dataset.mode || 'lrp', sign: root.querySelector('.lrpw-sign[aria-pressed=true]')?.dataset.sign || 'pos' };
+    const state = { pixels: data.start, hover: null, classHover: null, method: root.querySelector('.lrpw-mode[aria-pressed=true]')?.dataset.mode || 'lrp', sign: root.querySelector('.lrpw-sign[aria-pressed=true]')?.dataset.sign || 'pos' };
     const isLRP = () => state.mode === 'rules' || state.mode === 'lrp0';
     const startOf = (k) => (isLRP() && net.logits[k] < 0 ? -1 : 1);
     const modeOf = () => (state.method === 'gradient' ? (state.sign === 'pos' ? 'guided' : 'gradient') : (state.sign === 'pos' ? 'rules' : 'lrp0'));
     state.mode = modeOf();
+    state.cfg = { ...RULES };
+    root.querySelectorAll('.lrpw-op[aria-pressed=true]').forEach((b) => { state.cfg[b.dataset.op] = b.dataset.val; });
+    const modeKey = () => `${state.mode}|${state.cfg.add}|${state.cfg.ln}|${state.cfg.gelu}`;
     const leaveTimers = {};
     const enterSoon = (kind) => { clearTimeout(leaveTimers[kind]); };
     const leaveSoon = (kind, fn) => { clearTimeout(leaveTimers[kind]); leaveTimers[kind] = setTimeout(fn, 160); };
@@ -287,8 +348,14 @@
       svg.replaceChildren();
       S('text', { class: 'lrpw-title', x: 300, y: 34, 'text-anchor': 'middle' }, svg).textContent = 'Prediction';
       S('text', { class: 'lrpw-title lrpw-title--rel', x: 900, y: 34, 'text-anchor': 'middle' }, svg).textContent = 'Explanation';
-      S('line', { class: 'lrpw-divider', x1: W / 2, x2: W / 2, y1: 52, y2: 480 }, svg);
-      S('text', { class: 'lrpw-total-label', x: W / 2 + 28, y: 474 }, svg).textContent = 'total';
+      S('line', { class: 'lrpw-divider', x1: W / 2, x2: W / 2, y1: 52, y2: 452 }, svg);
+      S('text', { class: 'lrpw-total-label', x: W - LY[L - 1].x - 30, y: 474, 'text-anchor': 'end' }, svg).textContent = 'total';
+      const labelled = LY.filter((ly) => ly.label), top = labelled.length ? Math.min(...labelled.flatMap((ly) => ly.ys)) : 0;
+      labelled.forEach((ly, n) => { for (const x of [ly.x, W - ly.x]) S('text', { class: 'lrpw-col-label', x, y: top - 22 - (n % 2) * 13, 'text-anchor': 'middle' }, svg).textContent = ly.label; });
+      if (spec.band) {
+        const [a, b] = spec.band.map((l) => LY[l]), ys = LY.slice(spec.band[0], spec.band[1] + 1).flatMap((ly) => ly.ys);
+        for (const x of [a.x - 24, W - b.x - 24]) S('rect', { class: 'lrpw-band', x, y: Math.min(...ys) - 18, width: b.x - a.x + 48, height: Math.max(...ys) - Math.min(...ys) + 36, rx: 12 }, svg);
+      }
       const totals = LY.slice(0, L).map((ly) => S('text', { class: 'lrpw-total', x: W - ly.x, y: 474, 'text-anchor': 'middle' }, svg));
       S('text', { class: 'lrpw-hint', x: LY[0].x, y: CY - LY[0].ms / 2 - 10, 'text-anchor': 'middle' }, svg).textContent = 'draw a digit here';
       const gE = S('g', {}, svg), gN = S('g', {}, svg), gH = S('g', {}, svg);
@@ -302,7 +369,7 @@
             const r = ly.kind === 'output' ? 11 : 10;
             S('circle', { class: 'lrpw-halo', cx: x, cy: y, r: r + 3.5 }, g);
             S('circle', { class: 'lrpw-node', cx: x, cy: y, r }, g);
-            Object.assign(rec, { r, anchor: (s2) => [x + s2 * r, y] });
+            Object.assign(rec, { r, anchor: () => [x, y] });
             if (ly.kind === 'output') S('text', { class: 'lrpw-digit', x, y: y + 4, 'text-anchor': 'middle' }, g).textContent = i;
             else rec.fill = S('circle', { class: `lrpw-fill lrpw-fill--${side}`, cx: x, cy: y, r: 0 }, g);
           }
@@ -315,13 +382,13 @@
         const na = side === 'fwd' ? LY[lk.to].count : LY[lk.from].count, nb = side === 'fwd' ? LY[lk.from].count : LY[lk.to].count;
         return curve(a.anchor(1, off(a, na, side === 'fwd' ? k : j)), b.anchor(-1, off(b, nb, side === 'fwd' ? j : k)));
       };
-      const edge = (side, lk, j, k, t0, t1) => {
-        const el = S('path', { class: `lrpw-edge lrpw-edge--${side}`, d: pair(side, lk, j, k) }, gE);
-        const dash = S('path', { class: 'lrpw-flow', d: el.getAttribute('d'), style: 'display:none' }, gE);
-        return { el, dash, t0, t1, n: lk.n, j, k };
+      const edge = (side, lk, j, k) => {
+        const el = S('path', { class: `lrpw-edge lrpw-edge--${side}${lk.skip ? ' lrpw-edge--skip' : ''}`, d: pair(side, lk, j, k) }, gE);
+        return { el, n: lk.n, j, k };
       };
-      LK.forEach((lk) => { for (let j = 0; j < LY[lk.from].count; j++) for (let k = 0; k < LY[lk.to].count; k++) fwdEdges.push(edge('fwd', lk, j, k, lk.from * D, lk.to * D)); });
-      [...LK].reverse().forEach((lk) => { for (let j = 0; j < LY[lk.from].count; j++) for (let k = 0; k < LY[lk.to].count; k++) relEdges.push(edge('rel', lk, j, k, T0 + (L - lk.to) * D, T0 + (L - lk.from) * D)); });
+      const pairs = (lk, fn) => { for (let j = 0; j < LY[lk.from].count; j++) for (let k = 0; k < LY[lk.to].count; k++) if (!lk.diag || j === k) fn(j, k); };
+      LK.forEach((lk) => pairs(lk, (j, k) => fwdEdges.push(edge('fwd', lk, j, k))));
+      [...LK].reverse().forEach((lk) => pairs(lk, (j, k) => relEdges.push(edge('rel', lk, j, k))));
       // hover: units and whole maps on both sides (not the image, the pixels or the output); a tap does the same
       const half = (l) => (isMap(l) ? LY[l].ms / 2 + 12 : LY[l].kind === 'output' ? 20 : 26);
       const hit = (layer, l, rec) => {
@@ -344,7 +411,6 @@
         el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') leaveSoon('class', () => showClass(null)); });
         el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') showClass(state.classHover === rec.i ? null : rec.i); });
       });
-      [...fwdEdges, ...relEdges].forEach((e) => { e.len = e.el.getTotalLength(); e.el.style.strokeDasharray = `${e.len} ${e.len + 1}`; });
       scene = { nodes, fwdEdges, relEdges, totals };
 
       // the fixed forward look: activations, and each edge's positive contribution as a share of what the receiving
@@ -365,7 +431,7 @@
     };
 
     /* ---------- views: computed once per hovered node and class, then kept ---------- */
-    const key = (h) => `${state.mode}|${h ? `${h.side}|${h.l}|${h.i}` : 'none'}`;
+    const key = (h) => `${modeKey()}|${h ? `${h.side}|${h.l}|${h.i}` : 'none'}`;
     const view = (h) => {
       const k = key(h);
       if (views.has(k)) return views.get(k);
@@ -411,17 +477,11 @@
         e.el.style.strokeWidth = w > 1e-6 ? clamp(w, 0.45, 14) : 0;
         e.el.style.strokeOpacity = w < 0.8 ? 0.35 : 0.85;
         e.el.classList.toggle('lrpw-neg', s < 0);
-        e.big = w > 2.2;
-        e.dash.style.display = e.big ? '' : 'none';
-        if (e.big) e.dash.style.strokeWidth = Math.min(2.2, w * 0.35);
       });
       fwdEdges.forEach((e, n) => {
         const w = v.fwd ? v.fwd[n] : e.w0, on = !v.fwd || w > 0.05;
         e.el.style.strokeWidth = on ? Math.max(0.4, w) : 0.3;
         e.el.style.strokeOpacity = on ? (w < 1 ? 0.45 : 0.9) : 0.12;
-        e.big = on && w > 2.2;
-        e.dash.style.display = e.big ? '' : 'none';
-        if (e.big) e.dash.style.strokeWidth = Math.min(2.2, w * 0.35);
       });
       for (let l = 0; l < L; l++) nodes.rel[l].forEach((rec) => {
         if (isMap(l)) rec.img.setAttribute('href', v.rel.urls[l][rec.i]);
@@ -440,16 +500,20 @@
         rec.el.classList.toggle('lrpw-dim', !!(v.lit.fwd && !v.lit.fwd(l, rec.i)));
         rec.el.classList.toggle('lrpw-hover', !!(h && h.side === 'fwd' && h.l === l && h.i === rec.i));
       }));
-      timeSet(state.t);
       readout(v);
     };
     const refresh = () => {
-      const fk = `${state.mode}|${cls}`;
+      const fk = `${modeKey()}|${cls}`;
       if (!fulls.has(fk)) { fulls.set(fk, explain(null)); viewSets.set(fk, new Map()); }
       full = fulls.get(fk); views = viewSets.get(fk);
     };
     const setClass = (k) => { cls = k; refresh(); paint(); };
     const setHover = (h) => { if (key(h) !== key(state.hover)) { state.hover = h; paint(); } };
+    root.querySelectorAll('.lrpw-op').forEach((b) => b.addEventListener('click', () => {
+      state.cfg[b.dataset.op] = b.dataset.val; state.hover = null;
+      root.querySelectorAll(`.lrpw-op[data-op=${b.dataset.op}]`).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+      refresh(); paint();
+    }));
     for (const [sel, field] of [['.lrpw-mode', 'method'], ['.lrpw-sign', 'sign']]) root.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => {
       state[field] = b.dataset[field === 'method' ? 'mode' : 'sign']; state.mode = modeOf(); state.hover = null;
       root.querySelectorAll(sel).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
@@ -461,7 +525,7 @@
       const h = state.hover, k = state.classHover, cap = (t) => t[0].toUpperCase() + t.slice(1), parts = [];
       if (h) {
         const a = net.act[h.l][h.i];
-        parts.push(`<b>${cap(LY[h.l].name(h.i))}</b> has a mean activation of <b>${fmt(a)}</b> and holds <b>${fmt(v.held)}</b> of the relevance.${a <= 0 ? ' It is silent for this digit, so it gets no relevance.' : ''}`);
+        parts.push(`<b>${cap(LY[h.l].name(h.i))}</b> has a mean activation of <b>${fmt(a)}</b> and holds <b>${fmt(v.held)}</b> of the relevance.${a <= 0 && LY[h.l].relu ? ' It is silent for this digit, so it gets no relevance.' : ''}`);
         const flow = state.mode !== 'rules' ? 'red and blue flow' : startOf(cls) < 0 ? 'blue flow' : 'red flow';
         parts.push(h.side === 'fwd' ? `The grey flow shows what it feeds on the way to the output, and the ${flow} shows the share of the relevance that comes back to it and where it goes from there, down to the pixels.`
           : `The ${flow} shows where its relevance goes from there, down to the pixels.`);
@@ -478,37 +542,18 @@
           guided: 'Guided backpropagation passes back only the positive part of the gradient at every unit, and the amount still changes from layer to layer. Blue in a column is what arrives there before its units drop it. The pixels drop nothing, so some blue remains in the final map.',
         }[state.mode]);
         if (state.mode !== 'rules') parts.push('Blue lines and pixels carry negative amounts.');
+        if (root.querySelector('.lrpw-op')) {
+          const T = v.tot, c = state.cfg, skip = c.add === 'copy' ? T[8] : T[8] - T[7];
+          parts.push(c.add === 'copy' ? `The addition copies, so the skip and the block each receive the full <b>${fmt(T[8])}</b>, and the units before the block end up with <b>${fmtTot(T[3])}</b>.`
+            : `The addition splits the <b>${fmt(T[8])}</b> between the skip, <b>${fmt(skip)}</b>, and the block, <b>${fmt(T[7])}</b>, in proportion to what each added.`);
+          if (c.gelu === 'none') parts.push(`Without its rule, GELU multiplies the relevance by its slope, and only <b>${fmt(T[5])}</b> of the <b>${fmt(T[6])}</b> gets past it.`);
+          if (c.ln === 'none') parts.push(`Without its rule, LayerNorm turns the <b>${fmt(T[4])}</b> that reaches it into positive and negative amounts that add up to <b>${fmtTot(T[3] - skip)}</b>.`);
+          if (c.add === 'split' && c.gelu === 'rule' && c.ln === 'rule') parts.push('With all three rules, every column holds the same total.');
+        }
       }
       readoutEl.innerHTML = parts.join(' ');
     };
 
-    /* ---------- the animation, once, when the figure first comes into view ---------- */
-    const timeSet = (t) => {
-      state.t = clamp(t, 0, TOTAL);
-      [...scene.fwdEdges, ...scene.relEdges].forEach((e) => {
-        const p = ease(clamp((state.t - e.t0) / (e.t1 - e.t0), 0, 1));
-        e.el.style.strokeDashoffset = e.len * (1 - p);
-        if (e.big) e.dash.style.opacity = p >= 1 ? 1 : 0;
-      });
-      scene.nodes.fwd.forEach((layer, l) => { if (l < L) layer.forEach((rec) => { (rec.img || rec.fill).style.opacity = clamp((state.t - l * D + (l ? 0 : 1)) / 0.45, 0, 1); }); });
-      scene.nodes.rel.forEach((layer, l) => { if (l < L) layer.forEach((rec) => { (rec.img || rec.fill).style.opacity = clamp((state.t - (T0 + (L - l) * D)) / 0.45, 0, 1); }); });
-    };
-    let last = 0;
-    const tick = (now) => {
-      if (!state.playing) return;
-      timeSet(state.t + (now - last) / 1000 * SPEED); last = now;
-      if (state.t >= TOTAL) { state.playing = false; return; }
-      requestAnimationFrame(tick);
-    };
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    new IntersectionObserver(([en]) => {
-      svg.classList.toggle('lrpw-paused', !en.isIntersecting);      // the moving dashes only run on screen
-      if (en.isIntersecting && !state.played) {
-        state.played = true;
-        if (reduced) timeSet(TOTAL);
-        else { timeSet(0); state.playing = true; last = performance.now(); requestAnimationFrame(tick); }
-      }
-    }, { threshold: 0.4 }).observe(svg);
 
     const load = () => {
       state.hover = null; state.classHover = null; fulls.clear(); viewSets.clear();
@@ -519,7 +564,6 @@
       build();
       refresh();
       paint();
-      if (!state.playing) timeSet(state.played ? TOTAL : 0);
     };
 
     /* ---------- drawing on the input ---------- */
