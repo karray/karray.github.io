@@ -1,25 +1,27 @@
 ---
 layout: post
-title: Following Relevance Through Modern Vision Models
+title: LRP for Modern Vision Models and the Rules It Was Missing
 styles:
   - /assets/css/posts/label-free-lrp.css
 tags: XAI, LRP, CNN, ViT, Self-Supervised Learning
-description: How we wrote LRP rules for ConvNeXt and vision transformers, what broke without them, and what the maps can and cannot tell us.
+description: How layer-wise relevance propagation explains a network and why it breaks on parts it has no rule for.
 ---
 
-In the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we used layer-wise relevance propagation (LRP) to explain self-supervised vision encoders without any labels. To explain them, we had to write rules that the existing LRP libraries do not cover. This post follows the relevance through these models one part at a time. For each part, we show what happened to the maps before it had a rule, and what the rule does instead.
+When a vision model makes a decision, we often want to know which pixels it relied on. Layer-wise relevance propagation (LRP) answers this by passing the output back through the network, dividing it among the inputs by how much each contributed. What counts as a contribution depends on the operation, so each operation needs a rule of its own. Without the right rules, the maps turn into noise, or look fine while carrying the wrong amounts. This post explains how LRP works and fills in the rules that modern models were missing.
 
 <!--more-->
 
 ## What is relevance?
 
-Think of the output of a network as an amount of water that we pour back through it. At every layer, the water is divided among the units that fed into it, and a unit that contributed more receives more. When the water reaches the image, the amount on each pixel tells us how much that pixel contributed. This amount is called relevance, and the procedure is layer-wise relevance propagation [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>].
+Think of the output of a network as an amount of water that we pour back through it. At every layer, the amount held by each unit is divided among the units that fed into it, and a unit that contributed more receives more. The amount that reaches each pixel tells us how much that pixel contributed. This amount is called relevance, and the procedure is layer-wise relevance propagation [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>].
 
-The figure below does this for a small network that reads handwritten digits. Its left half computes the prediction, and its right half pours the score back to the pixels. You can draw your own digit on the input.
+The figure below does this for a small network that reads handwritten digits. Its left half computes the prediction, and its right half passes the score back to the pixels. You can draw your own digit on the input.
 
 {% include posts/label-free-lrp-water.html %}
 
-How the water is divided at each layer is decided by a rule. Each kind of layer needs a rule that fits what it computes, and choosing them well is most of the work [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>]. Since water is only divided and never created, the amounts at every step should add up to what we started with. This property is called conservation, and we will lean on it throughout the post.
+How the relevance is divided at each layer is decided by a rule. Each kind of layer needs one that fits what it computes, and choosing them well is most of the work. The common rules and when to use them are described in *Layer-Wise Relevance Propagation: An Overview* [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>]. Since relevance is only divided and never created, the amounts at every step should add up to what we started with. This property is called conservation. In the figure, the number under each column is the total that arrives there, and it stays the same from column to column.
+
+Usually, the relevance starts with the score of the class being explained. But here, we start with 1 instead, so that every column reads $1.00$ and conservation is easy to see. The maps stay the same. Each step only hands on fixed shares of what arrives, so every amount grows and shrinks with the start, and starting with 1 just turns each number into a share of the score. For a negative score, the figure starts with −1, so that the signs stay right.
 
 ## Relevance Is Not a Gradient
 
@@ -27,21 +29,23 @@ Most explanation methods for neural networks are built on the gradient. The grad
 
 Take a single neuron with two inputs. It multiplies each input by a weight and adds the results. Say the inputs are $x_1 = 2$ and $x_2 = 1$, and the weights are $w_1 = 1.5$ and $w_2 = 1$. The neuron then outputs $1.5 \times 2 + 1 \times 1 = 3 + 1 = 4$.
 
-The gradient asks how much the output changes when one input changes a little. If $x_1$ grows by a small amount, the output grows by 1.5 times that amount. If $x_2$ grows, the output grows by the same amount. The gradients are therefore just the weights, 1.5 and 1. They tell us how sensitive the output is to each input, not how much each input contributed.
+The gradient asks how much the output changes when one input changes a little. Raising $x_1$ by a small step raises the output by $1.5$ such steps, and raising $x_2$ raises it by exactly one step. The gradients are therefore just the weights, $1.5$ and $1$. They tell us how sensitive the output is to each input, not how much each input contributed.
 
-Relevance asks how much of the output came from each input. Of the 4, the first input contributed 3 and the second contributed 1. If we start the explanation at this neuron, its relevance is its own output, 4, and LRP gives 3 to the first input and 1 to the second. Inside a network, the relevance that arrives at a neuron comes from the layers above and can be any amount. LRP divides it in the same proportions, three quarters to the first input and one quarter to the second. Every layer of a network is made of such neurons, so the same step, repeated layer by layer, carries the relevance from the output to the pixels.
+Relevance asks how much of the output came from each input. An input contributes its value times its weight, so $x_1$ contributed $3$ of the $4$ and $x_2$ contributed $1$. Unlike the gradient, this depends on the input itself. An input of zero contributes nothing and receives no relevance, however large its weight. LRP divides whatever relevance arrives at the neuron in these proportions. Every layer of a network is made of such neurons, so the same step, repeated layer by layer, carries the relevance from the output to the pixels.
 
 LRP is computed with the same backward pass that computes gradients. Each rule replaces the gradient of its layer by a share of the relevance. A layer that has no rule does not raise an error. It simply passes the relevance back the way a gradient would. Our neuron would then pass back $1.5 \times 4 = 6$ to the first input and $1 \times 4 = 4$ to the second, 10 in total from the 4 that arrived.
 
-The figure below shows the same difference in the digit network from above. Its backward half can now pass the relevance back in two ways, with the LRP rules or the way a gradient would. With the rules, the total in each column stays close to what arrived at the output, apart from a small share that the biases keep. Passed back like a gradient, the total changes from layer to layer, and the pixel map turns into the scattered pattern known from gradient maps.
+The figure below shows the same difference in the digit network from above. Its backward half can pass the relevance back with LRP or the way a gradient would. Passed back like a gradient, the total changes from layer to layer and part of it turns negative, shown in blue. The pixel map also reaches into the black background, which contributed nothing to the score. With LRP, every column holds the same total, because the rules only divide.
 
-[Figure to come. The digit network from the first figure, with a switch for its backward half between the LRP rules and passing relevance back like a gradient. Each column shows the total that arrives there.]
+The second switch decides what happens to negative amounts. The basic LRP rule, LRP-0, keeps them. An input that worked against the score then receives negative relevance, and the total still stays the same from column to column. The $\text{z}^+$ rule, which the first figure uses, follows only positive contributions, so all of the relevance stays positive. Its counterpart for gradients, guided backpropagation, drops the negative part of the gradient at every unit. Passing through the next weights can make part of it negative again, so a column still shows some blue before its units drop it. The pixels have no units that could drop anything, so some blue remains in the final map. The $\text{z}^+$ rule never creates negative amounts in the first place. With guided backpropagation, the total also still changes from layer to layer.
+
+{% include posts/label-free-lrp-water.html gradient=true mode="gradient" kicker="Relevance or gradient" caption="The digit network from the first figure. The first switch decides how its right half passes the score back, with LRP or the way a gradient would. The second keeps the negative amounts or passes back only positive ones, which gives the gradient, guided backpropagation, LRP-0 and the $\text{z}^+$ rule. Red is positive and blue is negative. The number under each column is the total that arrives there. Draw a digit or hover another class to compare." %}
 
 For a few parts, such as a ReLU, the gradient and the rule happen to agree. For the parts of modern encoders described below, they do not. The result can be a map that looks fine but carries the wrong amount, or pure noise, and the first attempt below shows both.
 
 ## What Is Inside a Modern Encoder
 
-An encoder is the part of a vision model that turns an image into features, a grid of numbers that describes what is where in the image. The encoders in this post come in two families. ConvNeXt is a convolutional network, like the older ResNet, redesigned with ideas from transformers. Vision transformers (ViTs) cut the image into patches of sixteen by sixteen pixels and turn each patch into a vector of numbers, called a token. Swin sits in between. It is a transformer that, like a convolutional network, looks at the image in local windows and shrinks it in stages.
+In the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we used LRP to explain self-supervised vision encoders without any labels. An encoder is the part of a vision model that turns an image into features, a grid of vectors that describes what is where in the image. The encoders in this post come in two families. ConvNeXt is a convolutional network, like the older ResNet, redesigned with ideas from transformers. Vision transformers (ViTs) cut the image into patches of sixteen by sixteen pixels and turn each patch into a vector of numbers, called a token. Swin sits in between. It is a transformer that, like a convolutional network, looks at the image in local windows and shrinks it in stages.
 
 Both families are a stack of small networks, called blocks. The blocks do not simply hand their result to the next block. Instead, the features of the image flow along one main path through the whole network, called the residual stream. Each block reads from the stream, computes something, and adds its result back to it. The stream therefore keeps everything that earlier blocks wrote, and each block only adds a small correction. The addition that writes a block's result back is called a residual connection, and it is what lets very deep networks train.
 
@@ -59,7 +63,7 @@ Both libraries have rules for the layers with weights, and these carry over to o
 
 LRP was designed to explain a prediction, so it usually starts from a class score. A self-supervised encoder has no class score. We start from its features instead, the grid of vectors at the end of the network, and use only their positive part. In the previous post, we averaged the same positive features into a coarse map, and LRP traces that map back to the pixels.
 
-With a classifier, the starting amount would be the class score itself. Our features have no single value like that, and their sum differs from model to model and from image to image. We therefore share a starting amount of 1 among the features, in proportion to their positive values. This makes the numbers comparable across models and images. The amount that arrives at the pixels is then simply the share of the start that made it all the way through.
+Each feature starts with its own positive value, and as in the digit figures, we scale the start so that it adds up to 1. The amount that arrives at the pixels is then simply the share of the start that made it all the way through. Here the scaling has a second benefit. The features add up to different totals in different models and images, and once scaled, the numbers can be compared across all of them. The maps, again, stay the same.
 
 <details markdown="1">
 <summary>Why only the positive part of the features?</summary>
@@ -162,7 +166,7 @@ A few smaller parts needed a rule as well. Some blocks multiply their update by 
 
 {%- comment -%}TODO: cite canonization / batch-norm folding work (e.g. Motzkus et al. 2022; Hui and Binder 2019) after verifying.{%- endcomment %}
 
-The layers with weights inside the blocks had a rule from the start, but we still had to pick one. zennit offers several, and they trade detail against focus. We use the Gamma rule, which favors positive contributions and makes maps less noisy. AttnLRP recommends it for the linear layers of vision transformers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
+The layers with weights inside the blocks had a rule from the start, but we still had to pick one. zennit offers several, and they trade detail against focus. We use the Gamma rule, which lies between LRP-0 and the $\text{z}^+$ rule. Like LRP-0, it keeps negative contributions, but it gives the positive ones extra weight, and the larger its parameter γ, the closer it comes to $\text{z}^+$. This makes the maps less noisy. AttnLRP recommends it for the linear layers of vision transformers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
 
 <details markdown="1">
 <summary>All rules at a glance</summary>
@@ -171,8 +175,8 @@ The layers with weights inside the blocks had a rule from the start, but we stil
 
 | | ResNets | ConvNeXt | Swin | MaxViT | Plain ViTs |
 |---|---|---|---|---|---|
-| first layer | z+ | WSquare | WSquare | WSquare | z+ |
-| layers inside blocks | z+ | Gamma | Gamma | Gamma | Gamma |
+| first layer | $\text{z}^+$ | WSquare | WSquare | WSquare | $\text{z}^+$ |
+| layers inside blocks | $\text{z}^+$ | Gamma | Gamma | Gamma | Gamma |
 | activations, layer scale, gates | pass | pass | pass | pass | pass |
 | LayerNorm | — | spread held fixed | spread held fixed | spread held fixed | spread held fixed |
 | attention | — | — | weights held fixed | weights held fixed | weights held fixed |
@@ -186,15 +190,15 @@ The layers with weights inside the blocks had a rule from the start, but we stil
 
 The first layer of many modern encoders cuts the image into patches and turns each patch into a feature vector, four by four pixels in ConvNeXt and Swin and sixteen by sixteen in a ViT. Its rule decides how a patch's relevance is spread over its pixels, and with that, most of the fine detail in the map. zennit offers rules for this step, but which one fits a patch layer was ours to find out.
 
-- **z+** spreads relevance according to the positive contributions of the actual pixel values.
+- **$\text{z}^+$** follows the positive contributions of the actual pixel values, as in the digit network.
 - **WSquare** spreads it according to the squared weights alone and ignores the pixel values. It is recommended for inputs without natural bounds [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>].
 - **Gamma** is the rule we use inside the blocks.
 
-Because WSquare ignores the pixels, it fills every patch with the same pattern, scaled by the patch's relevance. In the DINOv2 and DINOv3 ViTs, this one repeated pattern accounts for more than 99% of the detail within the patches. z+ follows the image inside each patch instead, which is why we use it for the ViTs.
+Because WSquare ignores the pixels, it fills every patch with the same pattern, scaled by the patch's relevance. In the DINOv2 and DINOv3 ViTs, this one repeated pattern accounts for more than 99% of the detail within the patches. $\text{z}^+$ follows the image inside each patch instead, which is why we use it for the ViTs.
 
 {% include figure-gallery.html id="lrp-stems" data=site.data.galleries.lrp_stems_rules class="wide" %}
 
-Look closely at the maps, and the borders between the patches become visible. WSquare paints visible edges along them. z+ shows fewer edges, and Gamma almost none. The number under each map measures this as the contrast between neighbouring pixels across a patch border and within a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with z+ and 0.97 with Gamma. Swin and the DINOv1 ViT behave the same way. The rules in our table are the ones we settled on early, WSquare for ConvNeXt, Swin and MaxViT and z+ for the ViTs. These measurements suggest that Gamma deserves a closer look.
+Look closely at the maps, and the borders between the patches become visible. WSquare paints visible edges along them. $\text{z}^+$ shows fewer edges, and Gamma almost none. The number under each map measures this as the contrast between neighbouring pixels across a patch border and within a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with $\text{z}^+$ and 0.97 with Gamma. Swin and the DINOv1 ViT behave the same way. The rules in our table are the ones we settled on early, WSquare for ConvNeXt, Swin and MaxViT and $\text{z}^+$ for the ViTs. These measurements suggest that Gamma deserves a closer look.
 
 ## Where the Relevance Goes
 
@@ -270,6 +274,7 @@ Bach, S., Binder, A., Montavon, G., Klauschen, F., Müller, K.-R., & Samek, W. |
 Montavon, G., Binder, A., Lapuschkin, S., Samek, W., & Müller, K.-R. | 2019 | Layer-Wise Relevance Propagation: An Overview;
 Anders, C. J., Neumann, D., Samek, W., Müller, K.-R., & Lapuschkin, S. | 2021 | Software for Dataset-wide XAI: From Local Explanations to Global Insights with Zennit, CoRelAy, and ViRelAy;
 Ali, A., Schnake, T., Eberle, O., Montavon, G., Müller, K.-R., & Wolf, L. | 2022 | XAI for Transformers: Better Explanations through Conservative Propagation;
+Achtibat, R., Dreyer, M., Eisenbraun, I., Bosse, S., Wiegand, T., Samek, W., & Lapuschkin, S. | 2023 | From Attribution Maps to Human-Understandable Explanations through Concept Relevance Propagation;
 Achtibat, R., et al. | 2024 | AttnLRP: Attention-Aware Layer-Wise Relevance Propagation for Transformers;
 Bakish, Y., Zimerman, I., Chefer, H., & Wolf, L. | 2025 | Revisiting LRP: Positional Attribution as the Missing Ingredient for Transformer Explainability;
 Berend, J., Achtibat, R., Schäffer, D., Binder, A., Samek, W., Lapuschkin, S., & Dreyer, M. | 2026 | ResLRP: The Role of Residual Cancellation in Attribution Instability in Vision Transformers;

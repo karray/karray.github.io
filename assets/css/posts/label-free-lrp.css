@@ -17,7 +17,7 @@
   --lrpw-fwd: #9a9fa3;
   --lrpw-fwd-fill: #6c7175;
   --lrpw-rel: #c8413b;
-  --lrpw-halo: #fff;
+  --lrpw-neg: #2f6fc4;
 }
 .lrp-fig {
   margin: 2.4rem 0;
@@ -104,7 +104,7 @@
   --lrpw-fwd: rgb(255 255 255 / .42);
   --lrpw-fwd-fill: rgb(255 255 255 / .75);
   --lrpw-rel: #ff7b6e;
-  --lrpw-halo: transparent;
+  --lrpw-neg: #82b4ff;
 }
 .band--glass .lrp-fig { box-shadow: var(--glass-shadow); }
 .band:not(.band--glass) > .lrp-fig { padding-left: 0; padding-right: 0; border: 0; border-radius: 0; background: none; }
@@ -148,9 +148,15 @@
 .lrpw-stage { position: relative; }
 .lrp-fig .lrpw-scene { overflow: visible; user-select: none; -webkit-user-select: none; }
 .lrpw-pad { position: absolute; cursor: crosshair; touch-action: none; }
-.lrp-fig .lrpw-clear { position: absolute; display: grid; place-items: center; width: 28px; min-height: 0; height: 28px; padding: 0; border: 1px solid var(--lrp-control); border-radius: 8px; transform: translateX(-50%); }
-.lrp-fig .lrpw-clear:hover { border-color: var(--lrp-accent); background: var(--lrp-hover); }
-.lrp-fig .lrpw-clear svg { width: 14px; height: 14px; fill: var(--lrp-ink); }
+.lrp-fig .lrpw-clear { position: absolute; display: inline-flex; align-items: center; gap: 4px; min-height: 0; height: 28px; padding: 0 11px 0 8px; border: 1px solid var(--lrpw-rel); border-radius: 999px; background: color-mix(in srgb, var(--lrpw-rel) 12%, var(--lrp-raised)); color: var(--lrpw-rel); font: 700 .8rem/1 system-ui, sans-serif; transform: translateX(-50%); }
+.lrp-fig .lrpw-clear:hover { border-color: var(--lrpw-rel); background: var(--lrpw-rel); color: #fff; }
+.lrp-fig .lrpw-clear svg { width: 12px; height: 12px; fill: currentColor; }
+.lrpw-controls { display: flex; flex-wrap: wrap; gap: .5rem 1.6rem; margin: 0 0 .6rem; }
+.lrpw-modes { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.lrpw-total { font: 700 15px system-ui, sans-serif; fill: var(--lrp-ink); font-variant-numeric: tabular-nums; }
+.lrpw-total-label { font: 600 12px system-ui, sans-serif; fill: var(--lrp-muted); }
+.lrpw-edge--rel.lrpw-neg { stroke: var(--lrpw-neg); }
+.lrpw-fill--rel.lrpw-neg { fill: var(--lrpw-neg); }
 .lrpw-readout { min-height: 4.4em; font-size: .9rem; }
 .lrpw-readout b { font-variant-numeric: tabular-nums; }
 .lrpw-title { font: 600 26px system-ui, sans-serif; fill: var(--lrp-ink); }
@@ -160,7 +166,7 @@
 .lrpw-node { fill: var(--lrp-raised); stroke: var(--lrp-ink); stroke-width: 1.6; }
 .lrpw-frame { fill: none; stroke: var(--lrp-ink); stroke-width: 1.4; }
 .lrpw-grid { stroke: rgb(0 0 0 / .14); stroke-width: .5; }
-.lrpw-digit { font: 700 10px system-ui, sans-serif; fill: var(--lrp-ink); paint-order: stroke; stroke: var(--lrpw-halo); stroke-width: 2.5px; pointer-events: none; }
+.lrpw-digit { font: 700 10px system-ui, sans-serif; fill: var(--lrp-ink); pointer-events: none; }
 .lrpw-edge { fill: none; stroke-linecap: butt; }
 .lrpw-edge--fwd { stroke: var(--lrpw-fwd); }
 .lrpw-fill--fwd { fill: var(--lrpw-fwd-fill); }
@@ -170,16 +176,16 @@
 .lrpw-paused .lrpw-flow { animation-play-state: paused; }
 @keyframes lrpw-flow { to { stroke-dashoffset: -12.5; } }
 @media (prefers-reduced-motion: reduce) { .lrpw-flow { animation: none; } }
-.lrpw-hoverable { cursor: pointer; }
+.lrpw-hit { fill: transparent; cursor: pointer; }
 .lrpw-halo { fill: none; stroke: transparent; stroke-width: 3; }
-.lrpw-hoverable:hover .lrpw-halo, .lrpw-hover .lrpw-halo { stroke: var(--lrp-accent); }
+.lrpw-hover .lrpw-halo { stroke: var(--lrp-accent); }
 .lrpw-mirror .lrpw-halo { stroke: var(--lrp-accent); stroke-dasharray: 3 2; }
 .lrpw-dim { opacity: .28; }
 .lrpw-explained .lrpw-node { stroke: var(--lrpw-rel); stroke-width: 2.4; }
 
 @media (max-width: 640px) {
-  .lrp-fig .lrpw-clear { width: 20px; height: 20px; margin-top: -4px; border-radius: 6px; }
-  .lrp-fig .lrpw-clear svg { width: 11px; height: 11px; }
+  .lrp-fig .lrpw-clear { height: 22px; margin-top: -4px; padding: 0 8px 0 6px; font-size: .7rem; }
+  .lrp-fig .lrpw-clear svg { width: 10px; height: 10px; }
   .lrp-fig { padding: 1rem; }
   .lrp-columns, .lrp-sliders { grid-template-columns: 1fr; }
   .lrp-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; }
