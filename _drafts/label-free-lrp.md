@@ -109,7 +109,7 @@ The fix is a canonizer that rewrites every addition, so that LRP can apply a rul
 
 If we add the same number to every input of a LayerNorm, the mean grows by that number and the output does not change at all. As a consequence, the gradient of LayerNorm always sums to zero over its inputs. Without a rule, the relevance that passes through it is split into positive and negative amounts of exactly the same size, as the LayerNorm card under the small ConvNeXt shows. A real encoder has a LayerNorm in every block, so this happens dozens of times on the way to the pixels. Which channels receive the negative amounts is decided mostly by the normalisation and not by the objects. When the relevance finally reaches the input, the two signs end up on pixels close to each other, and the map turns into noise. This is what the second column of that gallery shows, although every residual connection there already divides the relevance. The amounts that remain mean nothing either, from 0.01 in ConvNeXt to millions in Swin.
 
-The rule holds the spread fixed during the backward pass, while the forward pass stays exactly the same. LayerNorm then behaves like a linear layer, and relevance passes through it with the usual rule for linear layers. Conservative propagation proposed this treatment for transformers [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>], and AttnLRP uses an equivalent rule [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. With this rule alone, in the third column, the objects appear in the ViT, but with the inflated amounts from the copying residual connections. In ConvNeXt and Swin, the maps stay noise. Only in the last column, which has all rules, do the objects appear in all three models with a plausible amount.
+The rule treats the spread as a constant on the way back, while the forward pass stays exactly the same. LayerNorm then behaves like a linear layer, and relevance passes through it with the usual rule for linear layers. Conservative propagation proposed this treatment for transformers [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>], and AttnLRP uses an equivalent rule [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. With this rule alone, in the third column, the objects appear in the ViT, but with the inflated amounts from the copying residual connections. In ConvNeXt and Swin, the maps stay noise. Only in the last column, which has all rules, do the objects appear in all three models with a plausible amount.
 
 ### GELU and Layer Scale
 
@@ -119,13 +119,11 @@ zennit applies the identity rule to the activation functions it knows. The ConvN
 
 ### Attention
 
-Attention is the one part that the small ConvNeXt does not have. Without a rule, relevance follows the gradient. Each token then receives relevance in proportion to its attention weight alone, however much or little it sent. Another part flows into the computation of the weights, in positive and negative amounts that cancel.
+Attention is the one part that the small ConvNeXt example does not have. Without a rule, relevance follows the gradient. Each token then receives relevance in proportion to its attention weight alone, however much or little it sent. Another part flows into the computation of the weights, in positive and negative amounts that cancel. Because the weights of a token add up to 1, the gradient still divides the relevance among the tokens instead of copying it, only by weight and not by contribution. This is why attention without its rule does far less harm than LayerNorm or the residual connections.
 
-I hold the weights fixed during the backward pass. The weighted average then works like a layer with weights, and each token receives relevance in proportion to its contribution, its weight times what it sent. This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In these encoders, holding the weights fixed changed the maps only a little. Without it, Swin's maps gain a few bright squares, and the amount at the pixels changes by about a tenth.
+We can treat the weights as constants on the way back, as if they had been given and not computed from the tokens. No relevance then flows into their computation, and the weighted average works like a layer with weights, where each token receives relevance in proportion to its contribution, its weight times what it sent. This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In these encoders, treating the weights as constants changed the maps only a little. Without it, Swin's maps gain a few bright squares, and the amount at the pixels changes by about a tenth.
 
 Attention also explains a difference you can see in the stacked figure above. A convolution only combines neighbouring cells, so relevance in ConvNeXt stays close to where it started. Attention connects every token with every other one, so in the ViT, relevance can jump across the image within a single block.
-
-[Figure to come, if needed.]
 
 ## Where the Relevance Goes
 
@@ -194,8 +192,8 @@ The layers with weights inside the blocks had a rule from the start, but I still
 | first layer | $\text{z}^+$ | WSquare | WSquare | WSquare | $\text{z}^+$ |
 | layers inside blocks | $\text{z}^+$ | Gamma | Gamma | Gamma | Gamma |
 | activations, layer scale, gates | pass | pass | pass | pass | pass |
-| LayerNorm | — | spread held fixed | spread held fixed | spread held fixed | spread held fixed |
-| attention | — | — | weights held fixed | weights held fixed | weights held fixed |
+| LayerNorm | — | spread constant | spread constant | spread constant | spread constant |
+| attention | — | — | weights constant | weights constant | weights constant |
 | residual split | equal | proportional | proportional | magnitude | magnitude |
 
 </div>
@@ -250,7 +248,7 @@ relevance = explain(model, x)               # (3, 224, 224), one map per colour 
 heatmap = relevance.clamp(min=0).mean(0)    # positive part, averaged over the colours
 ```
 
-To add a new model, one writes a canonizer for each of its blocks that makes the residual additions explicit and holds the attention weights and the LayerNorm spread fixed. The checks above then show whether anything was missed.
+To add a new model, one writes a canonizer for each of its blocks that makes the residual additions explicit and treats the attention weights and the LayerNorm spread as constants. The checks above then show whether anything was missed.
 
 ## Conclusion
 {%- comment -%}TODO: write once the sections are agreed. Open questions grounded in the figures: why ViT maps
