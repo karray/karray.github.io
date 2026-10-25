@@ -155,7 +155,7 @@ Once every residual connection can receive a rule, LRP must decide how much of t
 - An **equal** split gives each part half, regardless of the numbers.
 - A **proportional** split gives each part the share it contributed. This is the standard LRP treatment of an addition, and it is what LXT and AttnLRP do implicitly. A part that worked against the sum receives negative relevance.
 - A **magnitude** split divides by size and ignores the sign. I introduced it for MaxViT and the ViTs, after the proportional split made some of their maps unstable in my early experiments.
-- A **γ split** works like the proportional one, but gives extra weight to the part whose sign agrees with the sum. It was proposed by Berend et al. while I was writing this post [<a href="#berend2026reslrp" data-ref="berend2026reslrp">Berend et al.</a>].
+- A **γ split** works like the proportional one, but gives extra weight to the part whose sign agrees with the sum [<a href="#berend2026reslrp" data-ref="berend2026reslrp">Berend et al.</a>].
 
 When the skip and the update have the same sign, the proportional, magnitude and γ splits agree. They disagree when the update works against the skip. The proportional split keeps the information that the update worked against the sum, but when the two nearly cancel, it divides by a sum close to zero and hands out huge positive and negative amounts. The magnitude split never grows, but it credits the opposing update as if it had helped. The γ split keeps the sign and stays bounded. Berend et al. identify such cancellation inside transformer blocks as a main reason why LRP maps of ViTs become noisy.
 
