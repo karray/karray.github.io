@@ -23,12 +23,12 @@
    "rendering": "auto"
   },
   {
-   "label": "+ residual split",
+   "label": "+ residual split only",
    "layer": "residual",
    "rendering": "auto"
   },
   {
-   "label": "+ LayerNorm",
+   "label": "+ LayerNorm only",
    "layer": "layernorm",
    "rendering": "auto"
   },

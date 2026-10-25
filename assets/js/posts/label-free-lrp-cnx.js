@@ -296,8 +296,8 @@
       const none = Object.keys(RULES).filter((k) => c[k] !== RULES[k]);
       const shares = ex.flows.filter((t) => Math.abs(t.f2) > 1e-9).map((t) => Math.round(100 * (1 - t.gelu / t.f2)));
       const lost = [Math.min(...shares), Math.max(...shares)];
-      parts.push(c.add === 'split' ? '<b>The additions</b> split the relevance. An addition is a neuron whose two weights are 1, so its rule gives the skip and the block the share each contributed, and nothing is created.'
-        : `<b>The additions</b> without their rule follow the gradient. The gradient of a sum is 1 for both inputs, so the skip and the block each receive a full copy, and the total doubles at every block, up to <b>${fmt(tops[0])}</b> after the stem.`);
+      parts.push(c.add === 'split' ? '<b>The residual connections</b> split the relevance. Each is an addition, a neuron whose two weights are 1, so its rule gives the skip and the block the share each contributed, and nothing is created.'
+        : `<b>The residual connections</b> without their rule follow the gradient. The gradient of a sum is 1 for both inputs, so the skip and the block each receive a full copy, and the total doubles at every block, up to <b>${fmt(tops[0])}</b> after the stem.`);
       parts.push(c.ln === 'rule' ? '<b>LayerNorm</b> holds its spread fixed, so the relevance passes back through it like a layer with weights and keeps its total.'
         : '<b>LayerNorm</b> without its rule follows its gradient, which turns what reaches it into positive and negative amounts that add up to zero. The norm in the head does this to the whole start, and every block does it to its own share. The totals that remain below are leftovers of amounts that no longer cancel exactly, and the maps are noise.');
       parts.push(c.gelu === 'rule' ? '<b>GELU</b> passes the relevance on unchanged, because it changes each value on its own and mixes nothing.'
@@ -316,7 +316,7 @@
 
     const CW = 300, CH = 206, TOP = 30, BOT = 150;
     const OPS = [
-      { op: 'add', name: 'Addition', vals: ['split', 'copy'], labels: ['Split', 'Copy'], reach: 'reaches it', note: 'An addition is a neuron whose two weights are 1. The rule splits the relevance, giving the skip and the block the share each contributed. Without it, the relevance follows the gradient, which is 1 for both, so each gets a full copy.' },
+      { op: 'add', name: 'Residual', vals: ['split', 'copy'], labels: ['Split', 'Copy'], reach: 'reaches it', note: 'A residual connection is an addition, a neuron whose two weights are 1. The rule splits the relevance, giving the skip and the block the share each contributed. Without it, the relevance follows the gradient, which is 1 for both, so each gets a full copy.' },
       { op: 'ln', name: 'LayerNorm', vals: ['rule', 'none'], labels: ['Fixed spread', 'Gradient'], reach: 'reaches it', note: 'Each bar is one channel, added up over all cells. Without the rule, the bars always add up to zero.' },
       { op: 'gelu', name: 'GELU', vals: ['rule', 'none'], labels: ['Pass on', '× slope'], reach: 'reaches it', note: 'Each bar adds up the units whose value entering GELU falls in its range. Without the rule, their relevance is multiplied by the slope of GELU, which is close to zero for negative values.' },
       { op: 'ls', name: 'Layer scale', vals: ['rule', 'none'], labels: ['Pass on', '× γ'], reach: 'reaches it', note: 'Each bar is one channel. Without the rule, its relevance is multiplied by the number the channel learned, and some of these numbers are negative.' },
