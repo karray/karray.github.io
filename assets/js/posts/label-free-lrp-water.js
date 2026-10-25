@@ -331,7 +331,7 @@
     // cls: the class being explained (the one under the pointer, or else the prediction); pred: the network's prediction
     const state = { pixels: data.start, hover: null, classHover: null, method: root.querySelector('.lrpw-mode[aria-pressed=true]')?.dataset.mode || 'lrp', sign: root.querySelector('.lrpw-sign[aria-pressed=true]')?.dataset.sign || 'pos' };
     const isLRP = () => state.mode === 'rules' || state.mode === 'lrp0';
-    const startOf = (k) => (isLRP() && net.logits[k] < 0 ? -1 : 1);
+    const startOf = (k) => (!isLRP() || net.logits[k] >= 0 ? 1 : state.mode === 'lrp0' ? -1 : 0);
     const modeOf = () => (state.method === 'gradient' ? (state.sign === 'pos' ? 'guided' : 'gradient') : (state.sign === 'pos' ? 'rules' : 'lrp0'));
     state.mode = modeOf();
     state.cfg = { ...RULES };
@@ -526,17 +526,18 @@
       if (h) {
         const a = net.act[h.l][h.i];
         parts.push(`<b>${cap(LY[h.l].name(h.i))}</b> has a mean activation of <b>${fmt(a)}</b> and holds <b>${fmt(v.held)}</b> of the relevance.${a <= 0 && LY[h.l].relu ? ' It is silent for this digit, so it gets no relevance.' : ''}`);
-        const flow = state.mode !== 'rules' ? 'red and blue flow' : startOf(cls) < 0 ? 'blue flow' : 'red flow';
+        const flow = state.mode !== 'rules' ? 'red and blue flow' : 'red flow';
         parts.push(h.side === 'fwd' ? `The grey flow shows what it feeds on the way to the output, and the ${flow} shows the share of the relevance that comes back to it and where it goes from there, down to the pixels.`
           : `The ${flow} shows where its relevance goes from there, down to the pixels.`);
         if (v.boost > 1) parts.push(`Red line widths are scaled up ${v.boost < 10 ? v.boost.toFixed(1) : Math.round(v.boost)} times for this small share.`);
       } else {
         const st = startOf(cls), pn = cls !== pred ? ` (the network predicts ${pred})` : '';
         if (k !== null) parts.push(`<b>Class ${k}</b> has a score of <b>${net.logits[k].toFixed(1).replace('-', '−')}</b> and a probability of <b>${(probs[k] * 100).toFixed(probs[k] < 0.01 ? 2 : 0)}%</b>.`);
-        if (isLRP()) parts.push(`The relevance starts with <b>${fmtTot(st)}</b> in place of the score of class ${cls}${pn}, so that conservation is easy to see.${st < 0 ? ' The start is negative because the score is.' : ''} <b>${fmtTot(v.tot[0])}</b> of it reaches the pixels.`);
+        if (isLRP() && st === 0) parts.push(`The score of class ${cls}${pn} is negative, and the z⁺ rule only follows contributions that raised it, so the relevance starts with <b>0.00</b> and there is nothing to pass back.`);
+        else if (isLRP()) parts.push(`The relevance starts with <b>${fmtTot(st)}</b> in place of the score of class ${cls}${pn}, so that conservation is easy to see.${st < 0 ? ' The start is negative because the score is.' : ''} <b>${fmtTot(v.tot[0])}</b> of it reaches the pixels.`);
         else parts.push(`The gradient starts at <b>1.00</b> at the score of class ${cls}${pn}, because the score changes one for one with itself. <b>${fmtTot(v.tot[0])}</b> arrives at the pixels.`);
         parts.push({
-          rules: st < 0 ? 'The z⁺ rule hands this negative amount to the inputs that pushed the score up, so the whole map turns blue.' : root.querySelector('.lrpw-sign') ? 'Every amount stays positive, because the z⁺ rule only follows positive contributions.' : '',
+          rules: st !== 0 && root.querySelector('.lrpw-sign') ? 'Every amount stays positive, because the z⁺ rule only follows positive contributions.' : '',
           lrp0: 'With LRP-0, an input that worked against the score receives an amount of the opposite sign. The relevance is still only divided, so the total stays the same from column to column.',
           gradient: 'Passed back like a gradient, the amount changes from layer to layer.',
           guided: 'Guided backpropagation passes back only the positive part of the gradient at every unit, and the amount still changes from layer to layer. Blue in a column is what arrives there before its units drop it. The pixels drop nothing, so some blue remains in the final map.',

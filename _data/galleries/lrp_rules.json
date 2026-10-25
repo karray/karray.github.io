@@ -129,6 +129,6 @@
   "dino_vit|all|spider_web": "0.07 reaches the pixels"
  },
  "help": "Pick an image from the dock and compare the columns across a row. Each row is one model. The number under a map is how much of the starting amount of 1 arrives at the pixels.",
- "caption": "Positive part of the relevance at the pixels, averaged over the colour channels and scaled to its own maximum. The middle columns add a single rule to the weighted layers. The rule for activations or for attention alone leaves the first map almost unchanged. The last column is the full rule set of the tutorial.",
+ "caption": "Positive part of the relevance at the pixels, averaged over the colour channels and scaled to its own maximum. The first column gives a rule only to the layers with weights. The two middle columns add the rule for the residual split or for LayerNorm alone, and the last column has all rules.",
  "style": "--fg-cell-max: 240px;"
 }
