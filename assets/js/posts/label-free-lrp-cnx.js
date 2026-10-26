@@ -298,7 +298,7 @@
       const lost = [Math.min(...shares), Math.max(...shares)];
       parts.push(c.add === 'split' ? '<b>The residual connections</b> split the relevance. Each is an addition, a neuron whose two weights are 1, so its rule gives the skip and the block the share each contributed, and nothing is created.'
         : `<b>The residual connections</b> without their rule follow the gradient. The gradient of a sum is 1 for both inputs, so the skip and the block each receive a full copy, and the total doubles at every block, up to <b>${fmt(tops[0])}</b> after the stem.`);
-      parts.push(c.ln === 'rule' ? '<b>LayerNorm</b> holds its spread fixed, so the relevance passes back through it like a layer with weights and keeps its total.'
+      parts.push(c.ln === 'rule' ? '<b>LayerNorm</b> holds its spread fixed, so the relevance passes back through it like a weighted layer and keeps its total.'
         : '<b>LayerNorm</b> without its rule follows its gradient, which turns what reaches it into positive and negative amounts that add up to zero. The norm in the head does this to the whole start, and every block does it to its own share. The totals that remain below are leftovers of amounts that no longer cancel exactly, and the maps are noise.');
       parts.push(c.gelu === 'rule' ? '<b>GELU</b> passes the relevance on unchanged, because it changes each value on its own and mixes nothing.'
         : `<b>GELU</b> without its rule follows the gradient and multiplies the relevance by its slope. The slope is close to zero for negative inputs${c.ln === 'rule' ? `, so each block loses ${lost[0]} to ${lost[1]} percent of what enters it` : ''}.`);
