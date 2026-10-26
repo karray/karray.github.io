@@ -208,6 +208,170 @@
     update();
   };
 
+  /* -------------------------------------------------------------------------------- neuron toy */
+  const neuronToy = (root) => {
+    const start = { x1: 2, x2: 1, w1: 1.5, w2: -1 };
+    const v = { ...start };
+    const LIM = { x1: [-2, 3], x2: [-2, 3], w1: [-2, 2], w2: [-2, 2] };
+    const MODES = [['grad', 'Gradient fallback'], ['zplus', 'z⁺ rule'], ['lrp0', 'LRP-0']];
+    let mode = 'grad';
+    const RN = 40, RB = 26, UNIT = 7, FUNIT = 7;
+    const GEOM = {
+      wide: { W: 840, H: 262, vertical: false, n: [470, 142], fin: [[62, 92], [62, 192]], bin: [[724, 92], [724, 192]],
+        heads: [[0, 20, 'start', 'FORWARD · THE NEURON COMPUTES'], [840, 20, 'end', 'BACKWARD · RELEVANCE FLOWS BACK']] },
+      tall: { W: 420, H: 600, vertical: true, n: [210, 300], fin: [[105, 70], [315, 70]], bin: [[105, 520], [315, 520]],
+        heads: [[0, 16, 'start', 'FORWARD'], [0, 380, 'start', 'BACKWARD']] },
+    };
+    const holder = h('div', { class: 'lrp-nt-holder' });
+    let S = null, layout = '';
+
+    const bez = (p, t) => p.reduce((acc, q, i) => {
+      const c = [1, 3, 3, 1][i] * (1 - t) ** (3 - i) * t ** i;
+      return [acc[0] + c * q[0], acc[1] + c * q[1]];
+    }, [0, 0]);
+    const d = (p) => `M${p[0]}C${p[1]} ${p[2]} ${p[3]}`;
+    const toward = ([x0, y0], [x1, y1], vertical) => {
+      if (vertical) { const s = Math.sign(y1 - y0) * 90; return [[x0, y0], [x0, y0 + s], [x1, y1 - s], [x1, y1]]; }
+      const s = Math.sign(x1 - x0) * 90; return [[x0, y0], [x0 + s, y0], [x1 - s, y1], [x1, y1]];
+    };
+    const edgeOf = ([cx, cy], [tx, ty], r, vertical) => (vertical ? [cx, cy + Math.sign(ty - cy) * r] : [cx + Math.sign(tx - cx) * r, cy]);
+
+    const build = (name) => {
+      const G = GEOM[name], { W, H, vertical } = G, [nx, ny] = G.n;
+      const scene = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: `lrp-neuron-scene lrp-nt-${name}`, role: 'group', 'aria-label': 'A neuron with two inputs. On one side the inputs compute the output, on the other side the output flows back to the inputs as relevance.' });
+      const layer = () => { const n = svg('g'); scene.append(n); return n; };
+      const [gTrack, gStream, gFlow, gNodes, gText] = [layer(), layer(), layer(), layer(), layer()];
+      const text = (x, y, cls, anchor = 'middle', s = '') => { const n = svg('text', { x, y, class: cls, 'text-anchor': anchor }); n.textContent = s; gText.append(n); return n; };
+      G.heads.forEach(([x, y, a, s]) => text(x, y, 'lrp-nt-head', a, s));
+      const path = (pd, parent, cls) => { const n = svg('path', { d: pd, class: cls }); parent.append(n); return n; };
+      const fwd = G.fin.map((c) => {
+        const p = toward(edgeOf(c, G.n, vertical ? 18 : 44, vertical), edgeOf(G.n, c, RN, vertical), vertical);
+        return { p, band: path(d(p), gStream, 'lrp-nt-fband'), flow: path(d(p), gFlow, 'lrp-nt-fflow') };
+      });
+      const back = G.bin.map((c) => {
+        const p = toward(edgeOf(c, G.n, RB, vertical), edgeOf(G.n, c, RN, vertical), vertical);
+        return { track: path(d(p), gTrack, 'lrp-nt-track'), stream: path(d(p), gStream, 'lrp-nt-stream'), flow: path(d(p), gFlow, 'lrp-nt-flow') };
+      });
+      gNodes.append(svg('circle', { cx: nx, cy: ny, r: RN, class: 'lrp-nt-neuron' }), ...G.bin.map(([x, y]) => svg('circle', { cx: x, cy: y, r: RB, class: 'lrp-nt-input' })));
+      G.fin.forEach(([x, y], i) => text(x, !vertical && i ? y + 42 : y - 28, 'lrp-nt-name', 'middle', `x${'₁₂'[i]}`));
+      G.bin.forEach(([x, y], i) => text(x, y + 7, 'lrp-nt-name', 'middle', `x${'₁₂'[i]}`));
+      const refs = {
+        scene, W, fwd, back,
+        outVal: text(nx, ny + 9, 'lrp-nt-out'),
+        outLbl: text(vertical ? nx + RN + 10 : nx, vertical ? ny - 6 : ny + RN + 26, 'lrp-nt-small', vertical ? 'start' : 'middle'),
+        totalT: vertical ? text(nx, G.bin[0][1] + 7, 'lrp-nt-total') : text(G.bin[0][0], ny + 6, 'lrp-nt-total'),
+        contrib: fwd.map((e, i) => {
+          const [x, y] = bez(e.p, 0.86);
+          return vertical ? text(i ? x + 14 : x - 14, y, 'lrp-nt-small', i ? 'start' : 'end') : text(x, i ? y + 30 : y - 16, 'lrp-nt-small');
+        }),
+        gets: G.bin.map(([x, y], i) => text(x, vertical || i ? y + RB + 24 : y - RB - 12, 'lrp-nt-gets')),
+      };
+      refs.chips = [
+        chip(refs, gText, 'x1', ...G.fin[0], (q) => fmt(q, 1)), chip(refs, gText, 'x2', ...G.fin[1], (q) => fmt(q, 1)),
+        ...fwd.map((e, i) => {
+          const [x, y] = bez(e.p, vertical ? 0.42 : 0.4);
+          if (vertical) text(i ? x + 58 : x - 58, y + 7, 'lrp-nt-name', i ? 'start' : 'end', `w${'₁₂'[i]}`);
+          else text(x, i ? y + 42 : y - 28, 'lrp-nt-name', 'middle', `w${'₁₂'[i]}`);
+          return chip(refs, gText, `w${i + 1}`, x, y, (q) => `× ${fmt(q, 1)}`);
+        }),
+      ];
+      return refs;
+    };
+
+    const chip = (refs, parent, key, cx, cy, fmtv) => {
+      const node = svg('g', { class: 'lrp-nt-chip', tabindex: 0, role: 'slider', 'aria-label': key.replace('1', '₁').replace('2', '₂'), 'aria-valuemin': LIM[key][0], 'aria-valuemax': LIM[key][1] });
+      const t = svg('text', { x: cx, y: cy + 7, 'text-anchor': 'middle' });
+      const l = svg('text', { x: cx - 37, y: cy + 6, 'text-anchor': 'middle', class: 'lrp-nt-arrow' }); l.textContent = '‹';
+      const r = svg('text', { x: cx + 37, y: cy + 6, 'text-anchor': 'middle', class: 'lrp-nt-arrow' }); r.textContent = '›';
+      node.append(svg('rect', { x: cx - 48, y: cy - 18, width: 96, height: 36, rx: 18 }), l, t, r);
+      parent.append(node);
+      const setv = (q) => { v[key] = clamp(Math.round(q * 10) / 10, ...LIM[key]); update(); };
+      let x0 = 0, v0 = 0, scale = 1;
+      node.addEventListener('pointerdown', (e) => {
+        node.setPointerCapture(e.pointerId); x0 = e.clientX; v0 = v[key];
+        scale = refs.W / refs.scene.getBoundingClientRect().width;
+        node.classList.add('lrp-nt-drag'); root.classList.add('lrp-nt-touched');
+      });
+      node.addEventListener('pointermove', (e) => { if (node.hasPointerCapture(e.pointerId)) setv(v0 + (e.clientX - x0) * scale / 40); });
+      const end = () => node.classList.remove('lrp-nt-drag');
+      node.addEventListener('pointerup', end); node.addEventListener('pointercancel', end);
+      node.addEventListener('keydown', (e) => {
+        const s = { ArrowRight: 0.1, ArrowUp: 0.1, ArrowLeft: -0.1, ArrowDown: -0.1, PageUp: 1, PageDown: -1 }[e.key];
+        if (s) { e.preventDefault(); setv(v[key] + s); root.classList.add('lrp-nt-touched'); }
+      });
+      return { render() { t.textContent = fmtv(v[key]); node.setAttribute('aria-valuenow', v[key]); } };
+    };
+
+    const buttons = MODES.map(([k, label]) => h('button', { type: 'button', 'aria-pressed': String(k === mode), onclick: () => { if (k === mode) return; mode = k; update(); }, text: label }));
+    const note = h('p', { class: 'lrp-small lrp-nt-note', 'aria-live': 'polite' });
+    const eq = h('output', { class: 'lrp-nt-eq' });
+
+    const paint = (e, r) => {
+      const w = Math.min(Math.abs(r) * UNIT, 44);
+      e.stream.style.strokeWidth = `${w}px`;
+      e.flow.style.strokeWidth = `${Math.min(2.6, w * 0.35)}px`;
+      e.stream.classList.toggle('lrp-nt-neg', r < 0);
+      e.flow.style.opacity = w > 2.2 ? '' : '0';
+    };
+    const fpaint = (e, q) => {
+      const w = Math.min(Math.abs(q) * FUNIT, 32);
+      e.band.style.strokeWidth = `${Math.max(w, 1.5)}px`;
+      e.flow.style.strokeWidth = `${Math.min(2.6, w * 0.35)}px`;
+      e.flow.style.opacity = w > 2.2 ? '' : '0';
+    };
+
+    const update = () => {
+      const z = [v.x1 * v.w1, v.x2 * v.w2], y = z[0] + z[1];
+      const pos = Math.max(0, z[0]) + Math.max(0, z[1]);
+      const R = mode === 'zplus' ? Math.max(0, y) : y;
+      const r = mode === 'grad' ? [v.w1 * y, v.w2 * y]
+        : mode === 'lrp0' ? z
+        : z.map((q) => (pos > 0 ? Math.max(0, q) / pos * R : 0));
+      S.chips.forEach((c) => c.render());
+      S.fwd.forEach((e, i) => fpaint(e, z[i]));
+      S.contrib.forEach((c, i) => { c.textContent = `${z[i] < 0 ? '−' : '+'}${fmt(Math.abs(z[i]), 1)}`; });
+      S.outVal.textContent = fmt(y, 1);
+      S.outLbl.textContent = mode === 'zplus' && y <= 0 ? 'output, nothing flows back' : 'output';
+      S.back.forEach((e, i) => paint(e, r[i]));
+      S.gets.forEach((t, i) => { t.textContent = `gets ${fmt(r[i], 1)}`; t.classList.toggle('lrp-nt-neg', r[i] < -0.005); t.classList.toggle('lrp-nt-pos', r[i] > 0.005); });
+      const total = r[0] + r[1];
+      S.totalT.textContent = `total ${fmt(total, 1)}`;
+      S.totalT.classList.toggle('lrp-nt-warn', Math.abs(total - R) > 0.005);
+      buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(MODES[i][0] === mode)));
+      const f1 = (q) => (q < 0 ? `(${fmt(q, 1)})` : fmt(q, 1));
+      eq.textContent = `${f1(v.x1)} × ${f1(v.w1)} + ${f1(v.x2)} × ${f1(v.w2)} = ${fmt(z[0], 1)} ${z[1] < 0 ? '−' : '+'} ${fmt(Math.abs(z[1]), 1)} = ${fmt(y, 1)}`;
+      const neg = z.some((q) => q < 0), zero = [v.x1, v.x2].some((q) => q === 0);
+      note.textContent =
+        mode === 'grad'
+          ? (v.w1 === 1 && v.w2 === 1 ? 'With two weights of 1, as at a residual connection, the gradient hands the full amount to both inputs, and the total doubles.'
+            : Math.abs(total - R) > 0.005 ? `The gradient hands each input its weight times the output, whatever the input contributed, so the inputs hold ${fmt(total, 1)} in total instead of the output of ${fmt(R, 1)}.`
+            : 'The gradient hands each input its weight times the output. Here the weights add up to 1, so the total happens to match. Change one and it drifts.')
+        : mode === 'zplus' && y <= 0 ? `The output is ${y < 0 ? 'negative' : 'zero'}, so there is no positive relevance to divide, and the z⁺ rule starts with 0, as in the first figure. Even an input that raised the output gets nothing. In a network, a ReLU would set such a neuron to zero anyway.`
+        : zero ? 'An input of zero contributes nothing and receives nothing, however large its weight.'
+        : neg ? (mode === 'lrp0' ? 'One input works against the output and receives its negative contribution. The inputs still hold exactly the output.' : `The z⁺ rule ignores the input that works against the output and gives all of the ${fmt(R, 1)} to the other one.`)
+        : 'Each input receives exactly what it contributed, so the inputs hold the whole output and nothing more.';
+    };
+
+    const fit = () => {
+      const name = root.clientWidth >= 560 ? 'wide' : 'tall';
+      if (name === layout) return;
+      layout = name;
+      S = build(name);
+      holder.replaceChildren(S.scene);
+      update();
+    };
+
+    root.append(h('div', {},
+      holder,
+      h('div', { class: 'lrp-nt-bar' },
+        h('p', { class: 'lrp-nt-eqline' }, 'output = ', eq),
+        h('div', { class: 'lrp-buttons lrp-nt-modes', role: 'group', 'aria-label': 'How the relevance is passed back' }, buttons)),
+      note));
+    fit();
+    new ResizeObserver(fit).observe(root);
+    new IntersectionObserver(([en]) => root.classList.toggle('lrp-nt-paused', !en.isIntersecting)).observe(root);
+  };
+
   /* ------------------------------------------------------------------------------ residual toy */
   const residualToy = (root) => {
     let skip = 1.0, upd = 0.4;
@@ -622,7 +786,7 @@
   });
 
   const init = () => {
-    const toys = { activation: activationToy, layernorm: layerNormToy, attention: attentionToy, residual: residualToy };
+    const toys = { neuron: neuronToy, activation: activationToy, layernorm: layerNormToy, attention: attentionToy, residual: residualToy };
     document.querySelectorAll('[data-lrp-toy]').forEach((el) => {
       if (el.dataset.ready) return;
       el.dataset.ready = 'true';
