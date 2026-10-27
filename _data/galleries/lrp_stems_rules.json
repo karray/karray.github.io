@@ -1,5 +1,4 @@
 {
- "kicker": "The last step to the pixels",
  "opacity": 100,
  "reveal": true,
  "rows": [
@@ -128,6 +127,5 @@
   "mae|gamma|spider_web": "patch edges 2.34\u00d7"
  },
  "help": "Pick an image and compare the three rules for the first layer across a row. Each row is one model, and everything above the first layer is identical. Move the pointer over a map to see the image underneath.",
- "caption": "Positive part of the relevance at the pixels, scaled to its own maximum. The number under each map compares how sharply the map changes across the borders of the first layer's patches with how it changes inside them. A value of 1 means no visible grid.",
  "style": "--fg-cell-max: 300px;"
 }

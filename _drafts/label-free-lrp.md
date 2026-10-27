@@ -42,7 +42,7 @@ LRP runs on the same backward pass that computes gradients, and each rule replac
 
 The next figure runs the whole digit network both ways. With the gradient, the total changes from layer to layer, part of the relevance turns negative, shown in blue, and the pixel map reaches into the background, which contributed nothing to the score. With LRP, every column holds the same total, because the rules only divide.
 
-{% include posts/label-free-lrp-water.html gradient=true mode="gradient" kicker="Relevance or gradient" caption="The digit network from the first figure. The first switch decides how its right half passes the score back, with LRP or the way a gradient would. The second keeps the negative contributions or passes back only positive ones, which gives the gradient, guided backpropagation, LRP-0 and the $\text{z}^+$ rule. Red is positive and blue is negative. The number under each column is the total that arrives there. Draw a digit or hover another class to compare." %}
+{% include posts/label-free-lrp-water.html gradient=true mode="gradient" %}
 
 The second switch decides what happens to negative contributions, which gives four methods in total. The plain gradient is ordinary backpropagation, the same backward pass that trains the network, and its map at the pixels is known as a saliency map [<a href="#simonyan2014deep" data-ref="simonyan2014deep">Simonyan et al.</a>]. LRP-0 and the $\text{z}^+$ rule are the two rules from our neuron. Guided backpropagation is the gradient's counterpart to $\text{z}^+$ and passes back only the positive part of the gradient, yet some blue remains and the totals still change.
 
@@ -85,7 +85,7 @@ So we start where the libraries stop, with the usual rules for the weighted laye
 
 {% include figure-gallery.html id="lrp-rules" data=site.data.galleries.lrp_rules class="wide" %}
 
-The number under each map is how much of the starting relevance of 1 arrives at the pixels. In the first column, it ranges from almost nothing in ConvNeXt to more than a thousand in the DINOv1 ViT, and neither is possible for something that should only be divided. Every part without a rule fell back to the gradient. The two middle columns each add a single rule, and the last column has all of them. Even there, less than 1 arrives, but for a different reason that has nothing to do with missing rules.
+The maps show the positive part of the relevance, and the number under each map is how much of the starting relevance of 1 arrives at the pixels. In the first column, it ranges from almost nothing in ConvNeXt to more than a thousand in the DINOv1 ViT, and neither is possible for something that should only be divided. Every part without a rule fell back to the gradient. The two middle columns each add a single rule, and the last column has all of them. Even there, less than 1 arrives, but for a different reason that has nothing to do with missing rules.
 
 ## The missing rules
 
@@ -141,7 +141,7 @@ With a rule for every part, the maps make sense again, and we can follow the rel
 
 {% include posts/label-free-lrp-stack.html %}
 
-The encoders differ in how far the relevance moves on its way. A convolution only combines neighbouring cells, so in ConvNeXt the relevance stays close to where it started. Attention connects every token with every other one, so in a ViT the relevance can jump across the image within a single block.
+The encoders differ in how far the relevance moves on its way. A convolution only combines neighbouring cells, so in ConvNeXt the relevance stays close to where it started, and about 70% of it lands on the starting cell and its eight neighbours. Attention connects every token with every other one, so in a ViT the relevance can jump across the image within a single block. In the DINOv1 ViT, only 40 to 50% stays this close.
 
 The bands between the layers also narrow on the way, because not all of the starting relevance reaches the pixels. How much arrives differs a lot between models, from 0.02 in ResNet-50 to 0.85 in the supervised ViT.
 

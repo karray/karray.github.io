@@ -1,5 +1,4 @@
 <figure class="lrp-fig lrpc wide" data-lrp-cnx data-src="{{ '/assets/data/label-free-lrp/convnext-mini.json' | relative_url }}">
-  <p class="lrp-kicker">{{ include.kicker | default: 'A small ConvNeXt, with and without the missing rules' }}</p>
   <div class="lrpw-controls">
     <div class="lrpw-modes" role="group" aria-label="The residual connections">
       <span class="lrpw-label">residual</span>
@@ -33,6 +32,6 @@
     <summary>What each operation in the block does with the relevance</summary>
     <div class="lrpc-cards"></div>
   </details>
-  <figcaption>{{ include.caption | default: 'A small ConvNeXt trained on handwritten digits. The stem cuts the image into patches of two by two pixels, and four blocks follow, each with a convolution, a LayerNorm, two linear layers with a GELU between them, and layer scale. The arrow above each block is its skip, which carries the block’s input around it to the plus sign. The top row shows how strongly each cell is active. The bottom row shows the relevance on its way back, red for positive and blue for negative, with the total under each map. The bands show how much relevance flows along each path, positive amounts above the row and negative amounts below it. When the amounts grow, all bands are drawn thinner, so that the widest one still fits. The switches choose, for each part, between its rule and the gradient, which LRP falls back to when a rule is missing. Click a block to describe it below, and open the cards under the description to see what each of its operations does with the relevance. The relevance always starts at the predicted class. Draw your own digit on the input to change it.' }}</figcaption>
+  <figcaption>{{ include.caption | default: 'The top row shows how strongly each cell is active, the bottom row the relevance on its way back, red for positive and blue for negative, with the total under each map. Bands above and below a row carry positive and negative relevance. Click a block to describe it, open the cards to see each operation, and draw a digit to change the input.' }}</figcaption>
 </figure>
 <script src="{{ '/assets/js/posts/label-free-lrp-cnx.js' | relative_url }}" defer></script>
