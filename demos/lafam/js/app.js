@@ -1,4 +1,5 @@
 const TOP_N = 14;
+const START_MODEL = "convnext_small";
 const CLASS_MODES = ["imagenet_classes", "groupmap_bbs"];   // modes that need a classifier
 const MAX_CANVAS = 1024;   // the image canvas never needs more pixels than it is shown with
 
@@ -728,7 +729,7 @@ async function init() {
     ...SAMPLES.map((s) => new Option(`${sampleGroup(s) === "pathology" ? "🔬" : "🖼️"} ${s.label}`, s.url)));
   els.presets.selectedIndex = 1;          // start with the first example image
   els.presets.onchange();
-  const start = modelFromUrl(MODELS[0]);
+  const start = modelFromUrl(MODELS.find((m) => m.id === START_MODEL));
   els.modelSelect.value = start.id;
   await selectModel(start);
 }

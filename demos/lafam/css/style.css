@@ -416,6 +416,7 @@ input:checked+.slider:before {
 
 .lafam-select {
     width: auto;
+    max-width: 100%;
 
     /* Remove native arrow */
     appearance: none;
@@ -713,6 +714,7 @@ textarea {
         order: 1;
         margin-bottom: 15px;
         margin: 0 auto;
+        width: 100%;
     }
 
     #predictions-panel {
@@ -722,6 +724,14 @@ textarea {
         width: 100%;
     }
 
+    .prediction {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .prediction progress {
+        width: 100%;
+    }
 
     #tutorial-card {
         position: fixed !important;

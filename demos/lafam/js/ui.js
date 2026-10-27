@@ -122,7 +122,11 @@ function goToStep(index) {
     setStepContent();
 
     const targetEl = document.querySelector(steps[index].target);
-    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (window.innerWidth < 900) {
+        window.scrollTo({ top: targetEl.getBoundingClientRect().top + window.scrollY - 16, behavior: 'smooth' });
+    } else {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 
     // Delay to allow scroll to settle
     setTimeout(updateSpotlightPosition, 150);
