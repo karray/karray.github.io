@@ -1,7 +1,8 @@
 const SIDES = ["Image A", "Image B"];
 const lower = (side) => SIDES[side].replace("Image", "image");
 const START_IMAGES = ["Bus & taxi", "Bus sign"];
-const PATHOLOGY_IMAGES = ["Breast, ductal carcinoma 1", "Breast, lobular carcinoma 1"];
+const PATHOLOGY_IMAGES = ["Breast, ductal carcinoma 1 (BCSS, 112 µm at 0.25 µm/px)", "Breast, lobular carcinoma (BCSS, 112 µm at 0.25 µm/px)"];
+const startImages = (entry) => (entry.group === "pathology" ? PATHOLOGY_IMAGES : START_IMAGES);
 const GROUP_TITLES = { photo: "Photos", pathology: "Breast tissue (BCSS, H&E)" };
 const START_MODEL = "clip_resnet101";
 const MAX_CANVAS = 1024;
@@ -249,9 +250,8 @@ async function selectModel(entry) {
   els.modelSelect.disabled = false;
   showModelNote(entry);
   const wanted = entry.group === "pathology" ? "pathology" : "photo";
-  const labels = wanted === "pathology" ? PATHOLOGY_IMAGES : START_IMAGES;
   await Promise.all(state.panels.map((panel, side) => panel.example && sampleGroup(panel.example) !== wanted
-    ? showExample(panel, SAMPLES.find((s) => s.label === labels[side]))
+    ? showExample(panel, SAMPLES.find((s) => s.label === startImages(entry)[side]))
     : analyze(panel)));
 }
 
@@ -401,7 +401,7 @@ function init() {
   els.modelSelect.value = start.id;
   selectModel(start);
   state.panels.forEach(async (panel, side) => {
-    await showExample(panel, SAMPLES.find((s) => s.label === START_IMAGES[side]));
+    await showExample(panel, SAMPLES.find((s) => s.label === startImages(start)[side]));
   });
 }
 

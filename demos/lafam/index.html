@@ -181,13 +181,16 @@ image:
             step, its answer can be read for every region, and the average of these answers is exactly its prediction.
             This shows where it sees each class (CAM, class activation map) and lets it find several objects in one
             image (<a href="https://arxiv.org/abs/2606.14555" target="_blank" rel="noopener">Karjauv, 2026</a>).</p>
-        <p>Models with another pooling, such as CLIP (attention pooling or a class token), give their own
+        <p>Models with another pooling, such as CLIP RN50x4 (attention pooling), give their own
             prediction; their regions are each classified on their own, as in MaskCLIP (<a
                 href="https://arxiv.org/abs/2112.01071" target="_blank" rel="noopener">Zhou et al., 2022</a>),
             so the regions no longer average to the prediction.</p>
-        <p>The pathology models expect H&amp;E tissue at about 0.5 µm per pixel (20×), the tumour detector at about
-            0.4 µm per pixel; at other scales their maps are unreliable. The tissue head of Hibou-B was trained with
-            one label per tile on breast cancer tiles (BCSS) with no lobular case among them.</p>
+        <p>The pathology model, Hibou-B, expects H&amp;E tissue at 0.5 µm per pixel (20×). It takes a 224 px square,
+            so it sees 112 µm of tissue, and at other scales its maps are unreliable. The breast examples are 112 µm
+            tiles at 0.25 µm per pixel (448 px), which the demo resizes to 224 px. An image you upload is cropped to its
+            centre square and resized to 224 px whatever its pixel size, so upload a square tile about 112 µm wide. The
+            tissue head of Hibou-B was trained with one label per tile on breast cancer tiles (BCSS) with no lobular
+            case among them.</p>
         <p>Everything runs in your browser, and your images never leave your device.</p>
         <p class="credits">Examples: breast tissue from <a href="https://github.com/PathologyDataScience/BCSS"
                 target="_blank" rel="noopener">BCSS</a> (TCGA-BRCA; CC0); apple photos from <a

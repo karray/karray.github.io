@@ -102,7 +102,7 @@ function showModelNote(entry) {
   const notes = [];
   if (entry.scale) notes.push(`Expects ${entry.scale}.`);
   if (entry.pooling) {
-    notes.push(`The prediction is the model's own (${entry.pooling === "attention" ? "attention pooling" : "class token"}); ` +
+    notes.push(`The prediction is the model's own (${entry.pooling} pooling); ` +
       "each region is classified on its own, so the mean of the regions is not the prediction.");
   }
   els.modelNote.textContent = notes.join(" ");

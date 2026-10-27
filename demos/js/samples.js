@@ -14,15 +14,8 @@ const SAMPLES = [
   { label: "Spider web", url: "/assets/img/samples/spider_web.jpg" },
   { label: "Apple (Goh et al. 2021)", url: "/assets/img/samples/apple.png" },
   { label: "Apple with an \"iPod\" note (Goh et al. 2021)", url: "/assets/img/samples/apple_ipod.png" },
-  { label: "Breast, ductal carcinoma 1", url: "/assets/img/samples/bcss_ductal_1.jpg", group: "pathology" },
-  { label: "Breast, ductal carcinoma 2", url: "/assets/img/samples/bcss_ductal_2.jpg", group: "pathology" },
-  { label: "Breast, ductal carcinoma 3", url: "/assets/img/samples/bcss_ductal_3.jpg", group: "pathology" },
-  { label: "Breast, ductal carcinoma 4", url: "/assets/img/samples/bcss_ductal_4.jpg", group: "pathology" },
-  { label: "Breast, lobular carcinoma 1", url: "/assets/img/samples/bcss_lobular_1.jpg", group: "pathology" },
-  { label: "Breast, lobular carcinoma 2", url: "/assets/img/samples/bcss_lobular_2.jpg", group: "pathology" },
-  { label: "Breast, lobular carcinoma 3", url: "/assets/img/samples/bcss_lobular_3.jpg", group: "pathology" },
-  { label: "Breast, lobular carcinoma 4", url: "/assets/img/samples/bcss_lobular_4.jpg", group: "pathology" },
-  { label: "Breast, lobular carcinoma 5", url: "/assets/img/samples/bcss_lobular_5.jpg", group: "pathology" },
-  { label: "Breast, lobular carcinoma 6", url: "/assets/img/samples/bcss_lobular_6.jpg", group: "pathology" },
+  { label: "Breast, ductal carcinoma 1 (BCSS, 112 µm at 0.25 µm/px)", url: "/assets/img/samples/bcss_ductal_1.jpg", group: "pathology" },
+  { label: "Breast, ductal carcinoma 2 (BCSS, 112 µm at 0.25 µm/px)", url: "/assets/img/samples/bcss_ductal_2.jpg", group: "pathology" },
+  { label: "Breast, lobular carcinoma (BCSS, 112 µm at 0.25 µm/px)", url: "/assets/img/samples/bcss_lobular.jpg", group: "pathology" },
 ];
 const sampleGroup = (sample) => sample.group || "photo";
