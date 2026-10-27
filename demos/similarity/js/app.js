@@ -382,7 +382,11 @@ function describe(pairs, target) {
 function init() {
   state.panels = SIDES.map((_, side) => createPanel(side));
   fillModelMenu(els.modelSelect);
-  els.modelSelect.onchange = () => selectModel(MODELS.find((m) => m.id === els.modelSelect.value));
+  els.modelSelect.onchange = () => {
+    const entry = MODELS.find((m) => m.id === els.modelSelect.value);
+    setModelUrl(entry);
+    selectModel(entry);
+  };
   els.countInput.oninput = () => {
     const n = Math.round(Number(els.countInput.value));
     if (n >= 1) {
@@ -393,8 +397,9 @@ function init() {
   els.clearButton.onclick = clearSelection;
   new ResizeObserver(() => draw()).observe(els.pair);
 
-  els.modelSelect.value = START_MODEL;
-  selectModel(MODELS.find((m) => m.id === START_MODEL));
+  const start = modelFromUrl(MODELS.find((m) => m.id === START_MODEL));
+  els.modelSelect.value = start.id;
+  selectModel(start);
   state.panels.forEach(async (panel, side) => {
     await showExample(panel, SAMPLES.find((s) => s.label === START_IMAGES[side]));
   });

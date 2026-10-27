@@ -64,6 +64,7 @@ function showLoading(text) {
 async function selectModel(entry) {
   state.ready = false;
   els.main.classList.remove("ready");
+  for (const canvas of [els.heatmapCanvas, els.boxCanvas]) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
   els.modelSelect.disabled = true;
   try {
     const { backend, classNames } = await loadModel(entry, showLoading);
@@ -86,9 +87,9 @@ async function selectModel(entry) {
     showModelNote(entry);
     await matchExample(entry);
     state.ready = true;
+    await analyze();
     els.main.classList.add("ready");
     showLoading("");
-    analyze();
   } catch (err) {
     showLoading(`Failed to load ${entry.label}`);
     log(err);
@@ -434,9 +435,13 @@ function showPredictions(logits, threshold) {
   );
 }
 
-function showList(lines) {
+function showList(lines, colors = []) {
   els.predictions.replaceChildren(
-    ...lines.map((text) => Object.assign(document.createElement("div"), { className: "list-line", innerText: text }))
+    ...lines.map((text, i) => {
+      const div = Object.assign(document.createElement("div"), { className: "list-line", innerText: text });
+      if (colors[i]) div.prepend(Object.assign(document.createElement("span"), { className: "swatch", style: `background: rgb(${colors[i]})` }));
+      return div;
+    })
   );
 }
 
@@ -456,8 +461,10 @@ const views = {
   imagenet_classes(r) {
     const { classIds, logits } = cellClasses(r);
     labelCells(logits, classIds);
-    drawMap(r, minMax(classIds), hueColor);
-    showList([...new Set(classIds)].sort((a, b) => a - b).map((k) => `${k}: ${state.classNames[k]}`));
+    const values = minMax(classIds);
+    drawMap(r, values, hueColor);
+    const ids = [...new Set(classIds)].sort((a, b) => a - b);
+    showList(ids.map((k) => `${k}: ${state.classNames[k]}`), ids.map((k) => hueColor(values[classIds.indexOf(k)])));
   },
 
   // cells grouped into object categories, with boxes around connected cells of one group
@@ -601,7 +608,11 @@ function renderObjectList() {
 
 // ── events ────────────────────────────────────────────────────────────────────
 
-els.modelSelect.onchange = () => selectModel(MODELS.find((m) => m.id === els.modelSelect.value));
+els.modelSelect.onchange = () => {
+  const entry = MODELS.find((m) => m.id === els.modelSelect.value);
+  setModelUrl(entry);
+  selectModel(entry);
+};
 els.modeSelect.onchange = () => {
   clearSelections();
   render();
@@ -616,7 +627,7 @@ $("add-object-btn").onclick = addObject;
 els.presets.onchange = async () => {
   const url = els.presets.value;
   if (url.endsWith(".mp4")) return showVideo(url);
-  showImage(await (await fetch(url)).blob());
+  return showImage(await (await fetch(url)).blob());
 };
 
 els.upload.onchange = () => {
@@ -646,6 +657,7 @@ els.predictions.onclick = (e) => {
   const div = e.target.closest(".prediction");
   if (!div || els.modeSelect.value !== "predict" || state.playing) return;
   const k = Number(div.dataset.idx);
+  state.selectedCells.clear();
   state.selectedClasses.has(k) ? state.selectedClasses.delete(k) : state.selectedClasses.add(k);
   render();
 };
@@ -716,7 +728,9 @@ async function init() {
     ...SAMPLES.map((s) => new Option(`${sampleGroup(s) === "pathology" ? "🔬" : "🖼️"} ${s.label}`, s.url)));
   els.presets.selectedIndex = 1;          // start with the first example image
   els.presets.onchange();
-  await selectModel(MODELS[0]);
+  const start = modelFromUrl(MODELS[0]);
+  els.modelSelect.value = start.id;
+  await selectModel(start);
 }
 
 init();

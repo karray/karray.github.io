@@ -52,6 +52,16 @@ function fillModelMenu(select) {
   }));
 }
 
+function modelFromUrl(fallback) {
+  return MODELS.find((m) => m.id === new URLSearchParams(location.search).get("model")) ?? fallback;
+}
+
+function setModelUrl(entry) {
+  const url = new URL(location.href);
+  url.searchParams.set("model", entry.id);
+  history.replaceState(null, "", url);
+}
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/demos/service-worker.js").catch((err) => console.warn("Service worker:", err));
 }
