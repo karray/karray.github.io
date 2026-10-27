@@ -1,31 +1,21 @@
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="{{ '/assets/js/theme.js' | relative_url }}"></script>
   {%- seo -%}
+  <link rel="preload" href="{{ '/assets/fonts/newsreader-latin.woff2' | relative_url }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ '/assets/fonts/figtree-latin.woff2' | relative_url }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
-  <link rel="stylesheet" href="{{ '/assets/css/icons.min.css'  }}">
-  {%- comment -%}
-  A page's own stylesheets, from its `styles:` front matter. They come after
-  the site's, so a post can override it, and they are here rather than in the
-  body because a post that styles its own header needs them before the first
-  paint.
-  {%- endcomment -%}
+  <link rel="stylesheet" href="{{ '/assets/css/theme.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/header.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/icons.min.css' | relative_url }}">
   {%- for stylesheet in page.styles %}
   <link rel="stylesheet" href="{{ stylesheet | relative_url }}">
   {%- endfor %}
-  <link rel="canonical" href="https://karay.me{{ page.url | replace:'index.html','' }}" />
-
   {%- feed_meta -%}
   {%- if jekyll.environment == 'production' and site.google_analytics -%}
   {%- include google-analytics.html -%}
-  {%- endif -%}
-
-  <!-- <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
-  <link rel="manifest" href="/assets/img/site.webmanifest">
-  <link rel="mask-icon" href="/assets/img/safari-pinned-tab.svg" color="#5bbad5">
-  <meta name="msapplication-TileColor" content="#ffc40d">
-  <meta name="theme-color" content="#ffffff"> -->
+  {%- endif %}
+  <link rel="icon" href="{{ '/assets/img/favicon.svg' | relative_url }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ '/assets/img/apple-touch-icon.png' | relative_url }}">
 </head>

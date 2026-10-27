@@ -2,7 +2,7 @@
 layout: post
 title:  "Turning StyleGAN into a latent feature extractor"
 date:   2023-01-06 13:18:00 +0200
-image: /assets/img/posts/stylegan-with-encoder/mnist_visualization.png
+image: /assets/img/posts/stylegan-with-encoder/preview.jpg
 tags: StyleGAN GAN deep-learning representation-learning self-supervised-learning
 description: This blog post explores the potential for using StyleGAN as a tool for extracting latent features from images. It investigates the challenges of using it for self-supervised representation learning and assesses its effectiveness at extracting meaningful features.
 ---
@@ -115,7 +115,7 @@ Finally, I visualize the embeddings by projecting them into 2d space using UMAP:
 
 <span class='image-description'>**MNIST embeddings visualization.** Each color represents a number from 0 to 9</span>
 
-This visualization demonstrates that there are clear clusters with few misassignments, supporting the statement that the model was able to learn a linearly separable (and thus disentangled) latent representation. A look at the interactive [visualization](https://karay.me/examples/scv_browser.html?option=stylegan_mnist) suggests that most of the misassigned samples look very similar to the nearest ones. I especially like how crossed `7` forms a separate cluster, although this would cause problems if we wanted to label clusters.
+This visualization demonstrates that there are clear clusters with few misassignments, supporting the statement that the model was able to learn a linearly separable (and thus disentangled) latent representation. A look at the interactive [visualization](https://karay.me/demos/scv_browser.html?option=stylegan_mnist) suggests that most of the misassigned samples look very similar to the nearest ones. I especially like how crossed `7` forms a separate cluster, although this would cause problems if we wanted to label clusters.
 
 ### CelebA and FFHQ
 
@@ -141,7 +141,7 @@ And here is a visualization of embedding with the gender attribute highlighted:
 
 <span class='image-description'>**CelebA test set visualization of embeddings.** Orange - female, blue - male.</span>
 
-At first glance, the model seems to have succeeded in capturing the gender attribute, but a closer look at the interactive [visualization](https://karay.me/examples/scv_browser.html?option=stylegan_celeba) reveals that the haircut may play a greater role.
+At first glance, the model seems to have succeeded in capturing the gender attribute, but a closer look at the interactive [visualization](https://karay.me/demos/scv_browser.html?option=stylegan_celeba) reveals that the haircut may play a greater role.
 
 ![Misassignment gender attribute](/assets/img/posts/stylegan-with-encoder/celeba_visualization_male.png)
 
@@ -169,7 +169,7 @@ Similar to MNIST experiment, I trained linear SVM and logistic regression on the
 
 As we can see, the ResNet18 model reached 77% accuracy, whereas linear models trained on embeddings reached only 50% which is a random choice.  
 
-And here is a [visualization](https://karay.me/examples/scv_browser.html?option=stylegan_pcam) of the embeddings:
+And here is a [visualization](https://karay.me/demos/scv_browser.html?option=stylegan_pcam) of the embeddings:
 
 ![PCam visualization](/assets/img/posts/stylegan-with-encoder/pcam_visualization.png)
 

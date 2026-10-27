@@ -1,0 +1,792 @@
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+* {
+    box-sizing: border-box;
+    outline: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    transition: background-color 0.3s, color 0.3s;
+    overflow-x: hidden;
+}
+
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* --- ICONS --- */
+.icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+
+.play-icon {
+    display: none;
+}
+
+.pause-icon {
+    display: block;
+}
+
+.paused .play-icon {
+    display: block;
+}
+
+.paused .pause-icon {
+    display: none;
+}
+
+#main-section:not(.ready) #upload-button,
+#main-section:not(.ready) .split-action,
+#main-section:not(.ready) #start-button,
+#main-section:not(.ready) #switch-camera-button,
+#main-section:not(.camera-available) #switch-camera-button {
+    background-color: var(--border-color);
+    /* Grey out */
+    color: var(--text-muted);
+    pointer-events: none;
+    /* PREVENTS CLICKING */
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+
+:root[data-theme="dark"] .icon {
+    filter: invert(1);
+}
+
+/* --- HEADER --- */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 24px;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.brand {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.5px;
+}
+
+.brand span {
+    color: var(--accent-color);
+}
+
+/* Theme Switch: the icon of the current mode */
+.moon-icon,
+.sun-icon,
+.auto-icon {
+    display: none;
+}
+
+:root[data-mode="dark"] .moon-icon,
+:root[data-mode="light"] .sun-icon,
+:root[data-mode="auto"] .auto-icon {
+    display: block;
+}
+
+/* Ensure icons inside the button are sized correctly */
+#theme-toggle-button .icon {
+    width: 22px;
+    height: 22px;
+}
+
+#theme-toggle-button:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+
+.slider {
+    background-color: #cbd5e1;
+    bottom: 0;
+    cursor: pointer;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    background-color: white;
+    bottom: 4px;
+    content: "";
+    height: 16px;
+    left: 4px;
+    position: absolute;
+    transition: .4s;
+    width: 16px;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+input:checked+.slider {
+    background-color: var(--accent-color);
+}
+
+input:checked+.slider:before {
+    transform: translateX(24px);
+}
+
+/* --- LAYOUT --- */
+.main-section {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    /* Align items to the top */
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+    max-width: 100%;
+    /* Allow full width usage */
+    margin: 0 auto;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* --- CANVAS --- */
+.canvas-block {
+    position: relative;
+    width: 90vh;
+    max-width: 60vw;
+
+    flex: 0 0 auto;
+}
+
+.canvas-wrapper {
+    position: relative;
+    width: 100%;
+
+    /* --- CHANGED: Size constraints --- */
+    /* Limit width to 70% of viewport height to ensure it fits vertically */
+    max-width: 90vh;
+    /* Modern way to enforce square shape (replaces padding-bottom hack) */
+    aspect-ratio: 1 / 1;
+    /* Center the canvas horizontally */
+    margin: 0 auto;
+
+    /* Visual Styles */
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+
+
+#heatmap-canvas {
+    opacity: 0.5;
+    /* one pixel per cell, scaled up without smoothing */
+    image-rendering: pixelated;
+}
+
+.canvas-wrapper canvas,
+.canvas-wrapper #grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+#loading-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    z-index: 10;
+}
+
+
+#loading-indicator img {
+    width: 10vh;
+    height: 10vh;
+    animation: spin 1s steps(8, end) infinite !important;
+    filter: invert(1);
+}
+
+#loading-text {
+    margin-top: 10px;
+}
+
+.slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+    color: var(--text-muted);
+}
+
+.prediction-placeholder {
+    color: var(--text-muted);
+    justify-content: center;
+}
+
+
+#grid {
+    display: none;
+    z-index: 3;
+}
+
+.paused.ready #grid {
+    display: grid;
+}
+
+#grid.selectable > div {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+
+#grid.selectable > div:hover {
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) inset;
+}
+
+#grid.selectable > div.selected {
+    border: 2px solid #fff;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5) inset;
+}
+
+/* --- CONTROLS --- */
+.record-block {
+    flex: 1;
+    /* Grow to fill all remaining horizontal space */
+    min-width: 320px;
+    /* Stop it from becoming too narrow */
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+}
+
+.btn:disabled {
+    background-color: var(--border-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+    box-shadow: none;
+}
+
+.btn.help {
+    /* make help button stand out with differnt color */
+    color: #de0000;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+/* dark mode */
+:root[data-theme="dark"] .btn.help {
+    color: #ff0000;
+}
+
+.upload-split-group {
+    padding: 0 !important;
+    /* Override .btn padding */
+    width: 85px !important;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    /* Ensure children respect border radius */
+    width: auto;
+    /* Slim fit */
+    background-color: var(--accent-color);
+    /* Match other buttons */
+}
+
+.split-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    height: 100%;
+}
+
+.split-action:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.split-action.relative {
+    position: relative;
+    padding: 0 8px;
+    /* Slightly smaller for the arrow side */
+}
+
+.split-divider {
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.3);
+    margin: 8px 0;
+    /* visually separated */
+}
+
+/* The Invisible Select Trick */
+.invisible-select {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    appearance: none;
+    /* Remove native UI */
+}
+
+
+.class-display {
+    /* text vertical and horizontal centered */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.select-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.lafam-select {
+    width: auto;
+    max-width: 100%;
+
+    /* Remove native arrow */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    /* Custom Arrow (Dark Gray for Light Mode) */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    /* 10px from right border */
+    background-size: 16px;
+
+    /* Spacing: Top | Right (Large for arrow) | Bottom | Left */
+    padding: 10px 35px 10px 12px;
+
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin: 0;
+}
+
+.lafam-select:hover {
+    border-color: var(--accent-color);
+}
+
+/* Dark Mode: Switch Arrow Color to White/Light */
+:root[data-theme="dark"] .lafam-select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f8fafc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+#slider-container {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+/* --- PREDICTIONS --- */
+.prediction-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+#clear-selection {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px 4px 8px;
+    border: 1px solid var(--select-color);
+    border-radius: 999px;
+    background: var(--select-color);
+    color: var(--card-bg);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, opacity 0.2s;
+}
+
+#clear-selection .icon {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    filter: none;
+}
+
+#clear-selection:hover {
+    opacity: 0.85;
+}
+
+#clear-selection:disabled {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-muted);
+    opacity: 0.6;
+    cursor: default;
+}
+
+.prediction {
+    padding: 12px;
+    margin-bottom: 8px;
+    background-color: var(--bg-color);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+}
+
+#main-section.paused .prediction {
+    cursor: pointer;
+    border-color: var(--border-color);
+}
+
+#main-section.paused .prediction:hover {
+    border-color: var(--accent-color);
+    background-color: var(--accent-hover);
+}
+
+#main-section .prediction.selected,
+#main-section .prediction.selected:hover {
+    border-color: var(--select-color);
+    background-color: color-mix(in srgb, var(--select-color) 18%, var(--card-bg));
+}
+
+/* --- TEXT SECTIONS --- */
+.info-section,
+.debug-section {
+    max-width: 1400px;
+    margin: 0 auto 40px;
+    padding: 0 24px;
+    line-height: 1.6;
+}
+
+.info-section h2 {
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.debug-section {
+    opacity: 0.6;
+}
+
+.debug-section:hover {
+    opacity: 1;
+}
+
+textarea {
+    width: 100%;
+    background: var(--bg-color);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+/* --- TUTORIAL ENGINE --- */
+
+#tutorial-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9990;
+    pointer-events: none;
+    display: none;
+    overflow: hidden;
+}
+
+#tutorial-overlay.active {
+    display: block;
+}
+
+#tutorial-spotlight {
+    position: absolute;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px var(--overlay-dim);
+    transition: var(--spotlight-transition);
+    pointer-events: none;
+    z-index: 9991;
+    border: 2px solid var(--accent-color);
+}
+
+@keyframes pulse-border {
+    0% {
+        border-color: var(--accent-color);
+    }
+
+    50% {
+        border-color: white;
+    }
+
+    100% {
+        border-color: var(--accent-color);
+    }
+}
+
+#tutorial-spotlight.animating {
+    animation: pulse-border 2s infinite;
+}
+
+#tutorial-card {
+    position: absolute;
+    width: 340px;
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    z-index: 9992;
+    pointer-events: auto;
+    transition: var(--spotlight-transition);
+    opacity: 0;
+    border: 1px solid var(--border-color);
+}
+
+#tutorial-card.visible {
+    opacity: 1;
+}
+
+#tutorial-card h3 {
+    color: var(--text-main);
+    margin-bottom: 12px;
+    font-size: 1.2rem;
+}
+
+#tutorial-card p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text-main);
+    margin-bottom: 24px;
+}
+
+.tutorial-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tut-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.tut-btn:hover {
+    background: var(--bg-color);
+    color: var(--text-main);
+}
+
+.tut-btn-primary {
+    /* primiary color to stand out */
+    background-color: #f2cbff;
+    color: #000;
+    border: none;
+}
+
+.tut-btn-primary:hover {
+    background: #e8a3ff;
+}
+
+:root[data-theme="dark"] .tut-btn-primary {
+    background-color: #000;
+    color: #eee;
+}
+
+:root[data-theme="dark"] .tut-btn-primary:hover {
+    background: #2f0000;
+}
+
+
+
+/* --- MOBILE --- */
+@media (max-width: 900px) {
+    .main-section {
+        display: flex;
+        flex-direction: column;
+        padding: 15px;
+    }
+
+    .canvas-block {
+        order: 2;
+        width: 100%;
+        /* Full width on mobile */
+        max-width: 100%;
+    }
+
+    .record-block {
+        order: 1;
+        display: contents;
+    }
+
+    #control-panel {
+        order: 1;
+        margin-bottom: 15px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    #predictions-panel {
+        order: 3;
+        margin-top: 15px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .prediction {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .prediction progress {
+        width: 100%;
+    }
+
+    #tutorial-card {
+        position: fixed !important;
+        bottom: 20px !important;
+        left: 20px !important;
+        top: auto !important;
+        width: calc(100% - 40px) !important;
+    }
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+.control-divider {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 15px 0;
+}
+
+.full-width {
+    width: 100%;
+}
+.list-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    font-weight: bold;
+}
+
+.swatch {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+}
+
+.remove-object {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+/* what the selected model expects (tissue scale) and how it pools */
+.model-note {
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.credits {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}

@@ -1,0 +1,21 @@
+const SAMPLES = [
+  { label: "Dog & cat", url: "/assets/img/samples/dog_and_cat.jpg" },
+  { label: "Dog & cat indoors", url: "/assets/img/samples/dog_and_cat_indoor.jpg" },
+  { label: "Two dogs", url: "/assets/img/samples/two_dogs.jpg" },
+  { label: "Fish & person", url: "/assets/img/samples/fish_and_person.jpg" },
+  { label: "Person without fish", url: "/assets/img/samples/person_without_fish.jpg" },
+  { label: "Warthog", url: "/assets/img/samples/warthog.jpg" },
+  { label: "Warthog (occluded)", url: "/assets/img/samples/warthog_occluded.jpg" },
+  { label: "Doughnuts", url: "/assets/img/samples/doughnuts.jpg" },
+  { label: "Doughnuts on a newspaper", url: "/assets/img/samples/doughnuts_newspaper.jpg" },
+  { label: "Bus & taxi", url: "/assets/img/samples/bus_and_taxi.jpg" },
+  { label: "Bus sign", url: "/assets/img/samples/bus_sign.jpg" },
+  { label: "Six objects", url: "/assets/img/samples/six_objects.jpg" },
+  { label: "Spider web", url: "/assets/img/samples/spider_web.jpg" },
+  { label: "Apple (Goh et al. 2021)", url: "/assets/img/samples/apple.png" },
+  { label: "Apple with an \"iPod\" note (Goh et al. 2021)", url: "/assets/img/samples/apple_ipod.png" },
+  { label: "Breast, ductal carcinoma 1 (BCSS, 112 µm at 0.25 µm/px)", url: "/assets/img/samples/bcss_ductal_1.jpg", group: "pathology" },
+  { label: "Breast, ductal carcinoma 2 (BCSS, 112 µm at 0.25 µm/px)", url: "/assets/img/samples/bcss_ductal_2.jpg", group: "pathology" },
+  { label: "Breast, lobular carcinoma (BCSS, 112 µm at 0.25 µm/px)", url: "/assets/img/samples/bcss_lobular.jpg", group: "pathology" },
+];
+const sampleGroup = (sample) => sample.group || "photo";

@@ -1,0 +1,246 @@
+---
+layout: null
+title: LaFAM Live Demo
+description: >-
+  See where a vision model looks: label-free activation maps (LaFAM) and class activation maps for
+  classifiers, self-supervised and CLIP models, computed in your browser.
+image:
+  path: /assets/img/demos/lafam.jpg
+  width: 1200
+  height: 630
+  alt: A dog and a cat with heatmaps from LaFAM and CAM for ConvNeXt and DINOv2.
+---
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <script src="{{ '/assets/js/theme.js' | relative_url }}"></script>
+    <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% seo %}
+
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <section id="main-section" class="main-section paused">
+        <div class="canvas-block" id="canvas-area">
+            <div class="canvas-wrapper">
+                <div id="loading-indicator" class="loading">
+                    <img src="assets/images/loading.svg" alt="Loading animation" />
+                    <div id="loading-text">Initializing...</div>
+                </div>
+                <canvas id="img-canvas"></canvas>
+                <canvas id="heatmap-canvas"></canvas>
+                <canvas id="bounding-boxes-canvas"></canvas>
+                <div id="grid"></div>
+            </div>
+        </div>
+
+        <div class="record-block">
+            <div class="card" id="control-panel">
+                <div class="button-group">
+                    <button id="start-button" class="btn" disabled title="Play/Pause the video or camera"
+                        aria-label="Play or pause the video or camera">
+                        <img src="assets/images/play.svg" class="icon play-icon" alt="Play icon" />
+                        <img src="assets/images/pause.svg" class="icon pause-icon" alt="Pause icon" />
+                    </button>
+                    <button id="switch-camera-button" class="btn" title="Use the camera (press again to switch cameras)"
+                        aria-label="Use the camera, or switch to the next camera">
+                        <img src="assets/images/switch-camera.svg" class="icon" alt="Switch camera icon" />
+                    </button>
+                    <div class="btn upload-split-group" id="upload-group">
+                        <div id="upload-button" class="split-action" title="Upload Image or Video"
+                            aria-label="Upload an image or video from your device">
+                            <img src="assets/images/upload.svg" class="icon" alt="Upload icon" />
+                        </div>
+                        <input type="file" id="upload-input" accept="image/*,video/*" style="display: none;">
+
+                        <div class="split-divider"></div>
+
+                        <div class="split-action relative" title="Select Preset">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M7 10l5 5 5-5z" />
+                            </svg>
+                            <select id="predefined-files" class="invisible-select lafam-select">
+                                <option value="assets/videos/dog_on_a_beach.mp4">🎥 Dog on a beach</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="theme-toggle-button" class="theme-toggle btn" title="Theme"
+                        aria-label="Theme">
+                        <svg class="icon moon-icon" viewBox="0 0 24 24">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                        <svg class="icon sun-icon" viewBox="0 0 24 24">
+                            <path
+                                d="M6.995 12c0 2.761 2.246 5.007 5.007 5.007s5.007-2.246 5.007-5.007-2.246-5.007-5.007-5.007S6.995 9.239 6.995 12zM11 19h2v3h-2zm0-17h2v3h-2zm-9 9h3v2h-3zm17 0h3v2h-3zM5.637 19.778l-1.414-1.414 2.121-2.121 1.414 1.414zM16.242 6.344l2.122-2.122 1.414 1.414-2.122 2.122zM6.344 7.759 4.223 5.637l1.415-1.414 2.12 2.122zM19.07 18.365l1.414 1.414-2.122 2.122-1.414-1.414z" />
+                        </svg>
+                        <svg class="icon auto-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20a10 10 0 0 1 0-20Zm0 2a8 8 0 0 0 0 16Z"/></svg>
+                    </button>
+
+                    <button id="help-button" class="btn help" title="Start Tutorial"
+                        aria-label="Start interactive tutorial">
+                        ?
+                    </button>
+                </div>
+                <div class="select-wrapper">
+                    <select id="model-select" class="lafam-select" title="Model (downloaded when selected)">
+                    </select>
+                    <select id="mode-select" class="lafam-select">
+                        <option value="predict" selected>Heatmap (LaFAM or CAM)</option>
+                        <option value="imagenet_classes">Multi-instance classification</option>
+                        <option value="groupmap_bbs">Object detection</option>
+                        <option value="object_tracking">Object tracking</option>
+                    </select>
+                    <select id="palette-select" class="lafam-select">
+                    </select>
+                </div>
+                <p id="model-note" class="model-note" hidden></p>
+                <div id="slider-container">
+                    <div class="slider-label">
+                        <label for="heatmap-opacity">Heatmap Opacity</label>
+                    </div>
+                    <input type="range" id="heatmap-opacity" min="0.0" max="1.0" value="0.5" step="0.05">
+                </div>
+
+                <!-- Object Tracking Controls -->
+                <div id="tracking-controls" class="hidden">
+                    <div class="control-group">
+                        <button id="add-object-btn" class="btn primary full-width">
+                            + Add Object
+                        </button>
+                    </div>
+                    
+                    <div id="tracking-objects-list">
+                        <!-- Object items will be added here dynamically -->
+                    </div>
+
+                    <div class="control-divider"></div>
+
+                    <div class="control-group">
+                        <label for="tracking-resolution">Resolution</label>
+                        <select id="tracking-resolution" class="lafam-select small">
+                            <option value="224" selected>224x224 (High)</option>
+                            <option value="112">112x112 (Mid)</option>
+                            <option value="56">56x56 (Low)</option>
+                        </select>
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <label for="tracking-threshold">Similarity Threshold</label>
+                            <span id="tracking-threshold-val">0.50</span>
+                        </div>
+                        <input type="range" id="tracking-threshold" min="0.0" max="1.0" value="0.5" step="0.05">
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <label for="tracking-ema">Smoothing (EMA)</label>
+                            <span id="tracking-ema-val">0.75</span>
+                        </div>
+                        <input type="range" id="tracking-ema" min="0.0" max="1.0" value="0.75" step="0.05">
+                    </div>
+                    
+                </div>
+            </div>
+
+            <!-- Predictions -->
+            <div class="predictions-container card" id="predictions-panel">
+                <div class="prediction-title">
+                    <div>Predictions</div>
+                    <button id="clear-selection" disabled>
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path
+                                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                        </svg>
+                        Clear selection
+                    </button>
+                </div>
+                <div id="prediction-list">
+                    <div class="prediction-placeholder"><span>Ready to analyze</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="info-section">
+        <h2>About</h2>
+        <p>This demo shows where a vision model looks. Its main view is the Label-free Activation Map (LaFAM):
+            a heatmap of the regions the model responds to most, computed without choosing a class, so it also works
+            for models trained without labels (<a href="https://arxiv.org/abs/2407.06059" target="_blank"
+                rel="noopener">Karjauv &amp; Albayrak, 2024</a>; <a
+                href="/2026/10/01/unsupervised-feature-attribution.html">blog post</a>).</p>
+        <p>The demo also reads the classifier region by region. A classifier divides a photo into a grid of regions,
+            describes each region, and averages these descriptions into one prediction. Because averaging is the last
+            step, its answer can be read for every region, and the average of these answers is exactly its prediction.
+            This shows where it sees each class (CAM, class activation map) and lets it find several objects in one
+            image (<a href="https://arxiv.org/abs/2606.14555" target="_blank" rel="noopener">Karjauv, 2026</a>).</p>
+        <p>Models with another pooling, such as CLIP RN50x4 (attention pooling), give their own
+            prediction; their regions are each classified on their own, as in MaskCLIP (<a
+                href="https://arxiv.org/abs/2112.01071" target="_blank" rel="noopener">Zhou et al., 2022</a>),
+            so the regions no longer average to the prediction.</p>
+        <p>The pathology model, Hibou-B, expects H&amp;E tissue at 0.5 µm per pixel (20×). It takes a 224 px square,
+            so it sees 112 µm of tissue, and at other scales its maps are unreliable. The breast examples are 112 µm
+            tiles at 0.25 µm per pixel (448 px), which the demo resizes to 224 px. An image you upload is cropped to its
+            centre square and resized to 224 px whatever its pixel size, so upload a square tile about 112 µm wide. The
+            tissue head of Hibou-B was trained with one label per tile on breast cancer tiles (BCSS) with no lobular
+            case among them.</p>
+        <p>Everything runs in your browser, and your images never leave your device.</p>
+        <p class="credits">Examples: breast tissue from <a href="https://github.com/PathologyDataScience/BCSS"
+                target="_blank" rel="noopener">BCSS</a> (TCGA-BRCA; CC0); apple photos from <a
+                href="https://distill.pub/2021/multimodal-neurons/" target="_blank" rel="noopener">Goh et al.,
+                2021</a> (CC-BY 4.0). Model licences: see the <a href="https://huggingface.co/karay/demo-models"
+                target="_blank" rel="noopener">model files</a>.</p>
+        <h3>How to use</h3>
+        <p>Pick an example, upload an image or video, or use your camera. Pause a video to interact with it.</p>
+        <ul>
+            <li><strong>Click a region</strong> to see what the model sees there.</li>
+            <li><strong>Click a class</strong> to see where the model finds it; click again or press × to clear.</li>
+            <li><strong>Modes:</strong> heatmaps, a class for every region (multi-instance classification), boxes
+                around objects (object detection), and following an object through a video (object tracking).</li>
+            <li><strong>Models</strong> are downloaded when you select them. They run on your graphics card if the
+                browser supports WebGPU, otherwise on the processor, which is slower.</li>
+        </ul>
+    </section>
+
+    <details id="debug-section" class="debug-section">
+        <summary>Debug log</summary>
+        <p>If you encounter issues, use the hard reset button below to clear cache and manually reload the page.</p>
+        <button onclick="updateServiceWorker()" style="margin-bottom: 10px; cursor: pointer;">Hard reset</button>
+        <h3>Log</h3>
+
+        <textarea id='log' rows='10' disabled></textarea>
+    </details>
+
+    <!-- TUTORIAL OVERLAY ELEMENTS -->
+    <div id="tutorial-overlay">
+        <div id="tutorial-spotlight" class="animating"></div>
+        <div id="tutorial-card">
+            <h3 id="tut-title">Title</h3>
+            <p id="tut-desc">Description goes here.</p>
+            <div class="tutorial-controls">
+                <button id="tut-skip" class="tut-btn">Skip</button>
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-variant-numeric: tabular-nums;">
+                    <span id="tut-step">1</span> of <span id="tut-total">4</span>
+                </div>
+                <button id="tut-next" class="tut-btn tut-btn-primary">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/ui.js"></script>
+    <script src="js/boundingboxes.js"></script>
+    <script src="../models/models.js"></script>
+    <script src="../js/samples.js"></script>
+    <script src="../js/inference.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

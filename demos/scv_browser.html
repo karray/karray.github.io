@@ -1,0 +1,1823 @@
+---
+layout: null
+title: Latent Space Browser
+description: >-
+  UMAP maps of image features from supervised, self-supervised and CLIP models, pathology foundation
+  models and StyleGAN encoders. Hover over the points to see the images behind them.
+image:
+  path: /assets/img/demos/latent-browser.jpg
+  width: 1200
+  height: 630
+  alt: A UMAP map of chest X-ray patches with outlined clusters for text, arrows and the lateral edge.
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+    {% seo %}
+    <style>
+      html, body {
+        box-sizing: border-box;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .data-source-controls {
+        box-sizing: border-box;
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+        color: #222;
+        font: 13px/1.4 system-ui, sans-serif;
+      }
+
+      .data-source-controls label {
+        font-weight: 600;
+      }
+
+      .data-source-controls select {
+        max-width: min(420px, 100%);
+        padding: 4px 28px 4px 8px;
+        font: inherit;
+      }
+
+      .data-source-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .data-source-item[hidden],
+      .data-source-color[hidden] {
+        display: none;
+      }
+
+      .data-source-color {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .data-source-custom {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: min(520px, 100%);
+      }
+
+      .data-source-custom[hidden] {
+        display: none;
+      }
+
+      .data-source-custom input {
+        box-sizing: border-box;
+        flex: 1 1 280px;
+        min-width: 180px;
+        padding: 4px 8px;
+        font: inherit;
+      }
+
+      .data-source-custom button {
+        padding: 4px 10px;
+        border: 1px solid #999;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .scv-layout {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      .scv-selected-panel {
+        box-sizing: border-box;
+        flex: 0 0 320px;
+        width: 320px;
+        min-height: 0;
+        overflow: auto;
+        padding: 0;
+        color: #222;
+      }
+
+      .scv-selected-panel > i {
+        display: block;
+        padding: 10px 12px 0;
+        color: #666;
+        font: 13px/1.4 system-ui, sans-serif;
+      }
+
+      .scv-about {
+        padding: 6px 12px 16px;
+        font: 13px/1.45 system-ui, sans-serif;
+      }
+
+      .scv-about-title {
+        margin: 6px 0 6px;
+        font-size: 14px;
+      }
+
+      .scv-about-summary {
+        margin: 0 0 8px;
+      }
+
+      .scv-about-section {
+        border-top: 1px solid #e3e3e3;
+        padding: 4px 0;
+      }
+
+      .scv-about-section summary {
+        cursor: pointer;
+        font-weight: 600;
+        padding: 3px 0;
+      }
+
+      .scv-about-section ul {
+        margin: 4px 0 6px;
+        padding-left: 18px;
+      }
+
+      .scv-about-section li {
+        margin-bottom: 4px;
+        overflow-wrap: anywhere;
+      }
+
+      .scv-plot-wrap {
+        display: flex;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .scv-root {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .scv-hover-overlay {
+        box-sizing: border-box;
+        position: fixed;
+        z-index: 10000;
+        max-width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+        overflow: auto;
+        padding: 8px;
+        border: 1px solid #777;
+        border-radius: 4px;
+        background: #fff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+        color: #222;
+        pointer-events: none;
+        font: 12px/1.25 system-ui, sans-serif;
+      }
+
+      .scv-hover-grid {
+        display: grid;
+        grid-template-columns: 108px;
+        gap: 8px;
+        align-items: start;
+      }
+
+      .scv-hover-grid:has(.scv-hover-card:nth-child(2)) {
+        grid-template-columns: repeat(2, 108px);
+      }
+
+      .scv-hover-grid:has(.scv-hover-card:nth-child(5)) {
+        grid-template-columns: repeat(3, 108px);
+      }
+
+      .scv-hover-grid:has(.scv-hover-card:nth-child(10)) {
+        grid-template-columns: repeat(4, 108px);
+      }
+
+      .scv-hover-card {
+        box-sizing: border-box;
+        width: 108px;
+        padding: 5px;
+        border: 1px solid #444;
+        background: #fff;
+      }
+
+      .scv-hover-title,
+      .scv-hover-more {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scv-hover-title {
+        font-weight: 600;
+      }
+
+      .scv-hover-thumb {
+        overflow: hidden;
+        width: 96px;
+        height: 96px;
+        margin: 4px 0;
+        border: 1px solid #444;
+        background: #f7f7f7;
+      }
+
+      .scv-hover-more {
+        margin-top: 6px;
+        color: #666;
+      }
+
+      .scv-patch-crop {
+        position: relative;
+        left: calc(var(--col) * -100%);
+        top: calc(var(--row) * -100%);
+        width: calc(var(--grid) * 100%);
+        height: calc(var(--grid) * 100%);
+      }
+
+      .scv-patch-crop img,
+      .scv-overview-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: var(--fit, cover);
+      }
+
+      .scv-selected-title {
+        margin: 0 0 8px;
+        font: 600 16px/1.3 system-ui, sans-serif;
+      }
+
+      .scv-overview-frame {
+        position: relative;
+        overflow: hidden;
+        width: 300px;
+        height: 300px;
+        margin-bottom: 8px;
+        border: 1px solid #444;
+        background: #f7f7f7;
+      }
+
+      .scv-overview-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(to right, rgba(255, 255, 255, 0.6) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+        background-size: calc(100% / var(--grid)) calc(100% / var(--grid));
+        pointer-events: none;
+      }
+
+      .scv-overview-marker {
+        position: absolute;
+        top: calc(var(--row) * 100% / var(--grid));
+        left: calc(var(--col) * 100% / var(--grid));
+        box-sizing: border-box;
+        width: calc(100% / var(--grid));
+        height: calc(100% / var(--grid));
+        border: 2px solid yellow;
+        pointer-events: none;
+      }
+
+      .scv-selected-details,
+      .scv-cluster-draft {
+        margin-top: 10px;
+        overflow-wrap: anywhere;
+        font: 13px/1.4 system-ui, sans-serif;
+      }
+
+      .scv-selected-preview-section {
+        margin-top: 10px;
+      }
+
+      .scv-section-title {
+        margin-bottom: 6px;
+        font: 600 13px/1.3 system-ui, sans-serif;
+      }
+
+      .scv-selected-preview-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        max-height: 250px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .scv-selected-preview-more {
+        margin-top: 6px;
+        color: #666;
+        font: 12px/1.3 system-ui, sans-serif;
+      }
+
+      .scv-selected-preview-button {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #222;
+        cursor: pointer;
+        text-align: left;
+        font: 11px/1.2 system-ui, sans-serif;
+      }
+
+      .scv-selected-thumb {
+        box-sizing: border-box;
+        overflow: hidden;
+        width: 100%;
+        aspect-ratio: 1;
+        border: 1px solid #555;
+        background: #f7f7f7;
+      }
+
+      .scv-selected-thumb.is-active {
+        border: 2px solid #1f77b4;
+      }
+
+      .scv-selected-preview-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+      }
+
+      .scv-cluster-draft {
+        margin-top: 12px;
+      }
+
+      .scv-cluster-draft-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .scv-cluster-draft-title {
+        font-weight: 600;
+      }
+
+      .scv-cluster-draft-note {
+        color: #666;
+      }
+
+      .scv-copy-button {
+        padding: 4px 8px;
+        border: 1px solid #999;
+        background: #fff;
+        cursor: pointer;
+        font: 12px/1.2 system-ui, sans-serif;
+      }
+
+      .scv-cluster-json {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+        padding: 8px;
+        border: 1px solid #bbb;
+        background: #fafafa;
+        color: #222;
+        font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+    </style>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.6.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.6.0.min.js"></script>
+    <script type="text/javascript">
+      Bokeh.set_log_level("info");
+    </script>
+  </head>
+  <body>
+    <div class="data-source-controls" id="data-source-controls">
+      <label for="data-source-group">Dataset</label>
+      <select id="data-source-group" autocomplete="off"></select>
+      <span class="data-source-item" id="data-source-item">
+        <label for="data-source-select" id="data-source-item-label">Model</label>
+        <select id="data-source-select" autocomplete="off"></select>
+      </span>
+      <form class="data-source-custom" id="data-source-custom" hidden>
+        <input id="data-source-url" type="text" inputmode="url" autocomplete="url" placeholder="https://example.org/data.json">
+        <button type="submit">Load</button>
+      </form>
+      <span class="data-source-color" id="label-column-controls" hidden>
+        <label for="label-column-select">Color by</label>
+        <select id="label-column-select" autocomplete="off"></select>
+      </span>
+    </div>
+    <main class="scv-layout">
+      <aside id="scv-selected-panel" class="scv-selected-panel"><i>Click or drag-select points to see details and cluster coordinates here</i></aside>
+      <section class="scv-plot-wrap">
+        <div id="c457899a-5f41-402e-93bd-74dd9efba537" class="scv-root" data-source="umap_covid.json"></div>
+      </section>
+    </main>
+    <script type="application/json" id="bokeh-template-json">
+      {"05a22395-ce6f-48eb-a51c-2cd965daa729":{"version":"3.6.0","title":"Bokeh Application","roots":[{"type":"object","name":"Row","id":"p1045","attributes":{"sizing_mode":"stretch_both","children":[{"type":"object","name":"Figure","id":"p1004","attributes":{"min_width":1024,"min_height":768,"sizing_mode":"stretch_both","x_range":{"type":"object","name":"DataRange1d","id":"p1005"},"y_range":{"type":"object","name":"DataRange1d","id":"p1006"},"x_scale":{"type":"object","name":"LinearScale","id":"p1014"},"y_scale":{"type":"object","name":"LinearScale","id":"p1015"},"title":{"type":"object","name":"Title","id":"p1007","attributes":{"text":"UMAP Spatial Vectors"}},"renderers":[{"type":"object","name":"GlyphRenderer","id":"p1037","attributes":{"data_source":{"type":"object","name":"ColumnDataSource","id":"p1001","attributes":{"selected":{"type":"object","name":"Selection","id":"p1002","attributes":{"indices":[],"line_indices":[]}},"selection_policy":{"type":"object","name":"UnionRenderers","id":"p1003"},"data":{"type":"map","entries":[["x",[]],["y",[]],["label",[]]]}}},"view":{"type":"object","name":"CDSView","id":"p1038","attributes":{"filter":{"type":"object","name":"AllIndices","id":"p1039"}}},"glyph":{"type":"object","name":"Scatter","id":"p1034","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"type":"object","name":"CategoricalColorMapper","id":"p1030","attributes":{"palette":["#1f77b4","#ff7f0e","#2ca02c"],"factors":["0","1"]}}},"line_alpha":{"type":"value","value":0.6},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.6},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.6}}},"nonselection_glyph":{"type":"object","name":"Scatter","id":"p1035","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.1},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.1},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.1}}},"muted_glyph":{"type":"object","name":"Scatter","id":"p1036","attributes":{"x":{"type":"field","field":"x"},"y":{"type":"field","field":"y"},"size":{"type":"value","value":8},"line_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"line_alpha":{"type":"value","value":0.2},"fill_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"fill_alpha":{"type":"value","value":0.2},"hatch_color":{"type":"field","field":"label","transform":{"id":"p1030"}},"hatch_alpha":{"type":"value","value":0.2}}}}}],"toolbar":{"type":"object","name":"Toolbar","id":"p1013","attributes":{"tools":[{"type":"object","name":"PanTool","id":"p1026"},{"type":"object","name":"WheelZoomTool","id":"p1027","attributes":{"renderers":"auto"}},{"type":"object","name":"BoxSelectTool","id":"p1046","attributes":{"renderers":"auto","overlay":{"type":"object","name":"BoxAnnotation","id":"p1049","attributes":{"bottom":{"type":"number","value":"nan"},"editable":true,"fill_alpha":0.5,"fill_color":"lightgrey","handles":{"type":"object","name":"BoxInteractionHandles","id":"p1050","attributes":{"all":{"type":"object","name":"AreaVisuals","id":"p1051","attributes":{"fill_color":"white","hover_fill_color":"lightgray"}}}},"left":{"type":"number","value":"nan"},"level":"overlay","line_alpha":1,"line_color":"black","line_dash":[4,4],"line_width":2,"right":{"type":"number","value":"nan"},"syncable":false,"top":{"type":"number","value":"nan"},"visible":false}}}},{"type":"object","name":"ResetTool","id":"p1028"},{"type":"object","name":"HoverTool","id":"p1029","attributes":{"renderers":"auto"}},{"type":"object","name":"TapTool","id":"p1044","attributes":{"renderers":"auto"}}]}},"left":[{"type":"object","name":"LinearAxis","id":"p1021","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1022","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1023"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1024"}}}],"below":[{"type":"object","name":"LinearAxis","id":"p1016","attributes":{"ticker":{"type":"object","name":"BasicTicker","id":"p1017","attributes":{"mantissas":[1,2,5]}},"formatter":{"type":"object","name":"BasicTickFormatter","id":"p1018"},"major_label_policy":{"type":"object","name":"AllLabels","id":"p1019"}}}],"center":[{"type":"object","name":"Grid","id":"p1020","attributes":{"axis":{"id":"p1016"}}},{"type":"object","name":"Grid","id":"p1025","attributes":{"dimension":1,"axis":{"id":"p1021"}}},{"type":"object","name":"Legend","id":"p1040","attributes":{"items":[{"type":"object","name":"LegendItem","id":"p1041","attributes":{"label":{"type":"field","field":"label"},"renderers":[{"id":"p1037"}]}}]}}]}}]}}]}}
+    </script>
+    <script type="text/javascript">
+      (function() {
+        const CONTAINER_ID = "c457899a-5f41-402e-93bd-74dd9efba537";
+        const TEMPLATE_JSON_ID = "bokeh-template-json";
+        const DEFAULT_DATA_URL = "umap_covid.json";
+        const DATA_OPTION_PARAM = "option";
+        const DATA_URL_PARAM = "data";
+        const CUSTOM_DATA_OPTION_ID = "__custom__";
+        // Grouped data sources: the first dropdown picks the group, the second the model or variant.
+        // Ids are stable, so links with ?option=<id> keep working.
+        // Grouped data sources: the first dropdown picks the group, the second the model or variant.
+        // Ids are stable, so links with ?option=<id> keep working.
+        const DATA_GROUPS = [
+          {name: "COCO (14 classes, objects and background)", itemLabel: "Model"},
+          {name: "Breast cancer (BCSS, TCGA-BRCA)", itemLabel: "Data and model"},
+          {name: "COVID-19 chest X-rays", itemLabel: "Model"},
+          {name: "StyleGAN2 encoder", itemLabel: "Data"}
+        ];
+        const DATA_OPTIONS = [
+          {id: "coco_resnet50", group: DATA_GROUPS[0].name, label: "Supervised · ResNet-50", url: "umap_coco_resnet50.json"},
+          {id: "coco_convnext", group: DATA_GROUPS[0].name, label: "Supervised · ConvNeXt-Base", url: "umap_coco_convnext.json"},
+          {id: "coco_deit", group: DATA_GROUPS[0].name, label: "Supervised · DeiT-B/16", url: "umap_coco_deit.json"},
+          {id: "coco_clip_resnet50", group: DATA_GROUPS[0].name, label: "CLIP (OpenAI) · ResNet-50", url: "umap_coco_clip_resnet50.json"},
+          {id: "coco_clip_vit", group: DATA_GROUPS[0].name, label: "CLIP (OpenAI) · ViT-B/16", url: "umap_coco_clip_vit.json"},
+          {id: "coco_clip_convnext", group: DATA_GROUPS[0].name, label: "CLIP (LAION-2B) · ConvNeXt-Base", url: "umap_coco_clip_convnext.json"},
+          {id: "coco_clip_vit_laion", group: DATA_GROUPS[0].name, label: "CLIP (LAION-2B) · ViT-B/16", url: "umap_coco_clip_vit_laion.json"},
+          {id: "coco_simclr_resnet50", group: DATA_GROUPS[0].name, label: "SimCLR · ResNet-50", url: "umap_coco_simclr_resnet50.json"},
+          {id: "coco_mocov3_resnet50", group: DATA_GROUPS[0].name, label: "MoCo v3 · ResNet-50", url: "umap_coco_mocov3_resnet50.json"},
+          {id: "coco_mocov3_vit", group: DATA_GROUPS[0].name, label: "MoCo v3 · ViT-B/16", url: "umap_coco_mocov3_vit.json"},
+          {id: "coco_dino_resnet50", group: DATA_GROUPS[0].name, label: "DINO · ResNet-50", url: "umap_coco_dino_resnet50.json"},
+          {id: "coco_dino_vit", group: DATA_GROUPS[0].name, label: "DINO · ViT-B/16", url: "umap_coco_dino_vit.json"},
+          {id: "coco_dinov2", group: DATA_GROUPS[0].name, label: "DINOv2 · ViT-B/14", url: "umap_coco_dinov2.json"},
+          {id: "coco_dinov2_reg", group: DATA_GROUPS[0].name, label: "DINOv2 · ViT-B/14 + registers", url: "umap_coco_dinov2_reg.json"},
+          {id: "coco_dinov3_convnext", group: DATA_GROUPS[0].name, label: "DINOv3 · ConvNeXt-Base (distilled)", url: "umap_coco_dinov3_convnext.json"},
+          {id: "coco_dinov3", group: DATA_GROUPS[0].name, label: "DINOv3 · ViT-B/16", url: "umap_coco_dinov3.json"},
+          {id: "coco_fcmae_convnextv2", group: DATA_GROUPS[0].name, label: "Masked image modelling · FCMAE ConvNeXt-V2-Base", url: "umap_coco_fcmae_convnextv2.json"},
+          {id: "coco_mae", group: DATA_GROUPS[0].name, label: "Masked image modelling · MAE ViT-B/16", url: "umap_coco_mae.json"},
+          {id: "bcss_virchow2", group: DATA_GROUPS[1].name, label: "BCSS (pathologist annotations) · Virchow2", url: "umap_bcss_virchow2.json"},
+          {id: "bcss_phikonv2", group: DATA_GROUPS[1].name, label: "BCSS (pathologist annotations) · Phikon-v2", url: "umap_bcss_phikonv2.json"},
+          {id: "tcga_lobular_virchow2", group: DATA_GROUPS[1].name, label: "TCGA-BRCA lobular vs ductal · Virchow2", url: "umap_tcga_lobular_virchow2.json"},
+          {id: "tcga_lobular_phikonv2", group: DATA_GROUPS[1].name, label: "TCGA-BRCA lobular vs ductal · Phikon-v2", url: "umap_tcga_lobular_phikonv2.json"},
+          {id: "covid", group: DATA_GROUPS[2].name, label: "PubMedCLIP ResNet-50", url: "umap_covid.json"},
+          {id: "stylegan_mnist", group: DATA_GROUPS[3].name, label: "MNIST", url: "stylegan2-with-encoder/mnist.json"},
+          {id: "stylegan_celeba", group: DATA_GROUPS[3].name, label: "CelebA and FFHQ", url: "stylegan2-with-encoder/celeba_ffhq.json"},
+          {id: "stylegan_pcam", group: DATA_GROUPS[3].name, label: "Camelyon (PCam)", url: "stylegan2-with-encoder/pcam.json"}
+        ];
+        const LABEL_COLUMN_PARAM = "color";
+        // Top-level arrays that describe the dataset rather than hold one value per point.
+        const NON_POINT_KEYS = ["images", "label_columns", "palette"];
+        const SELECTED_PANEL_ID = "scv-selected-panel";
+        const CLUSTER_SOURCE_ID = "annotation_cluster_source";
+        const CLUSTER_RENDERER_ID = "annotation_cluster_renderer";
+        const CLUSTER_LEADER_RENDERER_ID = "annotation_cluster_leader_renderer";
+        const CLUSTER_LABEL_RENDERER_ID = "annotation_cluster_label_renderer";
+        const CLUSTER_HOVER_ID = "annotation_cluster_hover";
+        const PATCH_HOVER_CALLBACK_ID = "patch_hover_overlay_callback";
+        const PALETTE = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+        const DEFAULT_GRID_SIZE = 7;
+        const DEFAULT_IMAGE_CROP = "center_square";
+        const EMPTY_SELECTION_TEXT = "<i>Click or drag-select points to see details and cluster coordinates here</i>";
+        const CLUSTER_TOOLTIPS = `
+          <div class="cluster-hover-card" style="box-sizing:border-box; max-width:280px; padding:8px 10px; border:1px solid #777; border-radius:4px; background:#fff; color:#222; font:13px/1.35 system-ui, sans-serif;">
+            <div class="cluster-hover-title" style="margin-bottom:4px; font-weight:700;">@label</div>
+            <div class="cluster-hover-description" style="color:#444; overflow-wrap:anywhere;">@description</div>
+            <div style="margin-top:6px; color:#777; font-size:12px;">@id</div>
+          </div>
+        `;
+        const PATCH_HOVER_CALLBACK_CODE = "if (window.scvPatchHover) window.scvPatchHover(cb_data);";
+
+        function visit(value, fn) {
+          if (Array.isArray(value)) {
+            for (const item of value) visit(item, fn);
+            return;
+          }
+          if (value && typeof value === "object") {
+            fn(value);
+            for (const child of Object.values(value)) visit(child, fn);
+          }
+        }
+
+        function findModels(root, modelName) {
+          const matches = [];
+          visit(root, function(node) {
+            if (node && node.type === "object" && node.name === modelName) matches.push(node);
+          });
+          return matches;
+        }
+
+        function findDataOption(id) {
+          return DATA_OPTIONS.find(function(option) {
+            return option.id === id;
+          });
+        }
+
+        function getFallbackDataUrl() {
+          const target = document.getElementById(CONTAINER_ID);
+          return (target && target.dataset.source) || DEFAULT_DATA_URL;
+        }
+
+        function getDataSource() {
+          const params = new URLSearchParams(window.location.search);
+          const customUrl = params.get(DATA_URL_PARAM);
+          if (customUrl) {
+            return {id: CUSTOM_DATA_OPTION_ID, label: "External JSON URL", url: customUrl, predefined: false};
+          }
+
+          const optionId = params.get(DATA_OPTION_PARAM);
+          const option = findDataOption(optionId);
+
+          if (option) return Object.assign({predefined: true}, option);
+          if (optionId) console.warn("Unknown data option:", optionId);
+
+          const fallbackUrl = getFallbackDataUrl();
+          const fallbackOption = DATA_OPTIONS.find(function(item) {
+            return item.url === fallbackUrl;
+          });
+          if (fallbackOption) return Object.assign({predefined: true}, fallbackOption);
+          return {id: CUSTOM_DATA_OPTION_ID, label: "External JSON URL", url: fallbackUrl, predefined: false};
+        }
+
+        function optionBrowserUrl(option) {
+          const url = new URL(window.location.href);
+          url.searchParams.set(DATA_OPTION_PARAM, option.id);
+          url.searchParams.delete(DATA_URL_PARAM);
+          return url;
+        }
+
+        function customDataBrowserUrl(dataUrl) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete(DATA_OPTION_PARAM);
+          url.searchParams.set(DATA_URL_PARAM, dataUrl);
+          return url;
+        }
+
+        function installDataSourceSelector(dataSource) {
+          const groupSelect = document.getElementById("data-source-group");
+          const select = document.getElementById("data-source-select");
+          const itemBox = document.getElementById("data-source-item");
+          const itemLabel = document.getElementById("data-source-item-label");
+          const customForm = document.getElementById("data-source-custom");
+          const customInput = document.getElementById("data-source-url");
+          if (!groupSelect || !select) return;
+
+          function fillItems(groupName, selectedId) {
+            const group = DATA_GROUPS.find(function(g) { return g.name === groupName; });
+            select.textContent = "";
+            for (const option of DATA_OPTIONS.filter(function(o) { return o.group === groupName; })) {
+              const item = document.createElement("option");
+              item.value = option.id;
+              item.textContent = option.label;
+              select.appendChild(item);
+            }
+            if (selectedId) select.value = selectedId;
+            if (itemLabel) itemLabel.textContent = group && group.itemLabel ? group.itemLabel : "Model";
+          }
+
+          groupSelect.textContent = "";
+          for (const group of DATA_GROUPS) {
+            const item = document.createElement("option");
+            item.value = group.name;
+            item.textContent = group.name;
+            groupSelect.appendChild(item);
+          }
+          const customOption = document.createElement("option");
+          customOption.value = CUSTOM_DATA_OPTION_ID;
+          customOption.textContent = "External JSON URL...";
+          groupSelect.appendChild(customOption);
+
+          const custom = !dataSource.predefined;
+          groupSelect.value = custom ? CUSTOM_DATA_OPTION_ID : dataSource.group;
+          if (!custom) fillItems(dataSource.group, dataSource.id);
+          if (itemBox) itemBox.hidden = custom;
+          if (customInput) customInput.value = custom ? dataSource.url : "";
+          if (customForm) customForm.hidden = !custom;
+
+          groupSelect.onchange = function() {
+            if (groupSelect.value === CUSTOM_DATA_OPTION_ID) {
+              if (itemBox) itemBox.hidden = true;
+              if (customForm) customForm.hidden = false;
+              if (customInput) customInput.focus();
+              return;
+            }
+            const first = DATA_OPTIONS.find(function(o) { return o.group === groupSelect.value; });
+            if (first) window.location.assign(optionBrowserUrl(first).toString());
+          };
+
+          select.onchange = function() {
+            const option = findDataOption(select.value);
+            if (option) window.location.assign(optionBrowserUrl(option).toString());
+          };
+
+          if (customForm && customInput) {
+            customForm.onsubmit = function(event) {
+              event.preventDefault();
+              const dataUrl = customInput.value.trim();
+              if (!dataUrl) {
+                customInput.focus();
+                return;
+              }
+              window.location.assign(customDataBrowserUrl(dataUrl).toString());
+            };
+          }
+        }
+
+        function buildRenderItems(docs) {
+          const docid = Object.keys(docs)[0];
+          const root = docid && docs[docid].roots && docs[docid].roots[0];
+          if (!docid || !root || !root.id) throw new Error("Template is missing a Bokeh root model.");
+          return [{docid: docid, roots: {[root.id]: CONTAINER_ID}, root_ids: [root.id]}];
+        }
+
+        function filenameFromPath(value) {
+          const path = String(value || "").split(/[?#]/)[0];
+          const filename = path.split("/").filter(Boolean).pop();
+          return filename || String(value || "");
+        }
+
+        function isDataUrl(value) {
+          return /^data:/i.test(String(value || ""));
+        }
+
+        function labelColumns(rawData) {
+          if (!Array.isArray(rawData.label_columns)) return [];
+          return rawData.label_columns.map(String).filter(function(column) {
+            return Array.isArray(rawData[column]);
+          });
+        }
+
+        function initialLabelColumn(rawData) {
+          const available = labelColumns(rawData);
+          const requested = new URLSearchParams(window.location.search).get(LABEL_COLUMN_PARAM);
+          if (requested && available.includes(requested)) return requested;
+          if (available.includes(rawData.label_column)) return rawData.label_column;
+          return null;
+        }
+
+        function labelPalette(factors, palette) {
+          return factors.map(function(factor, i) {
+            if (Array.isArray(palette) && palette.length > 0) return palette[i % palette.length];
+            if (palette && typeof palette === "object" && palette[factor]) return palette[factor];
+            return PALETTE[i % PALETTE.length];
+          });
+        }
+
+        function joinImageUrl(baseUrl, image) {
+          const imagePath = String(image || "");
+          if (/^[a-z][a-z0-9+.-]*:/i.test(imagePath) || !baseUrl) return imagePath;
+          return String(baseUrl).replace(/\/?$/, "/") + imagePath.replace(/^\/+/, "");
+        }
+
+        function normalizeGridSize(value) {
+          const gridSize = Math.trunc(Number(value));
+          return Number.isFinite(gridSize) && gridSize > 0 ? gridSize : DEFAULT_GRID_SIZE;
+        }
+
+        function normalizeImageCrop(value) {
+          const crop = String(value || DEFAULT_IMAGE_CROP).toLowerCase().replace(/-/g, "_");
+          if (crop === "none" || crop === "as_is" || crop === "original") return "none";
+          return DEFAULT_IMAGE_CROP;
+        }
+
+        function imageObjectFit(imageCrop) {
+          return imageCrop === "none" ? "fill" : "cover";
+        }
+
+        function normalizeColumns(columns) {
+          if (!columns || typeof columns !== "object" || Array.isArray(columns)) {
+            throw new Error("Data JSON must be an object of array columns.");
+          }
+          if (!Array.isArray(columns.x) || !Array.isArray(columns.y)) {
+            throw new Error("Data JSON must include x and y columns.");
+          }
+
+          const entries = Object.entries(columns).filter(function(entry) {
+            return Array.isArray(entry[1]) && !NON_POINT_KEYS.includes(entry[0]);
+          });
+          const lengths = entries.map(function(entry) { return entry[1].length; });
+          const minLength = Math.min.apply(null, lengths);
+          const maxLength = Math.max.apply(null, lengths);
+          const normalized = {};
+
+          for (const entry of entries) normalized[entry[0]] = entry[1];
+
+          if (minLength !== maxLength) {
+            console.warn("Data columns have different lengths; truncating to", minLength);
+            for (const entry of entries) normalized[entry[0]] = entry[1].slice(0, minLength);
+          }
+          const labelColumn = initialLabelColumn(columns);
+          if (labelColumn) normalized.label = normalized[labelColumn];
+          if (Array.isArray(normalized.label)) {
+            normalized.label = normalized.label.map(function(value) { return String(value); });
+          } else {
+            normalized.label = Array.from({length: normalized.x.length}, function() { return ""; });
+          }
+
+          const pointCount = normalized.x.length;
+          const images = Array.isArray(columns.images) ? columns.images : null;
+          const imageBaseUrl = typeof columns.image_base_url === "string" ? columns.image_base_url : "";
+          const gridSize = normalizeGridSize(columns.grid_size);
+          const patchesPerImage = gridSize * gridSize;
+          const imageCrop = normalizeImageCrop(columns.image_crop);
+          const objectFit = imageObjectFit(imageCrop);
+          if (images && images.length * patchesPerImage !== pointCount) {
+            console.warn("Data image count does not match point count for grid_size", gridSize);
+          }
+          if (!Array.isArray(normalized.img_url)) {
+            normalized.img_url = Array.from({length: pointCount}, function(_, i) {
+              const image = images ? images[Math.floor(i / patchesPerImage)] : "";
+              return image ? joinImageUrl(imageBaseUrl, image) : "";
+            });
+          }
+          if (!Array.isArray(normalized.image_name)) {
+            normalized.image_name = Array.from({length: pointCount}, function(_, i) {
+              const image = images ? images[Math.floor(i / patchesPerImage)] : normalized.img_url[i];
+              return isDataUrl(image) ? "image_" + (images ? Math.floor(i / patchesPerImage) : i) + ".png" : filenameFromPath(image);
+            });
+          }
+          if (!Array.isArray(normalized.idx)) {
+            normalized.idx = Array.from({length: pointCount}, function(_, i) {
+              return images ? Math.floor(i / patchesPerImage) : i;
+            });
+          }
+          if (!Array.isArray(normalized.row)) {
+            normalized.row = Array.from({length: pointCount}, function(_, i) {
+              return Math.floor((i % patchesPerImage) / gridSize);
+            });
+          }
+          if (!Array.isArray(normalized.col)) {
+            normalized.col = Array.from({length: pointCount}, function(_, i) {
+              return i % gridSize;
+            });
+          }
+          if (!Array.isArray(normalized.grid_size)) {
+            normalized.grid_size = Array.from({length: pointCount}, function() { return gridSize; });
+          }
+          if (!Array.isArray(normalized.image_object_fit)) {
+            normalized.image_object_fit = Array.from({length: pointCount}, function() { return objectFit; });
+          }
+          return normalized;
+        }
+
+        function pointValue(data, column, i, fallback) {
+          const values = data[column];
+          return values && values[i] != null ? values[i] : fallback;
+        }
+
+        function pointNumber(data, column, i, fallback) {
+          const n = Number(pointValue(data, column, i, fallback));
+          return Number.isFinite(n) ? n : fallback;
+        }
+
+        function pointGridSize(data, i) {
+          return normalizeGridSize(pointValue(data, "grid_size", i, DEFAULT_GRID_SIZE));
+        }
+
+        function pointGridIndex(data, column, i, gridSize) {
+          const size = gridSize || pointGridSize(data, i);
+          const index = Math.trunc(pointNumber(data, column, i, 0));
+          return Math.min(Math.max(index, 0), size - 1);
+        }
+
+        function pointImageFit(data, i) {
+          const fit = String(pointValue(data, "image_object_fit", i, "cover"));
+          return fit === "fill" ? "fill" : "cover";
+        }
+
+        function pointPreview(data, i) {
+          const gridSize = pointGridSize(data, i);
+          const row = pointGridIndex(data, "row", i, gridSize);
+          const col = pointGridIndex(data, "col", i, gridSize);
+          const objectFit = pointImageFit(data, i);
+          const url = pointValue(data, "img_url", i, "");
+
+          return {
+            title: escapeHtml(pointTitle(pointValue(data, "idx", i, i), pointValue(data, "label", i, ""))),
+            url: escapeHtml(url),
+            isDataUrl: isDataUrl(url),
+            imageName: escapeHtml(pointValue(data, "image_name", i, filenameFromPath(url))),
+            row: row,
+            col: col,
+            gridSize: gridSize,
+            cropStyle: "--grid:" + gridSize + "; --row:" + row + "; --col:" + col + "; --fit:" + objectFit + ";"
+          };
+        }
+
+        function toBokehMap(columns) {
+          return {type: "map", entries: Object.entries(columns)};
+        }
+
+        function normalizeAnnotations(value) {
+          if (!value || typeof value !== "object" || Array.isArray(value)) return {clusters: []};
+          const clusters = Array.isArray(value.clusters) ? value.clusters : [];
+          return {
+            clusters: clusters.map(normalizeClusterAnnotation).filter(Boolean)
+          };
+        }
+
+        function normalizeClusterAnnotation(cluster, index) {
+          if (!cluster || typeof cluster !== "object") return null;
+          const polygon = cluster.polygon && typeof cluster.polygon === "object" ? cluster.polygon : cluster;
+          if (!Array.isArray(polygon.xs) || !Array.isArray(polygon.ys)) return null;
+
+          const length = Math.min(polygon.xs.length, polygon.ys.length);
+          if (length === 0) return null;
+
+          const xs = polygon.xs.slice(0, length).map(Number);
+          const ys = polygon.ys.slice(0, length).map(Number);
+          if (!xs.every(Number.isFinite) || !ys.every(Number.isFinite)) return null;
+
+          const id = cluster.id != null ? String(cluster.id) : "cluster_" + (index + 1);
+          const polygonPadding = Number.isFinite(Number(cluster.polygon_padding)) ? Number(cluster.polygon_padding) : defaultPolygonPadding(xs, ys);
+          const padded = paddedPolygon(xs, ys, polygonPadding);
+          const rounded = roundedPolygon(padded.xs, padded.ys, cluster.polygon_corner_radius);
+          const labelPosition = cluster.label_position && typeof cluster.label_position === "object" ? cluster.label_position : null;
+          const labelSide = normalizeLabelSide(cluster.label_side || (labelPosition && labelPosition.side) || (typeof cluster.label_position === "string" ? cluster.label_position : null));
+          const labelSettings = labelPositionForSide(rounded.xs, rounded.ys, labelSide, cluster.label_gap);
+          const autoLabelPosition = {x: labelSettings.x, y: labelSettings.y};
+          const labelX = labelPosition && Number.isFinite(Number(labelPosition.x)) ? Number(labelPosition.x) : autoLabelPosition.x;
+          const labelY = labelPosition && Number.isFinite(Number(labelPosition.y)) ? Number(labelPosition.y) : autoLabelPosition.y;
+          const anchor = nearestPolygonPoint(rounded.xs, rounded.ys, labelX, labelY);
+
+          return {
+            id: id,
+            label: cluster.label != null ? String(cluster.label) : id,
+            description: cluster.description != null ? String(cluster.description) : "",
+            xs: xs,
+            ys: ys,
+            display_xs: rounded.xs,
+            display_ys: rounded.ys,
+            anchor_x: anchor.x,
+            anchor_y: anchor.y,
+            label_x: labelX,
+            label_y: labelY,
+            label_align: labelSettings.align,
+            label_x_offset: labelSettings.x_offset,
+            fill_color: cluster.fill_color || "#d62728",
+            fill_alpha: Number.isFinite(Number(cluster.fill_alpha)) ? Number(cluster.fill_alpha) : 0,
+            line_color: cluster.line_color || cluster.fill_color || "#d62728",
+            line_alpha: Number.isFinite(Number(cluster.line_alpha)) ? Number(cluster.line_alpha) : 0.4,
+            leader_line_alpha: Number.isFinite(Number(cluster.leader_line_alpha)) ? Number(cluster.leader_line_alpha) : 0.3,
+            line_width: Number.isFinite(Number(cluster.line_width)) ? Number(cluster.line_width) : 3,
+            label_text_color: cluster.label_text_color || cluster.line_color || cluster.fill_color || "#d62728"
+          };
+        }
+
+        function defaultPolygonPadding(xs, ys) {
+          const bounds = clusterBounds(xs, ys);
+          const width = Math.max(bounds.x1 - bounds.x0, 0.01);
+          const height = Math.max(bounds.y1 - bounds.y0, 0.01);
+          return Math.max(Math.min(width, height) * 0.18, 0.08);
+        }
+
+        function paddedPolygon(xs, ys, padding) {
+          const centroid = xs.reduce(function(total, x) { return total + x; }, 0) / xs.length;
+          const middle = ys.reduce(function(total, y) { return total + y; }, 0) / ys.length;
+          const displayXs = [];
+          const displayYs = [];
+
+          for (let i = 0; i < xs.length; i++) {
+            const dx = xs[i] - centroid;
+            const dy = ys[i] - middle;
+            const distance = Math.max(Math.hypot(dx, dy), 1e-6);
+            displayXs.push(xs[i] + dx / distance * padding);
+            displayYs.push(ys[i] + dy / distance * padding);
+          }
+
+          return {xs: displayXs, ys: displayYs};
+        }
+
+        function roundedPolygon(xs, ys, configuredRadius) {
+          const radius = Number.isFinite(Number(configuredRadius)) ? Number(configuredRadius) : defaultPolygonCornerRadius(xs, ys);
+          if (xs.length < 3 || radius <= 0) return {xs: xs.slice(), ys: ys.slice()};
+
+          const roundedXs = [];
+          const roundedYs = [];
+          const steps = 6;
+
+          for (let i = 0; i < xs.length; i++) {
+            const previous = (i - 1 + xs.length) % xs.length;
+            const next = (i + 1) % xs.length;
+            const x = xs[i];
+            const y = ys[i];
+            const prevDx = xs[previous] - x;
+            const prevDy = ys[previous] - y;
+            const nextDx = xs[next] - x;
+            const nextDy = ys[next] - y;
+            const prevLength = Math.max(Math.hypot(prevDx, prevDy), 1e-6);
+            const nextLength = Math.max(Math.hypot(nextDx, nextDy), 1e-6);
+            const cut = Math.min(radius, prevLength * 0.45, nextLength * 0.45);
+            const startX = x + prevDx / prevLength * cut;
+            const startY = y + prevDy / prevLength * cut;
+            const endX = x + nextDx / nextLength * cut;
+            const endY = y + nextDy / nextLength * cut;
+
+            for (let step = 0; step <= steps; step++) {
+              const t = step / steps;
+              const inverse = 1 - t;
+              roundedXs.push(inverse * inverse * startX + 2 * inverse * t * x + t * t * endX);
+              roundedYs.push(inverse * inverse * startY + 2 * inverse * t * y + t * t * endY);
+            }
+          }
+
+          return {xs: roundedXs, ys: roundedYs};
+        }
+
+        function defaultPolygonCornerRadius(xs, ys) {
+          let minEdge = Infinity;
+          for (let i = 0; i < xs.length; i++) {
+            const next = (i + 1) % xs.length;
+            minEdge = Math.min(minEdge, Math.hypot(xs[next] - xs[i], ys[next] - ys[i]));
+          }
+          const bounds = clusterBounds(xs, ys);
+          const minDimension = Math.max(Math.min(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0), 0.01);
+          return Math.min(minEdge * 0.35, minDimension * 0.2);
+        }
+
+        function normalizeLabelSide(value) {
+          const side = String(value || "top_right").toLowerCase().replace(/[\s-]+/g, "_");
+          return ["top_left", "top_right", "bottom_left", "bottom_right"].includes(side) ? side : "top_right";
+        }
+
+        function clusterBounds(xs, ys) {
+          return {
+            x0: Math.min.apply(null, xs),
+            y0: Math.min.apply(null, ys),
+            x1: Math.max.apply(null, xs),
+            y1: Math.max.apply(null, ys)
+          };
+        }
+
+        function labelPositionForSide(xs, ys, side, configuredGap) {
+          const bounds = clusterBounds(xs, ys);
+          const width = Math.max(bounds.x1 - bounds.x0, 0.01);
+          const height = Math.max(bounds.y1 - bounds.y0, 0.01);
+          const gap = Number.isFinite(Number(configuredGap)) ? Number(configuredGap) : Math.max(Math.min(width, height) * 0.35, 0.18);
+          const left = side.endsWith("_left");
+          const top = side.startsWith("top_");
+
+          return {
+            x: left ? bounds.x0 - gap : bounds.x1 + gap,
+            y: top ? bounds.y1 + gap : bounds.y0 - gap,
+            align: left ? "right" : "left",
+            x_offset: left ? -6 : 6
+          };
+        }
+
+        function nearestPolygonPoint(xs, ys, x, y) {
+          let best = {x: xs[0], y: ys[0], distance: Infinity};
+          for (let i = 0; i < xs.length; i++) {
+            const dx = xs[i] - x;
+            const dy = ys[i] - y;
+            const distance = dx * dx + dy * dy;
+            if (distance < best.distance) best = {x: xs[i], y: ys[i], distance: distance};
+          }
+          return best;
+        }
+
+        function annotationClusterColumns(clusters) {
+          const columns = {
+            id: [],
+            label: [],
+            description: [],
+            xs: [],
+            ys: [],
+            display_xs: [],
+            display_ys: [],
+            anchor_x: [],
+            anchor_y: [],
+            label_x: [],
+            label_y: [],
+            label_align: [],
+            label_x_offset: [],
+            fill_color: [],
+            fill_alpha: [],
+            line_color: [],
+            line_alpha: [],
+            leader_line_alpha: [],
+            line_width: [],
+            label_text_color: []
+          };
+
+          for (const cluster of clusters) {
+            columns.id.push(cluster.id);
+            columns.label.push(cluster.label);
+            columns.description.push(cluster.description);
+            columns.xs.push(cluster.xs);
+            columns.ys.push(cluster.ys);
+            columns.display_xs.push(cluster.display_xs);
+            columns.display_ys.push(cluster.display_ys);
+            columns.anchor_x.push(cluster.anchor_x);
+            columns.anchor_y.push(cluster.anchor_y);
+            columns.label_x.push(cluster.label_x);
+            columns.label_y.push(cluster.label_y);
+            columns.label_align.push(cluster.label_align);
+            columns.label_x_offset.push(cluster.label_x_offset);
+            columns.fill_color.push(cluster.fill_color);
+            columns.fill_alpha.push(cluster.fill_alpha);
+            columns.line_color.push(cluster.line_color);
+            columns.line_alpha.push(cluster.line_alpha);
+            columns.leader_line_alpha.push(cluster.leader_line_alpha);
+            columns.line_width.push(cluster.line_width);
+            columns.label_text_color.push(cluster.label_text_color);
+          }
+
+          return columns;
+        }
+
+        function glyphName(renderer) {
+          return renderer && renderer.attributes && renderer.attributes.glyph && renderer.attributes.glyph.name;
+        }
+
+        function findGlyphRenderer(docs, name) {
+          return findModels(docs, "GlyphRenderer").find(function(renderer) {
+            return glyphName(renderer) === name;
+          });
+        }
+
+        function updateLabelColors(docs, columns, palette) {
+          if (!Array.isArray(columns.label)) return;
+          const factors = Array.from(new Set(columns.label));
+          for (const mapper of findModels(docs, "CategoricalColorMapper")) {
+            mapper.attributes = mapper.attributes || {};
+            mapper.attributes.factors = factors;
+            mapper.attributes.palette = labelPalette(factors, palette);
+          }
+        }
+
+        function updateTitle(docs, title) {
+          if (typeof title !== "string" || !title) return;
+          document.title = title + " | Latent representation browser";
+          for (const model of findModels(docs, "Title")) {
+            model.attributes = model.attributes || {};
+            model.attributes.text = title;
+          }
+        }
+
+        function updateHoverTooltips(docs) {
+          const scatterRenderer = findGlyphRenderer(docs, "Scatter");
+          for (const hoverTool of findModels(docs, "HoverTool")) {
+            hoverTool.attributes = hoverTool.attributes || {};
+            if (hoverTool.attributes.name === "cluster-hover") continue;
+            hoverTool.attributes.tooltips = null;
+            hoverTool.attributes.mode = "mouse";
+            hoverTool.attributes.point_policy = "follow_mouse";
+            hoverTool.attributes.callback = {
+              type: "object",
+              name: "CustomJS",
+              id: PATCH_HOVER_CALLBACK_ID,
+              attributes: {code: PATCH_HOVER_CALLBACK_CODE}
+            };
+            if (scatterRenderer) hoverTool.attributes.renderers = [{id: scatterRenderer.id}];
+          }
+        }
+
+        function updateToolbarDefaults(docs) {
+          const wheelZoom = findModels(docs, "WheelZoomTool")[0];
+          if (!wheelZoom) return;
+          for (const toolbar of findModels(docs, "Toolbar")) {
+            toolbar.attributes = toolbar.attributes || {};
+            toolbar.attributes.active_scroll = {id: wheelZoom.id};
+          }
+        }
+
+        function addClusterAnnotations(docs, annotations) {
+          const clusters = annotations && annotations.clusters ? annotations.clusters : [];
+          if (clusters.length === 0) return;
+
+          const figure = findModels(docs, "Figure")[0];
+          if (!figure || !figure.attributes) return;
+
+          const source = {
+            type: "object",
+            name: "ColumnDataSource",
+            id: CLUSTER_SOURCE_ID,
+            attributes: {
+              selected: {type: "object", name: "Selection", id: "annotation_cluster_selection", attributes: {indices: [], line_indices: []}},
+              selection_policy: {type: "object", name: "UnionRenderers", id: "annotation_cluster_selection_policy"},
+              data: toBokehMap(annotationClusterColumns(clusters))
+            }
+          };
+
+          const polygonRenderer = {
+            type: "object",
+            name: "GlyphRenderer",
+            id: CLUSTER_RENDERER_ID,
+            attributes: {
+              data_source: source,
+              view: {
+                type: "object",
+                name: "CDSView",
+                id: "annotation_cluster_view",
+                attributes: {
+                  filter: {type: "object", name: "AllIndices", id: "annotation_cluster_filter"}
+                }
+              },
+              glyph: {
+                type: "object",
+                name: "Patches",
+                id: "annotation_cluster_patches",
+                attributes: {
+                  xs: {type: "field", field: "display_xs"},
+                  ys: {type: "field", field: "display_ys"},
+                  fill_alpha: {type: "value", value: 0},
+                  line_color: {type: "field", field: "line_color"},
+                  line_alpha: {type: "field", field: "line_alpha"},
+                  line_width: {type: "field", field: "line_width"},
+                  line_dash: [6, 4]
+                }
+              }
+            }
+          };
+
+          const leaderRenderer = {
+            type: "object",
+            name: "GlyphRenderer",
+            id: CLUSTER_LEADER_RENDERER_ID,
+            attributes: {
+              data_source: source,
+              view: {
+                type: "object",
+                name: "CDSView",
+                id: "annotation_cluster_leader_view",
+                attributes: {
+                  filter: {type: "object", name: "AllIndices", id: "annotation_cluster_leader_filter"}
+                }
+              },
+              glyph: {
+                type: "object",
+                name: "Segment",
+                id: "annotation_cluster_leader_segment",
+                attributes: {
+                  x0: {type: "field", field: "anchor_x"},
+                  y0: {type: "field", field: "anchor_y"},
+                  x1: {type: "field", field: "label_x"},
+                  y1: {type: "field", field: "label_y"},
+                  line_color: {type: "field", field: "line_color"},
+                  line_alpha: {type: "field", field: "leader_line_alpha"},
+                  line_width: {type: "value", value: 1.5},
+                  line_dash: [4, 4]
+                }
+              }
+            }
+          };
+
+          const labelRenderer = {
+            type: "object",
+            name: "GlyphRenderer",
+            id: CLUSTER_LABEL_RENDERER_ID,
+            attributes: {
+              data_source: source,
+              view: {
+                type: "object",
+                name: "CDSView",
+                id: "annotation_cluster_label_view",
+                attributes: {
+                  filter: {type: "object", name: "AllIndices", id: "annotation_cluster_label_filter"}
+                }
+              },
+              glyph: {
+                type: "object",
+                name: "Text",
+                id: "annotation_cluster_label_text",
+                attributes: {
+                  x: {type: "field", field: "label_x"},
+                  y: {type: "field", field: "label_y"},
+                  text: {type: "field", field: "label"},
+                  text_color: {type: "field", field: "label_text_color"},
+                  text_alpha: {type: "value", value: 1},
+                  text_font_size: {type: "value", value: "13px"},
+                  text_font_style: {type: "value", value: "bold"},
+                  text_align: {type: "field", field: "label_align"},
+                  text_baseline: {type: "value", value: "middle"},
+                  x_offset: {type: "field", field: "label_x_offset"},
+                  y_offset: {type: "value", value: 0},
+                  background_fill_color: {type: "value", value: "#fff"},
+                  background_fill_alpha: {type: "value", value: 0.82},
+                  border_line_color: {type: "field", field: "line_color"},
+                  border_line_alpha: {type: "value", value: 0.35},
+                  padding: 4,
+                  outline_shape: "box"
+                }
+              }
+            }
+          };
+
+          figure.attributes.renderers = figure.attributes.renderers || [];
+          figure.attributes.renderers.push(polygonRenderer, leaderRenderer, labelRenderer);
+
+          const hoverTool = {
+            type: "object",
+            name: "HoverTool",
+            id: CLUSTER_HOVER_ID,
+            attributes: {
+              name: "cluster-hover",
+              renderers: [{id: CLUSTER_LABEL_RENDERER_ID}],
+              tooltips: CLUSTER_TOOLTIPS,
+              point_policy: "follow_mouse"
+            }
+          };
+
+          for (const toolbar of findModels(docs, "Toolbar")) {
+            toolbar.attributes = toolbar.attributes || {};
+            toolbar.attributes.tools = toolbar.attributes.tools || [];
+            toolbar.attributes.tools.push(hoverTool);
+          }
+        }
+
+        function applyColumns(docs, columns, annotations, rawData) {
+          const sources = findModels(docs, "ColumnDataSource");
+          if (sources.length === 0) throw new Error("Template has no ColumnDataSource.");
+          sources[0].attributes.data = toBokehMap(columns);
+          updateLabelColors(docs, columns, rawData.palette);
+          updateTitle(docs, rawData.title);
+          addClusterAnnotations(docs, annotations);
+          updateHoverTooltips(docs);
+          updateToolbarDefaults(docs);
+        }
+
+        function escapeHtml(value) {
+          return String(value ?? "").replace(/[&<>"']/g, function(ch) {
+            return {"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"}[ch];
+          });
+        }
+
+        // Shown in the left panel while nothing is selected: the dataset's own description.
+        // JSON field "about": {summary, sections: [{title, items: [text] or text, open}], links: [{label, url}]}.
+        // Without it, the scalar entries of "metadata" are listed (local file paths are left out).
+        let emptyPanelHtml = EMPTY_SELECTION_TEXT;
+
+        function aboutHtml(rawData) {
+          const about = rawData && rawData.about;
+          const isLocalPath = function(v) { return typeof v === "string" && /^(\/|~|[A-Za-z]:\\)/.test(v); };
+          const safeUrl = function(u) { return /^https?:\/\//i.test(String(u || "")) ? escapeHtml(u) : ""; };
+          let body = "";
+          if (about && typeof about === "object") {
+            if (about.summary) body += `<p class="scv-about-summary">${escapeHtml(about.summary)}</p>`;
+            for (const section of Array.isArray(about.sections) ? about.sections : []) {
+              const items = Array.isArray(section.items) ? section.items : [section.items || section.text || ""];
+              const list = items.filter(Boolean).map(function(item) { return `<li>${escapeHtml(item)}</li>`; }).join("");
+              body += `<details class="scv-about-section"${section.open ? " open" : ""}>
+                <summary>${escapeHtml(section.title)}</summary><ul>${list}</ul></details>`;
+            }
+            const links = (Array.isArray(about.links) ? about.links : []).filter(function(l) { return safeUrl(l.url); });
+            if (links.length) {
+              body += `<details class="scv-about-section"><summary>Sources and links</summary><ul>${links.map(function(l) {
+                return `<li><a href="${safeUrl(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.label || l.url)}</a></li>`;
+              }).join("")}</ul></details>`;
+            }
+          } else if (rawData && rawData.metadata && typeof rawData.metadata === "object") {
+            const rows = Object.entries(rawData.metadata).filter(function(entry) {
+              const v = entry[1];
+              return (typeof v === "string" || typeof v === "number") && !isLocalPath(v);
+            }).map(function(entry) {
+              return `<li><b>${escapeHtml(entry[0])}</b>: ${escapeHtml(entry[1])}</li>`;
+            }).join("");
+            if (rows) body = `<details class="scv-about-section" open><summary>Metadata</summary><ul>${rows}</ul></details>`;
+          }
+          if (!body) return "";
+          const title = rawData.title ? `<h3 class="scv-about-title">${escapeHtml(rawData.title)}</h3>` : "";
+          return `<div class="scv-about">${title}${body}</div>`;
+        }
+
+        function pointTitle(idx, label) {
+          return "#" + String(idx ?? "") + ", L:" + String(label ?? "");
+        }
+
+        function renderPatchCrop(preview) {
+          return `
+            <div class="scv-patch-crop" style="${preview.cropStyle}">
+              <img src="${preview.url}" alt="" />
+            </div>`;
+        }
+
+        function currentBokehDocument() {
+          for (const view of Object.values(Bokeh.index || {})) {
+            const doc = view && view.model && view.model.document;
+            if (doc && typeof doc.get_model_by_id === "function") return doc;
+          }
+          return null;
+        }
+
+        function installPatchHoverOverlay() {
+          const doc = currentBokehDocument();
+          const source = doc && doc.get_model_by_id("p1001");
+          if (!source) return;
+
+          let overlay = null;
+          let hoverCanvas = null;
+
+          function ensureOverlay() {
+            if (overlay) return overlay;
+            overlay = document.createElement("div");
+            overlay.className = "scv-hover-overlay";
+            overlay.style.display = "none";
+            document.body.appendChild(overlay);
+            window.addEventListener("blur", hideOverlay);
+            document.addEventListener("mouseleave", hideOverlay);
+            return overlay;
+          }
+
+          function hideOverlay() {
+            if (overlay) overlay.style.display = "none";
+          }
+
+          function hoverIndices(cbData) {
+            const index = cbData && cbData.index ? cbData.index : {};
+            const values = index.indices || (index["1d"] && index["1d"].indices) || [];
+            const seen = new Set();
+            return Array.from(values).map(Number).filter(function(i) {
+              if (!Number.isInteger(i) || seen.has(i)) return false;
+              seen.add(i);
+              return true;
+            });
+          }
+
+          function findCanvas(root) {
+            if (!root || !root.querySelector) return null;
+            const canvas = root.querySelector("canvas");
+            if (canvas) return canvas;
+            const elements = root.querySelectorAll("*");
+            for (const element of elements) {
+              if (element.shadowRoot) {
+                const nested = findCanvas(element.shadowRoot);
+                if (nested) return nested;
+              }
+            }
+            return null;
+          }
+
+          function currentCanvas() {
+            if (hoverCanvas && hoverCanvas.isConnected) return hoverCanvas;
+            const target = document.getElementById(CONTAINER_ID);
+            hoverCanvas = findCanvas(target) || findCanvas(document);
+            return hoverCanvas;
+          }
+
+          function anchorPoint(cbData) {
+            const geometry = cbData && cbData.geometry ? cbData.geometry : {};
+            const sx = Number(geometry.sx);
+            const sy = Number(geometry.sy);
+            const target = document.getElementById(CONTAINER_ID);
+            const canvas = currentCanvas();
+            const rect = canvas ? canvas.getBoundingClientRect() : (target ? target.getBoundingClientRect() : {left: 0, top: 0});
+            return {
+              x: rect.left + (Number.isFinite(sx) ? sx : 0),
+              y: rect.top + (Number.isFinite(sy) ? sy : 0)
+            };
+          }
+
+          function patchCard(data, i) {
+            const preview = pointPreview(data, i);
+            return `
+              <div class="scv-hover-card">
+                <div class="scv-hover-title">${preview.title}</div>
+                <div class="scv-hover-thumb">
+                  ${renderPatchCrop(preview)}
+                </div>
+              </div>`;
+          }
+
+          function positionOverlay(element, cbData) {
+            const anchor = anchorPoint(cbData);
+            const gap = 14;
+            const margin = 12;
+            let left = anchor.x + gap;
+            let top = anchor.y + gap;
+
+            element.style.left = "0";
+            element.style.top = "0";
+            element.style.display = "block";
+
+            if (left + element.offsetWidth + margin > window.innerWidth) left = anchor.x - element.offsetWidth - gap;
+            if (top + element.offsetHeight + margin > window.innerHeight) top = anchor.y - element.offsetHeight - gap;
+
+            element.style.left = Math.max(margin, Math.min(left, window.innerWidth - element.offsetWidth - margin)) + "px";
+            element.style.top = Math.max(margin, Math.min(top, window.innerHeight - element.offsetHeight - margin)) + "px";
+          }
+
+          window.scvPatchHover = function(cbData) {
+            const indices = hoverIndices(cbData);
+            if (indices.length === 0) {
+              hideOverlay();
+              return;
+            }
+
+            const data = source.data;
+            const shown = indices.slice(0, 24);
+            const more = Math.max(indices.length - shown.length, 0);
+            const element = ensureOverlay();
+
+            element.innerHTML = `
+              <div class="scv-hover-grid">${shown.map(function(i) { return patchCard(data, i); }).join("")}</div>
+              ${more ? `<div class="scv-hover-more">Showing first ${shown.length}; ${more} more hovered.</div>` : ""}
+            `;
+            positionOverlay(element, cbData);
+          };
+        }
+
+        function installSelectionPreview() {
+          const doc = currentBokehDocument();
+          const source = doc && doc.get_model_by_id("p1001");
+          const panel = document.getElementById(SELECTED_PANEL_ID);
+          if (!source || !panel) return;
+
+          let lastSelection = null;
+          let activeIndex = null;
+
+          function value(column, i, fallback) {
+            return pointValue(source.data, column, i, fallback);
+          }
+
+          function num(column, i, fallback) {
+            return pointNumber(source.data, column, i, fallback);
+          }
+
+          function roundCoord(value) {
+            return Number(Number(value).toFixed(6));
+          }
+
+          function selectedPoint(i) {
+            return {
+              index: Number(i),
+              id: value("idx", i, i),
+              x: num("x", i, NaN),
+              y: num("y", i, NaN),
+              label: value("label", i, "")
+            };
+          }
+
+          function finiteSelectedPoints(indices) {
+            return indices.map(selectedPoint).filter(function(point) {
+              return Number.isFinite(point.x) && Number.isFinite(point.y);
+            });
+          }
+
+          function cross(origin, a, b) {
+            return (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+          }
+
+          function convexHull(points) {
+            const unique = [];
+            const seen = new Set();
+
+            for (const point of points) {
+              const key = roundCoord(point.x) + "," + roundCoord(point.y);
+              if (seen.has(key)) continue;
+              seen.add(key);
+              unique.push({x: point.x, y: point.y});
+            }
+
+            unique.sort(function(a, b) {
+              return a.x === b.x ? a.y - b.y : a.x - b.x;
+            });
+
+            if (unique.length <= 2) return unique;
+
+            const lower = [];
+            for (const point of unique) {
+              while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+              lower.push(point);
+            }
+
+            const upper = [];
+            for (let i = unique.length - 1; i >= 0; i--) {
+              const point = unique[i];
+              while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+              upper.push(point);
+            }
+
+            lower.pop();
+            upper.pop();
+            return lower.concat(upper);
+          }
+
+          function clusterDraft(indices) {
+            const points = finiteSelectedPoints(indices);
+            const hull = convexHull(points);
+            const selectedIds = points.map(function(point) { return point.id; });
+            const firstId = selectedIds.length > 0 ? String(selectedIds[0]).replace(/[^A-Za-z0-9_-]+/g, "_") : "selection";
+
+            return {
+              id: "cluster_" + firstId,
+              label: "New cluster",
+              description: "",
+              label_side: "top_right",
+              polygon_padding: 0.3,
+              polygon_corner_radius: 0.12,
+              polygon: {
+                xs: hull.map(function(point) { return roundCoord(point.x); }),
+                ys: hull.map(function(point) { return roundCoord(point.y); })
+              }
+            };
+          }
+
+          function previewThumb(i, active) {
+            const preview = pointPreview(source.data, i);
+            const activeClass = i === active ? " is-active" : "";
+            return `
+              <button type="button" class="scv-selected-preview-button" data-patch-index="${i}" title="${preview.title}">
+                <div class="scv-selected-thumb${activeClass}">
+                  ${renderPatchCrop(preview)}
+                </div>
+                <div class="scv-selected-preview-title">${preview.title}</div>
+              </button>`;
+          }
+
+          function previewGrid(indices, active) {
+            const shown = indices.slice(0, 80);
+            const more = Math.max(indices.length - shown.length, 0);
+            return `
+              <div class="scv-selected-preview-section">
+                <div class="scv-section-title">Selected previews (${indices.length})</div>
+                <div class="scv-selected-preview-list" data-selected-preview-list="true">${shown.map(function(i) { return previewThumb(i, active); }).join("")}</div>
+                ${more ? `<div class="scv-selected-preview-more">Showing first ${shown.length}; ${more} more selected.</div>` : ""}
+              </div>`;
+          }
+
+          function overview(i) {
+            const preview = pointPreview(source.data, i);
+            const patchOverlay = preview.gridSize > 1 ? `
+                <div class="scv-overview-grid"></div>
+                <div class="scv-overview-marker"></div>` : "";
+            return `
+              <h3 class="scv-selected-title">${preview.title}</h3>
+              <div class="scv-overview-frame" style="${preview.cropStyle}">
+                <img class="scv-overview-image" src="${preview.url}" alt="" />${patchOverlay}
+              </div>`;
+          }
+
+          function details(i) {
+            const preview = pointPreview(source.data, i);
+            const patchCoords = preview.gridSize > 1
+              ? `<div><b>Patch coords:</b> row=${preview.row}, col=${preview.col} (${preview.gridSize}x${preview.gridSize})</div>`
+              : "";
+            // Browsers refuse to open data: URLs in a new tab, so embedded images are offered as a download.
+            const linkTarget = preview.isDataUrl ? `download="${preview.imageName}"` : `target="_blank" rel="noopener noreferrer"`;
+            return `
+              <div class="scv-selected-details">
+                ${patchCoords}
+                <div><b>Image:</b> <a href="${preview.url}" ${linkTarget}>${preview.imageName}</a></div>
+              </div>`;
+          }
+
+          function clusterCoordinates(indices) {
+            const draft = clusterDraft(indices);
+            const json = JSON.stringify({annotations: {clusters: [draft]}}, null, 2);
+            const polygonNote = draft.polygon.xs.length >= 3
+              ? "Paste this top-level annotations field into the data JSON."
+              : "Select at least 3 non-collinear points for a polygon hull.";
+
+            return `
+              <div class="scv-cluster-draft">
+                <div class="scv-cluster-draft-header">
+                  <div>
+                    <div class="scv-cluster-draft-title">Cluster coordinates</div>
+                    <div class="scv-cluster-draft-note">${polygonNote}</div>
+                  </div>
+                  <button type="button" class="scv-copy-button" data-copy-cluster-json="true">Copy JSON</button>
+                </div>
+                <textarea class="scv-cluster-json" data-cluster-json="true" readonly>${escapeHtml(json)}</textarea>
+              </div>`;
+          }
+
+          function restoreScrollState(state) {
+            if (!state) return;
+
+            function restore() {
+              panel.scrollTop = state.panelTop;
+              panel.scrollLeft = state.panelLeft;
+
+              const list = panel.querySelector("[data-selected-preview-list]");
+              if (list) {
+                list.scrollTop = state.listTop;
+                list.scrollLeft = state.listLeft;
+              }
+            }
+
+            requestAnimationFrame(function() {
+              restore();
+              requestAnimationFrame(restore);
+            });
+            setTimeout(restore, 0);
+          }
+
+          function captureScrollState(button) {
+            const list = button.closest("[data-selected-preview-list]");
+            return {
+              panelTop: panel.scrollTop,
+              panelLeft: panel.scrollLeft,
+              listTop: list ? list.scrollTop : 0,
+              listLeft: list ? list.scrollLeft : 0
+            };
+          }
+
+          function renderSelection(selected, scrollState) {
+            if (selected.length === 0) {
+              activeIndex = null;
+              panel.innerHTML = emptyPanelHtml;
+              return;
+            }
+            if (!Number.isInteger(activeIndex) || !selected.some(function(i) { return Number(i) === activeIndex; })) activeIndex = Number(selected[0]);
+            panel.innerHTML = overview(activeIndex) + details(activeIndex) + previewGrid(selected, activeIndex) + clusterCoordinates(selected);
+            restoreScrollState(scrollState);
+          }
+
+          function updateIfChanged() {
+            const selected = Array.from(source.selected.indices || []);
+            const current = selected.join(",");
+            if (current === lastSelection) return;
+            lastSelection = current;
+            renderSelection(selected);
+          }
+
+          function connectSelectionUpdates() {
+            const signals = [
+              source.selected && source.selected.change,
+              source.selected && source.selected.properties && source.selected.properties.indices && source.selected.properties.indices.change,
+              source.change
+            ];
+            let connected = false;
+
+            for (const signal of signals) {
+              if (signal && typeof signal.connect === "function") {
+                signal.connect(updateIfChanged);
+                connected = true;
+              }
+            }
+
+            return connected;
+          }
+
+          function patchButtonFromEvent(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            return target && target.closest("[data-patch-index]");
+          }
+
+          function copyButtonFromEvent(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            return target && target.closest("[data-copy-cluster-json]");
+          }
+
+          function textareaNearButton() {
+            return panel.querySelector("[data-cluster-json]");
+          }
+
+          function copyTextArea(textarea, button) {
+            const text = textarea.value;
+
+            function markCopied() {
+              const original = button.textContent;
+              button.textContent = "Copied";
+              setTimeout(function() { button.textContent = original; }, 1000);
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(markCopied).catch(function() {
+                textarea.select();
+                document.execCommand("copy");
+                markCopied();
+              });
+              return;
+            }
+
+            textarea.select();
+            document.execCommand("copy");
+            markCopied();
+          }
+
+          panel.addEventListener("click", function(event) {
+            const copyButton = copyButtonFromEvent(event);
+            if (copyButton) {
+              const textarea = textareaNearButton();
+              if (!textarea) return;
+              event.preventDefault();
+              event.stopPropagation();
+              copyTextArea(textarea, copyButton);
+              return;
+            }
+
+            const button = patchButtonFromEvent(event);
+            if (!button) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const selected = Array.from(source.selected.indices || []);
+            const nextIndex = Number(button.dataset.patchIndex);
+            if (!Number.isInteger(nextIndex)) return;
+            const scrollState = captureScrollState(button);
+            activeIndex = nextIndex;
+            renderSelection(selected, scrollState);
+          });
+
+          updateIfChanged();
+          if (!connectSelectionUpdates()) setInterval(updateIfChanged, 150);
+        }
+
+        function installLabelColumnSelector(rawData) {
+          const controls = document.getElementById("label-column-controls");
+          const select = document.getElementById("label-column-select");
+          const available = labelColumns(rawData);
+          const doc = currentBokehDocument();
+          const source = doc && doc.get_model_by_id("p1001");
+          const mapper = doc && doc.get_model_by_id("p1030");
+          if (!controls || !select || available.length === 0 || !source || !mapper) return;
+
+          select.textContent = "";
+          for (const column of available) {
+            const item = document.createElement("option");
+            item.value = column;
+            item.textContent = column;
+            select.appendChild(item);
+          }
+          select.value = initialLabelColumn(rawData) || available[0];
+          controls.hidden = false;
+
+          select.onchange = function() {
+            const column = select.value;
+            const label = rawData[column].map(function(value) { return String(value); });
+            const factors = Array.from(new Set(label));
+            mapper.factors = factors;
+            mapper.palette = labelPalette(factors, rawData.palette);
+            source.data = Object.assign({}, source.data, {label: label});
+
+            const url = new URL(window.location.href);
+            url.searchParams.set(LABEL_COLUMN_PARAM, column);
+            window.history.replaceState(null, "", url.toString());
+          };
+        }
+
+        function waitForBokeh(root) {
+          return new Promise(function(resolve, reject) {
+            if (root.Bokeh !== undefined) {
+              resolve(root.Bokeh);
+              return;
+            }
+            let attempts = 0;
+            const timer = setInterval(function() {
+              if (root.Bokeh !== undefined) {
+                clearInterval(timer);
+                resolve(root.Bokeh);
+              } else if (++attempts > 100) {
+                clearInterval(timer);
+                reject(new Error("BokehJS library is missing."));
+              }
+            }, 10);
+          });
+        }
+
+        function showError(error, dataSource) {
+          console.error("Bokeh embed failed:", error);
+          const target = document.getElementById(CONTAINER_ID);
+          if (!target) return;
+          target.style.display = "block";
+          target.style.padding = "16px";
+          target.style.font = "14px/1.4 system-ui, sans-serif";
+          target.textContent = "Could not load column data from " + dataSource.url + ". Serve this HTML over HTTP, choose another predefined source, or load an external column JSON URL.";
+        }
+
+        async function embedDocument(root) {
+          const dataSource = getDataSource();
+          installDataSourceSelector(dataSource);
+          try {
+            const [bokeh, response] = await Promise.all([
+              waitForBokeh(root),
+              fetch(dataSource.url, {cache: "no-cache"})
+            ]);
+            if (!response.ok) throw new Error("HTTP " + response.status + " while loading " + dataSource.url);
+
+            const rawData = await response.json();
+            emptyPanelHtml = EMPTY_SELECTION_TEXT + aboutHtml(rawData);
+            const panel = document.getElementById(SELECTED_PANEL_ID);
+            if (panel) panel.innerHTML = emptyPanelHtml;
+            const columns = normalizeColumns(rawData);
+            const annotations = normalizeAnnotations(rawData.annotations);
+            const docs = JSON.parse(document.getElementById(TEMPLATE_JSON_ID).textContent);
+            applyColumns(docs, columns, annotations, rawData);
+            await bokeh.embed.embed_items(JSON.stringify(docs), buildRenderItems(docs));
+            installPatchHoverOverlay();
+            installSelectionPreview();
+            installLabelColumnSelector(rawData);
+          } catch (error) {
+            showError(error, dataSource);
+          }
+        }
+
+        const fn = function() { embedDocument(window); };
+        if (document.readyState !== "loading") fn();
+        else document.addEventListener("DOMContentLoaded", fn);
+      })();
+    </script>
+  </body>
+</html>

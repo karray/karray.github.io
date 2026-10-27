@@ -1,10 +1,6 @@
 ---
 ---
-$brakepoint: 350px;
-
 @import 'minima';
-@import 'masthead';
-@import 'home';
 @import 'alerts';
 @import 'posts';
 @import 'buttons';
@@ -14,16 +10,6 @@ $brakepoint: 350px;
 
 body {
     min-width: 300px;
-}
-
-@keyframes fadein {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
 }
 
 .highlighter-rouge {
@@ -41,7 +27,6 @@ body {
         }
     }
     
-    // Language label (dynamically created by JavaScript)
     .code-header {
         display: flex;
         justify-content: space-between;
@@ -50,11 +35,11 @@ body {
         top: 0;
         left: 0;
         right: 0;
-        background: #2d2d2d; // Sleek dark header
+        background: #2d2d2d;
         border-bottom: 1px solid #3e3e3e;
         padding: 0.4em 1em;
         z-index: 10;
-        border-radius: 6px 6px 0 0; // Match container radius
+        border-radius: 6px 6px 0 0;
         
         .language-label {
             font-size: 0.75em;
