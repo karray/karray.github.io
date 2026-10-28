@@ -1,6 +1,5 @@
 {
   "opacity": 100,
-  "reveal": true,
   "rows": [
     {
       "id": "montage",
@@ -17,17 +16,17 @@
       "layer": "zplus"
     }
   ],
-  "overlay": "/assets/img/posts/lrp-without-labels/{item}_{layer}.png",
+  "overlay": "/assets/img/posts/lrp-architecture/{item}_{layer}.png",
   "items": [
     {
       "id": "dinov2_vit",
       "label": "DINOv2 ViT-B/14",
-      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+      "src": "/assets/img/posts/lrp-architecture/misc.png"
     },
     {
       "id": "dinov3_vit",
       "label": "DINOv3 ViT-B/16",
-      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+      "src": "/assets/img/posts/lrp-architecture/misc.png"
     }
   ],
   "kicker": "04 \u00b7 Same incoming amounts, different final step",

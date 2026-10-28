@@ -1,6 +1,5 @@
 {
  "opacity": 100,
- "reveal": true,
  "rows": [
   {
    "id": "convnext",
@@ -126,6 +125,5 @@
   "mae|wsquare|spider_web": "patch edges 1.47\u00d7",
   "mae|gamma|spider_web": "patch edges 2.34\u00d7"
  },
- "help": "Pick an image and compare the three rules for the first layer across a row. Each row is one model, and everything above the first layer is identical. Move the pointer over a map to see the image underneath.",
- "style": "--fg-cell-max: 300px;"
+ "help": "Pick an image and compare the three rules for the first layer across a row. Each row is one model, and everything above the first layer is identical. Move the pointer over a map to see the image underneath."
 }

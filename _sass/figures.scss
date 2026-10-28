@@ -1,72 +1,116 @@
-// Wider blocks in a post. Any element inside .post-content can opt in.
+// Figures in a post: one card, three sizes, and bands for a custom background.
 //
+//   .fig           the figure card; a figure's own stylesheet adds only what is inside it
+//   .fig-kicker    a small heading on top of a card; a <figcaption> inside a card is its legend
+//
+//   (no class)     the text width
 //   .wide          the page width less a margin on each side (--wide-gutter), up to --wide-max;
 //                  on phones it runs edge to edge
-//   .bleed         the full page width; its content sits at the wide width, so a figure inside a band needs no class
-//   .bleed--text   the same, with its content back at the text width
-//   .band          a background for a .bleed block (a band across the page)
+//   .full          the full page width; its content sits at the wide width, so a figure inside a band needs no class
+//   .full--text    the same, with its content back at the text width
+//
+//   .band          a background for a .full block (a band across the page); a card inside it drops its own
 //   .band-panel    an optional box inside a band
-//   .band--glass   a dark band whose cards turn into matte glass with light ink; a figure maps its own colours to
-//                  the --glass-* properties (see .band--glass .fg in figure-gallery.css), and color-scheme turns
-//                  native controls dark
+//   .band--glass   a dark band whose cards turn into matte glass with light ink
+//   .band--brand   the site's blue-green gradient with a frosted panel
 //
-// In Markdown, put the class on the HTML element (<figure class="wide">) or add {: .wide} after a block.
+// In Markdown, put the class on the HTML element (<figure class="fig wide">) or add {: .wide} after a block.
 //
-// Theming: each part reads custom properties, so a post restyles them from its own stylesheet (the `styles:`
+// Theming: every part reads custom properties, so a post restyles them from its own stylesheet (the `styles:`
 // front matter) without touching this file. Set them on .post-content for the whole post, or inline on one
-// block (style="--band-bg: #123"). The presets below (.band--brand) are the same properties under a name.
+// block (style="--band-bg: #123"). The colours follow the site theme; figures read the --fig-* properties, so
+// they follow the theme and the glass band without rules of their own.
 //
+//   --fig-surface  --fig-raised  --fig-ink  --fig-muted  --fig-line  --fig-accent  --fig-control  --fig-track
+//   --fig-hover  --fig-cell  --fig-shadow (an rgb triple)  --fig-pad  --fig-radius  --fig-space
 //   --wide-max  --wide-gutter
 //   --band-bg  --band-ink  --band-pad  --band-border
 //   --band-panel-bg  --band-panel-border  --band-panel-radius  --band-panel-pad
-//   --glass-surface  --glass-raised  --glass-ink  --glass-muted  --glass-line  --glass-track  --glass-shadow
 //
 // The page width is 100vw minus the scrollbar; posts.js measures the scrollbar into --scrollbar. Before the
 // script runs the width is 100vw, and .page-content clips the few pixels that may stick out.
 :root {
   --page-width: calc(100vw - var(--scrollbar, 0px));
+
+  --fig-surface: var(--surface);
+  --fig-raised: #fff;
+  --fig-ink: var(--ink);
+  --fig-muted: var(--muted);
+  --fig-line: var(--line);
+  --fig-accent: #14685f;
+  --fig-control: #b3a998;
+  --fig-track: #ebe4d7;
+  --fig-hover: #f3ede2;
+  --fig-cell: #efe9de;
+  --fig-shadow: 60 40 20;
+
+  --fig-pad: 1.25rem;
+  --fig-radius: 12px;
+  --fig-space: 2.2rem;
 }
 
-// On post pages (the class is on <html>) the text grows on large screens, from 16px at 1440 to 21px at 1920 and 26px
-// at 2400 and wider. On phones and tablets it is 16 to 18px (the theme's 5vw made it 40px at 800px). The text column
-// takes 60% of the window, but at most 52 times the text size, which is about 120 characters a line. The root font
-// follows, so figures sized in rem grow with the text. The header bar and the footer share the cap, so they stay
-// aligned with the text.
-.post-layout {
-  --text-size: #{"clamp(16px, calc(1px + 1.0417vw), 26px)"};
-  --text-max: #{"min(max(calc(43 * var(--text-size)), 60vw), calc(52 * var(--text-size)))"};
-  font-size: var(--text-size);
+:root[data-theme="dark"] {
+  --fig-raised: #2a2520;
+  --fig-accent: #6cb8a9;
+  --fig-control: #5f564b;
+  --fig-track: #332c25;
+  --fig-hover: #2f2924;
+  --fig-cell: #2a2520;
+  --fig-shadow: 0 0 0;
 }
 
-.post-layout .wrapper {
-  max-width: calc(var(--text-max) + 2 * #{$spacing-unit});
+.fig {
+  box-sizing: border-box;
+  margin: var(--fig-space) 0;
+  padding: var(--fig-pad);
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+  background: var(--fig-surface);
+  color: var(--fig-ink);
+  font: .9375rem/1.6 var(--sans);
+  isolation: isolate;
 }
 
-.post-layout .page-content,
-.post-layout .page-content > .wrapper {
-  font-size: var(--text-size);
+.fig *,
+.fig *::before,
+.fig *::after {
+  box-sizing: border-box;
 }
 
-@media screen and (max-width: $on-laptop), screen and (orientation: portrait) {
-  .post-layout {
-    --text-size: #{"clamp(16px, 4.4vw, 18px)"};
-  }
+.fig-kicker {
+  margin: 0 0 1rem;
+  color: var(--fig-muted);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
-// the theme sets the headings in pixels; above the laptop size they follow the text
-@media screen and (min-width: $on-laptop + 1) {
-  .post-layout .post-content {
-    h2 { font-size: calc(2 * var(--text-size)); }
-    h3 { font-size: calc(1.625 * var(--text-size)); }
-    h4 { font-size: calc(1.25 * var(--text-size)); }
-  }
+.fig > figcaption {
+  display: block;
+  margin-top: 1.1rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--fig-line);
+  color: var(--fig-muted);
+  font-size: .82rem;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.fig :where(input[type=range], input[type=checkbox]) {
+  accent-color: var(--fig-accent);
+}
+
+.fig :where(input, button, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--fig-accent);
+  outline-offset: 3px;
 }
 
 .post-content {
   --wide-max: #{"max(1400px, 75vw)"};   // the full width on laptops, three quarters of a very large screen
   --wide-gutter: #{"clamp(16px, 3vw, 72px)"};
 
-  --band-bg: #f3f6f4;
+  --band-bg: var(--head);
   --band-pad: 2.2rem;
   --band-border: 0;
 
@@ -82,7 +126,7 @@
 
 // computed on the block itself, so a --wide-max or --wide-gutter set on it takes effect
 .post-content .wide,
-.post-content .bleed {
+.post-content .full {
   --wide-width: #{"min(var(--wide-max), calc(var(--page-width) - 2 * var(--wide-gutter)))"};
 }
 
@@ -95,7 +139,7 @@
   margin-right: calc(50% - var(--wide-width) / 2);
 }
 
-.post-content .bleed {
+.post-content .full {
   box-sizing: border-box;
   width: auto;
   max-width: none;
@@ -106,13 +150,14 @@
 }
 
 // padding percentages refer to the text column, so this puts the content back on it
-.post-content .bleed--text {
+.post-content .full--text {
   padding-left: calc(var(--page-width) / 2 - 50%);
   padding-right: calc(var(--page-width) / 2 - 50%);
 }
 
 .post-content .band {
-  margin-bottom: 15px;
+  margin-top: var(--fig-space);
+  margin-bottom: var(--fig-space);
   padding-top: var(--band-pad);
   padding-bottom: var(--band-pad);
   border-top: var(--band-border);
@@ -130,6 +175,15 @@
   margin-bottom: 0;
 }
 
+// on a light band the band is the card
+.band:not(.band--glass) > .fig {
+  padding-left: 0;
+  padding-right: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
 .band-panel {
   padding: var(--band-panel-pad);
   border: var(--band-panel-border);
@@ -140,28 +194,40 @@
 // cards on a dark band: translucent white, light ink
 .post-content .band--glass {
   --band-bg: linear-gradient(120deg, #155799, #159957);
-  --band-panel-bg: var(--glass-surface);
-  --band-panel-border: 1px solid var(--glass-line);
-  --glass-surface: rgba(255, 255, 255, 0.08);
-  --glass-raised: rgba(255, 255, 255, 0.12);
-  --glass-ink: rgba(255, 255, 255, 0.92);
-  --glass-muted: rgba(255, 255, 255, 0.68);
-  --glass-line: rgba(255, 255, 255, 0.2);
-  --glass-track: rgba(255, 255, 255, 0.14);
-  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 18px 50px rgba(0, 0, 0, 0.18);
+  --band-panel-bg: var(--fig-surface);
+  --band-panel-border: 1px solid var(--fig-line);
+  --fig-surface: rgba(255, 255, 255, .08);
+  --fig-raised: rgba(255, 255, 255, .12);
+  --fig-ink: rgba(255, 255, 255, .92);
+  --fig-muted: rgba(255, 255, 255, .68);
+  --fig-line: rgba(255, 255, 255, .2);
+  --fig-accent: #8fe3d1;
+  --fig-control: rgba(255, 255, 255, .35);
+  --fig-track: rgba(255, 255, 255, .14);
+  --fig-hover: rgba(255, 255, 255, .16);
+  --fig-cell: rgba(255, 255, 255, .14);
+  --fig-shadow: 0 0 0;
+  color: var(--fig-ink);
   color-scheme: dark;
 }
 
-// the site's blue-green gradient with a frosted panel
+.band--glass .fig {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .12) inset, 0 18px 50px rgba(0, 0, 0, .18);
+}
+
 .post-content .band--brand {
   --band-bg: linear-gradient(120deg, #155799, #159957);
-  --band-ink: rgba(255, 255, 255, 0.7);
+  --band-ink: rgba(255, 255, 255, .7);
   --band-pad: 30px;
-  --band-panel-bg: rgba(255, 255, 255, 0.08);
-  --band-panel-border: 1px solid rgba(255, 255, 255, 0.2);
+  --band-panel-bg: rgba(255, 255, 255, .08);
+  --band-panel-border: 1px solid rgba(255, 255, 255, .2);
 }
 
 @media screen and (max-width: 640px), screen and (orientation: portrait) {
+  :root {
+    --fig-pad: 1rem;
+  }
+
   .post-content {
     --wide-gutter: 0px;
   }
@@ -173,7 +239,13 @@
     border-radius: 0;
   }
 
-  .post-content .bleed {
+  .post-content .full {
     --wide-gutter: 15px;
+  }
+}
+
+@media print {
+  .fig {
+    break-inside: avoid;
   }
 }

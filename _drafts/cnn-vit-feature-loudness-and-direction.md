@@ -32,8 +32,8 @@ A classification head has its own weight vector for each class. It scores a feat
 
 Imagine a room of people describing a scene. Feature length is the speaker's volume. Direction describes what they are saying in the language the classifier reads. A louder voice has more influence, but volume alone tells you neither the message nor whether it is correct.
 
-<figure class="cv-figure" id="cv-vector">
-  <div class="cv-kicker">01 / Stretch the arrow. Then turn it.</div>
+<figure class="fig cv-figure" id="cv-vector">
+  <div class="fig-kicker">01 / Stretch the arrow. Then turn it.</div>
   <p>Here, “dog” reads the horizontal coordinate and “cat” reads the vertical coordinate. Both class weight vectors have length 1, and both biases are zero.</p>
   <div class="cv-columns">
     <svg id="cv-vector-svg" viewBox="0 0 360 285" role="img" aria-labelledby="cv-vector-title cv-vector-desc">
@@ -124,8 +124,8 @@ One is to **turn down the competing features**. Their lengths decrease, so they 
 
 Another is to **change their content using context**. Information from the object reaches other positions, changing their vectors and their alignment with the dog classifier. Those positions can now add to the dog score rather than simply becoming quieter.
 
-<figure class="cv-figure" id="cv-field">
-  <div class="cv-kicker">02 / Quieter evidence or different evidence?</div>
+<figure class="fig cv-figure" id="cv-field">
+  <div class="fig-kicker">02 / Quieter evidence or different evidence?</div>
   <p>Four outlined positions represent the dog region, with vector (3, 0). The other twelve start at (0, 1.5), favoring a competitor. Choose a change and increase its strength.</p>
   <div class="cv-buttons" role="group" aria-label="Toy mechanism">
     <button type="button" id="cv-mode-quiet" aria-pressed="true" disabled>Lower background volume</button>
@@ -168,8 +168,8 @@ To investigate that second possibility, the GAP–MIL paper hides foreground pix
 
 The rate drops in all five reported ImageNet models, with larger drops for Swin and MaxViT. The values below come from [Table 1](https://arxiv.org/html/2606.14555v1#S5.T1).
 
-<figure class="cv-figure" id="cv-evidence">
-  <div class="cv-kicker">03 / Background readings depend on the visible object</div>
+<figure class="fig cv-figure" id="cv-evidence">
+  <div class="fig-kicker">03 / Background readings depend on the visible object</div>
   <p><strong>Images where the target wins somewhere in the background</strong></p>
   <p class="cv-evidence-legend"><span class="cv-original-key"></span> Original image <span class="cv-masked-key"></span> Foreground hidden</p>
   <div class="cv-evidence-row"><div class="cv-evidence-label"><span>EfficientNet <small>CNN</small></span><strong>55.3% → 24.6%</strong></div><div class="cv-evidence-track" aria-hidden="true"><span style="width:55.3%"></span><span style="width:24.6%"></span></div></div>
@@ -195,8 +195,8 @@ LayerNorm first subtracts a vector's channel mean and rescales by its channel st
 
 Think of standardizing the volume of several recordings, then passing them through the same equalizer. Boosting bass affects a bass-heavy recording more than a flute solo. The equalizer settings are shared; the resulting loudness still depends on the recording.
 
-<figure class="cv-figure" id="cv-layernorm">
-  <div class="cv-kicker">04 / Equal lengths before the equalizer</div>
+<figure class="fig cv-figure" id="cv-layernorm">
+  <div class="fig-kicker">04 / Equal lengths before the equalizer</div>
   <p>Two three-channel vectors have already been standardized. Both have zero mean, variance 1, and length √3 ≈ 1.73. Apply the same gain to their first channel.</p>
   <div class="cv-token-pair"><div><strong>Token A</strong><code>(1.225, −1.225, 0)</code></div><div><strong>Token B</strong><code>(0.707, 0.707, −1.414)</code></div></div>
   <label for="cv-gain">First-channel gain <output id="cv-gain-value" for="cv-gain">3.0×</output></label>

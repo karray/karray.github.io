@@ -13,7 +13,7 @@ Good news, you don’t have to! All you need is to add one JavaScript library to
 
 Take a look at this REPL example:
 
-<div class="bleed bleed--text band band--brand"><div class="band-panel">
+<div class="full full--text band band--brand"><div class="band-panel">
 {% include posts/2022-07-12-bringing-python-to-the-web/simple_example.html %}
 </div></div>
 
@@ -343,7 +343,7 @@ This function will generate a plot and encode it as a Base64 string, which will 
 
 You should get the following result:
 
-<div class="bleed bleed--text band band--brand"><div class="band-panel">
+<div class="full full--text band band--brand"><div class="band-panel">
 {% include posts/2022-07-12-bringing-python-to-the-web/advanced_example.html %}
 </div></div>
 

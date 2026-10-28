@@ -65,14 +65,8 @@
     }
 
     bindMaps() {
-      const toggle = this.root.querySelector(".hg-reveal-toggle");
       this.pressable = () => !calm.matches;
-      this.wanted = () => (!toggle || toggle.checked) && fine.matches && this.pressable();
-      if (toggle) {
-        toggle.addEventListener("change", () => {
-          if (!toggle.checked) this.maps.forEach((map) => this.rest(map));
-        });
-      }
+      this.wanted = () => fine.matches && this.pressable();
 
       [...this.root.querySelectorAll(".hg-stack")].forEach((stack) => {
         if (!stack.querySelector(".hg-overlay")) return;

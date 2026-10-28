@@ -2,7 +2,6 @@ kicker: Real images · compare encoder responses
 dock_label: Choose an image to compare
 overlay: /assets/img/posts/lafam/figures/heatmaps/{layer}_{row}_{item}.png
 opacity: 100
-reveal_label: Reveal the image under the pointer
 
 help: >-
   Pick an image from the dock, then read across a row to compare the coarse

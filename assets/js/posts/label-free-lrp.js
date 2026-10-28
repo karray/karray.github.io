@@ -1,324 +1,134 @@
-/* Interactive figures for the LRP post. The stacked layers read precomputed relevance; the toys compute in the page. */
+/* Interactive figures for the LRP post. The stacked layers read precomputed relevance; the neuron computes in the page. */
 (() => {
   'use strict';
 
-  const h = (tag, attrs = {}, ...children) => {
-    const node = document.createElement(tag);
+  /* element builders: h(tag, attrs, ...children) for HTML, svg(...) for SVG; on* attributes become listeners */
+  const make = (ns) => (tag, attrs = {}, ...kids) => {
+    const node = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
-      if (v === null || v === undefined || v === false) continue;
-      if (k === 'class') node.className = v;
-      else if (k === 'text') node.textContent = v;
+      if (v == null || v === false) continue;
+      if (k === 'text') node.textContent = v;
       else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
       else node.setAttribute(k, v === true ? '' : v);
     }
-    children.flat(Infinity).forEach((c) => c !== null && c !== undefined && c !== false && node.append(c));
+    node.append(...kids.flat(Infinity).filter((c) => c != null && c !== false));
     return node;
   };
-  const svg = (tag, attrs = {}) => {
-    const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
-    return node;
-  };
+  const h = make(), svg = make('http://www.w3.org/2000/svg');
   const fmt = (v, digits = 2) => {
     if (!Number.isFinite(v)) return '∞';
-    const r = Number(v.toFixed(digits));
-    return (Object.is(r, -0) ? 0 : r).toFixed(digits).replace('-', '−');
+    const s = v.toFixed(digits);
+    return (Number(s) === 0 ? (0).toFixed(digits) : s).replace('-', '−');
   };
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
   /* matplotlib's "hot" colormap */
-  const hot = (t) => [clamp(t / 0.365, 0, 1), clamp((t - 0.365) / 0.381, 0, 1), clamp((t - 0.746) / 0.254, 0, 1)];
-
-  /* A horizontal bar for a signed amount. Positive grows to the right of the zero line, negative to the left. */
-  const bar = (max = 1.5, { signed = true } = {}) => {
-    const fill = h('span', { class: 'lrp-bar-fill' });
-    const value = h('output', { class: 'lrp-bar-value' });
-    const track = h('span', { class: `lrp-bar-track${signed ? ' lrp-bar-track--signed' : ''}` }, fill);
-    const root = h('span', { class: 'lrp-bar' }, track, value);
-    return {
-      root,
-      set(v, text) {
-        const frac = Number.isFinite(v) ? Math.min(Math.abs(v) / max, 1) : 1;
-        const half = signed ? 50 : 100;
-        fill.style.width = `${frac * half}%`;
-        fill.style.left = signed ? (v < 0 ? `${50 - frac * 50}%` : '50%') : '0';
-        root.classList.toggle('lrp-neg', v < 0);
-        root.classList.toggle('lrp-over', !Number.isFinite(v) || Math.abs(v) > max);
-        value.textContent = text ?? fmt(v);
-      },
-    };
-  };
-
-  const slider = (label, { min, max, step = 0.01, value, onInput, digits = 2 }) => {
-    const input = h('input', { type: 'range', min, max, step, value, 'aria-label': label });
-    const out = h('output', { text: fmt(Number(value), digits) });
-    input.addEventListener('input', () => {
-      out.textContent = fmt(Number(input.value), digits);
-      onInput(Number(input.value));
-    });
-    const root = h('label', { class: 'lrp-slider' }, h('span', { class: 'lrp-slider-label', text: label }), input, out);
-    return {
-      root, input,
-      set(v) { input.value = v; out.textContent = fmt(Number(input.value), digits); },
-      get value() { return Number(input.value); },
-    };
-  };
-
-  /* ------------------------------------------------------------------------------------- math */
-  const erf = (x) => {      // Abramowitz and Stegun 7.1.26
-    const s = Math.sign(x), a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
-    const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a);
-    return s * y;
-  };
-  const Phi = (x) => 0.5 * (1 + erf(x / Math.SQRT2));
-  const phi = (x) => Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI);
-  const gelu = (x) => x * Phi(x);
-  const geluSlope = (x) => Phi(x) + x * phi(x);
-  const stab = (z, e = 1e-6) => z + (z >= 0 ? e : -e);
-
-  /* ---------------------------------------------------------------------------- activation toy */
-  const activationToy = (root) => {
-    const W = 320, H = 200, X0 = -3, X1 = 3, Y0 = -0.6, Y1 = 3;
-    const sx = (x) => 30 + (x - X0) / (X1 - X0) * (W - 40);
-    const sy = (y) => H - 24 - (y - Y0) / (Y1 - Y0) * (H - 34);
-    const plot = svg('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'The GELU curve with the chosen input marked' });
-    plot.append(svg('line', { x1: sx(X0), x2: sx(X1), y1: sy(0), y2: sy(0), class: 'lrp-axis' }));
-    plot.append(svg('line', { x1: sx(0), x2: sx(0), y1: sy(Y0), y2: sy(Y1), class: 'lrp-axis' }));
-    let d = '';
-    for (let i = 0; i <= 120; i++) {
-      const x = X0 + (X1 - X0) * i / 120;
-      d += `${i ? 'L' : 'M'}${sx(x).toFixed(1)},${sy(gelu(x)).toFixed(1)}`;
-    }
-    plot.append(svg('path', { d, class: 'lrp-curve' }));
-    const tangent = svg('line', { class: 'lrp-tangent' });
-    const dot = svg('circle', { r: 6, class: 'lrp-dot' });
-    plot.append(tangent, dot);
-    const lbl = (x, y, t, a = 'start') => { const n = svg('text', { x, y, class: 'lrp-svg-label', 'text-anchor': a }); n.textContent = t; return n; };
-    plot.append(lbl(W - 8, sy(0) - 6, 'input', 'end'), lbl(sx(0) + 6, 14, 'output'));
-
-    const keep = bar(1.2, { signed: true });
-    const pass = bar(1.2, { signed: true });
-    const note = h('p', { class: 'lrp-result', 'aria-live': 'polite' });
-    const update = (x) => {
-      const y = gelu(x), k = geluSlope(x), dx = 0.9;
-      dot.setAttribute('cx', sx(x)); dot.setAttribute('cy', sy(y));
-      tangent.setAttribute('x1', sx(x - dx)); tangent.setAttribute('y1', sy(y - k * dx));
-      tangent.setAttribute('x2', sx(x + dx)); tangent.setAttribute('y2', sy(y + k * dx));
-      keep.set(1);
-      pass.set(k);
-      const lost = 1 - k;
-      note.textContent = lost > 0.005
-        ? `At this input the curve has a slope of ${fmt(k)}. Without a rule, ${Math.round(lost * 100)}% of the relevance is lost at this one value.`
-        : lost < -0.005
-          ? `At this input the curve is steeper than 1 (slope ${fmt(k)}), so without a rule the relevance grows by ${Math.round(-lost * 100)}%.`
-          : 'Here the slope is close to 1, so both treatments agree.';
-    };
-    const s = slider('Input value', { min: -3, max: 3, value: -0.5, onInput: update });
-    root.append(h('div', { class: 'lrp-columns' },
-      h('div', {}, plot, s.root),
-      h('div', { class: 'lrp-readouts' },
-        h('p', { class: 'lrp-row-title', text: 'Relevance arriving at the output' }), (() => { const b = bar(1.2); b.set(1); return b.root; })(),
-        h('p', { class: 'lrp-row-title', text: 'Passed back with the identity rule' }), keep.root,
-        h('p', { class: 'lrp-row-title', text: 'Passed back without a rule (times the slope)' }), pass.root,
-        note)));
-    update(s.value);
-  };
-
-  /* ----------------------------------------------------------------------------- LayerNorm toy */
-  const layerNormToy = (root) => {
-    const start = [1.6, 0.3, -0.4, 2.2, -1.0, 0.7];
-    let x = start.slice();
-    const n = x.length;
-    const cols = ['Output', 'With the rule', 'Without a rule'];
-    const outBars = x.map(() => bar(2.5)), ruleBars = x.map(() => bar(1.5)), gradBars = x.map(() => bar(1.5));
-    const totals = cols.map(() => h('output', { class: 'lrp-total' }));
-    const sliders = x.map((v, i) => slider(`Input ${i + 1}`, { min: -2, max: 4, value: v, onInput: (val) => { x[i] = val; update(); } }));
-    const note = h('p', { class: 'lrp-result', 'aria-live': 'polite' });
-
-    const update = () => {
-      const mu = x.reduce((a, b) => a + b, 0) / n;
-      const sigma = Math.sqrt(x.reduce((a, b) => a + (b - mu) ** 2, 0) / n + 1e-5);
-      const y = x.map((v) => (v - mu) / sigma);
-      const pos = y.map((v) => Math.max(v, 0)), S = pos.reduce((a, b) => a + b, 0) || 1;
-      const R = pos.map((v) => v / S);                                  // relevance arriving at the outputs
-      const ratio = R.map((r, i) => r / stab(y[i]));
-      const ratioSum = ratio.reduce((a, b) => a + b, 0);
-      const rule = x.map((xj, j) => xj / sigma * (ratio[j] - ratioSum / n));       // spread held fixed
-      const Rsum = R.reduce((a, b) => a + b, 0), Ry = R.reduce((a, r, i) => a + r * y[i], 0);
-      const grad = y.map((yj, j) => (R[j] - Rsum / n - yj * Ry / n) / sigma);       // the gradient of LayerNorm
-      y.forEach((v, i) => { outBars[i].set(v); ruleBars[i].set(rule[i]); gradBars[i].set(grad[i]); });
-      const sum = (a) => a.reduce((p, q) => p + q, 0);
-      totals[0].textContent = `relevance arriving ${fmt(sum(R))}`;
-      totals[1].textContent = `total ${fmt(sum(rule))}`;
-      totals[2].textContent = `total ${fmt(sum(grad))}`;
-      note.textContent = `Without a rule, the inputs receive ${fmt(sum(grad.filter((g) => g > 0)))} of positive and ${fmt(sum(grad.filter((g) => g < 0)))} of negative relevance, which cancel exactly. With the spread held fixed, the total of ${fmt(sum(rule))} is kept.`;
-    };
-    const shift = () => { x = x.map((v) => clamp(v + 1, -2, 4)); sliders.forEach((s, i) => s.set(x[i])); update(); };
-    const scale = () => { x = x.map((v) => clamp(v * 1.5, -2, 4)); sliders.forEach((s, i) => s.set(x[i])); update(); };
-    const reset = () => { x = start.slice(); sliders.forEach((s, i) => s.set(x[i])); update(); };
-
-    const grid = h('div', { class: 'lrp-table', style: '--lrp-cols: 4' },
-      h('span', { class: 'lrp-head', text: 'Input' }), cols.map((c) => h('span', { class: 'lrp-head', text: c })),
-      x.map((_, i) => [sliders[i].root, outBars[i].root, ruleBars[i].root, gradBars[i].root]),
-      h('span'), totals);
-    root.append(grid,
-      h('div', { class: 'lrp-buttons' },
-        h('button', { type: 'button', onclick: shift, text: 'Add 1 to every input' }),
-        h('button', { type: 'button', onclick: scale, text: 'Stretch the inputs by 1.5' }),
-        h('button', { type: 'button', onclick: reset, text: 'Reset' })),
-      note);
-    update();
-  };
-
-  /* ----------------------------------------------------------------------------- attention toy */
-  const attentionToy = (root) => {
-    const names = ['A', 'B', 'C', 'D'];
-    const v = [1.5, 0.05, 0.6, 1.0], s = [0.3, 1.6, 0.6, -0.4];
-    const wBars = v.map(() => bar(1, { signed: false })), sentBars = v.map(() => bar(1));
-    const ruleBars = v.map(() => bar(1)), gradBars = v.map(() => bar(1));
-    const totals = [0, 1, 2, 3].map(() => h('output', { class: 'lrp-total' }));
-    const out = h('output');
-    const note = h('p', { class: 'lrp-result', 'aria-live': 'polite' });
-    const update = () => {
-      const m = Math.max(...s), e = s.map((q) => Math.exp(q - m)), Z = e.reduce((a, b) => a + b, 0);
-      const A = e.map((q) => q / Z), sent = A.map((a, j) => a * v[j]), o = sent.reduce((a, b) => a + b, 0);
-      const rule = sent.map((c) => c / stab(o, 1e-3));
-      const toScores = A.map((a, j) => a * (v[j] - o));
-      A.forEach((a, j) => { wBars[j].set(a); sentBars[j].set(sent[j]); ruleBars[j].set(rule[j]); gradBars[j].set(a); });
-      out.textContent = fmt(o);
-      const sum = (q) => q.reduce((a, b) => a + b, 0);
-      totals[0].textContent = `sum ${fmt(sum(A))}`;
-      totals[1].textContent = `output ${fmt(o)}`;
-      totals[2].textContent = `total ${fmt(sum(rule))}`;
-      totals[3].textContent = `total ${fmt(sum(A))}, plus ${fmt(sum(toScores.filter((q) => q > 0)))} and ${fmt(sum(toScores.filter((q) => q < 0)))} into the weights`;
-      const top = A.indexOf(Math.max(...A));
-      note.textContent = `Token ${names[top]} has the largest weight (${fmt(A[top])}) and sends ${fmt(sent[top])}. With the weights held fixed it receives ${fmt(rule[top])} of the relevance, and without a rule ${fmt(A[top])}.`;
-    };
-    const rows = names.map((name, j) => [
-      h('span', { class: 'lrp-token' }, h('strong', { text: `Token ${name}` }),
-        slider('value', { min: -1, max: 2, value: v[j], onInput: (q) => { v[j] = q; update(); } }).root,
-        slider('score', { min: -2, max: 2, value: s[j], onInput: (q) => { s[j] = q; update(); } }).root),
-      wBars[j].root, sentBars[j].root, ruleBars[j].root, gradBars[j].root]);
-    root.append(
-      h('div', { class: 'lrp-table lrp-table--wide', style: '--lrp-cols: 5' },
-        ['Source token', 'Attention weight', 'What it sends', 'Weights held fixed', 'Without a rule'].map((c) => h('span', { class: 'lrp-head', text: c })),
-        rows, h('span'), totals),
-      h('p', { class: 'lrp-small' }, 'The output token receives ', out, ' and holds a relevance of 1.00.'),
-      note);
-    update();
-  };
+  const hot = (t) => [t / 0.365, (t - 0.365) / 0.381, (t - 0.746) / 0.254].map((c) => clamp(c, 0, 1));
 
   /* -------------------------------------------------------------------------------- neuron toy */
   const neuronToy = (root) => {
-    const start = { x1: 2, x2: 1, w1: 1.5, w2: -1 };
-    const v = { ...start };
+    const v = { x1: 2, x2: 1, w1: 1.5, w2: -1 };
     const LIM = { x1: [-2, 3], x2: [-2, 3], w1: [-2, 2], w2: [-2, 2] };
-    const MODES = [['grad', 'Gradient fallback'], ['zplus', 'z⁺ rule'], ['lrp0', 'LRP-0']];
-    let mode = 'grad';
-    const RN = 40, RB = 26, UNIT = 7, FUNIT = 7;
+    const MODES = { grad: 'Gradient fallback', zplus: 'z⁺ rule', lrp0: 'LRP-0' };
+    const RN = 40, RB = 30, UNIT = 7, SUB = '₁₂';
     const GEOM = {
       wide: { W: 840, H: 262, vertical: false, n: [470, 142], fin: [[62, 92], [62, 192]], bin: [[724, 92], [724, 192]],
         heads: [[0, 20, 'start', 'FORWARD · THE NEURON COMPUTES'], [840, 20, 'end', 'BACKWARD · RELEVANCE FLOWS BACK']] },
       tall: { W: 420, H: 600, vertical: true, n: [210, 300], fin: [[105, 70], [315, 70]], bin: [[105, 520], [315, 520]],
         heads: [[0, 16, 'start', 'FORWARD'], [0, 380, 'start', 'BACKWARD']] },
     };
-    const holder = h('div', { class: 'lrp-nt-holder' });
-    let S = null, layout = '';
+    let mode = 'grad', S = null, layout = '';
 
-    const bez = (p, t) => p.reduce((acc, q, i) => {
-      const c = [1, 3, 3, 1][i] * (1 - t) ** (3 - i) * t ** i;
-      return [acc[0] + c * q[0], acc[1] + c * q[1]];
-    }, [0, 0]);
-    const d = (p) => `M${p[0]}C${p[1]} ${p[2]} ${p[3]}`;
-    const toward = ([x0, y0], [x1, y1], vertical) => {
-      if (vertical) { const s = Math.sign(y1 - y0) * 90; return [[x0, y0], [x0, y0 + s], [x1, y1 - s], [x1, y1]]; }
-      const s = Math.sign(x1 - x0) * 90; return [[x0, y0], [x0 + s, y0], [x1 - s, y1], [x1, y1]];
-    };
-    const edgeOf = ([cx, cy], [tx, ty], r, vertical) => (vertical ? [cx, cy + Math.sign(ty - cy) * r] : [cx + Math.sign(tx - cx) * r, cy]);
+    const bez = (p, t) => [0, 1].map((k) =>
+      (1 - t) ** 3 * p[0][k] + 3 * (1 - t) ** 2 * t * p[1][k] + 3 * (1 - t) * t ** 2 * p[2][k] + t ** 3 * p[3][k]);
 
     const build = (name) => {
-      const G = GEOM[name], { W, H, vertical } = G, [nx, ny] = G.n;
-      const scene = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: `lrp-neuron-scene lrp-nt-${name}`, role: 'group', 'aria-label': 'A neuron with two inputs. On one side the inputs compute the output, on the other side the output flows back to the inputs as relevance.' });
-      const layer = () => { const n = svg('g'); scene.append(n); return n; };
-      const [gTrack, gStream, gFlow, gNodes, gText] = [layer(), layer(), layer(), layer(), layer()];
-      const text = (x, y, cls, anchor = 'middle', s = '') => { const n = svg('text', { x, y, class: cls, 'text-anchor': anchor }); n.textContent = s; gText.append(n); return n; };
-      G.heads.forEach(([x, y, a, s]) => text(x, y, 'lrp-nt-head', a, s));
-      const path = (pd, parent, cls) => { const n = svg('path', { d: pd, class: cls }); parent.append(n); return n; };
-      const fwd = G.fin.map((c) => {
-        const p = toward(edgeOf(c, G.n, vertical ? 18 : 44, vertical), edgeOf(G.n, c, RN, vertical), vertical);
-        return { p, band: path(d(p), gStream, 'lrp-nt-fband'), flow: path(d(p), gFlow, 'lrp-nt-fflow') };
-      });
-      const back = G.bin.map((c) => {
-        const p = toward(edgeOf(c, G.n, RB, vertical), edgeOf(G.n, c, RN, vertical), vertical);
-        return { track: path(d(p), gTrack, 'lrp-nt-track'), stream: path(d(p), gStream, 'lrp-nt-stream'), flow: path(d(p), gFlow, 'lrp-nt-flow') };
-      });
-      gNodes.append(svg('circle', { cx: nx, cy: ny, r: RN, class: 'lrp-nt-neuron' }), ...G.bin.map(([x, y]) => svg('circle', { cx: x, cy: y, r: RB, class: 'lrp-nt-input' })));
-      G.fin.forEach(([x, y], i) => text(x, !vertical && i ? y + 42 : y - 28, 'lrp-nt-name', 'middle', `x${'₁₂'[i]}`));
-      G.bin.forEach(([x, y], i) => text(x, y + 7, 'lrp-nt-name', 'middle', `x${'₁₂'[i]}`));
-      const refs = {
-        scene, W, fwd, back,
-        outVal: text(nx, ny + 9, 'lrp-nt-out'),
-        outLbl: text(vertical ? nx + RN + 10 : nx, vertical ? ny - 6 : ny + RN + 26, 'lrp-nt-small', vertical ? 'start' : 'middle'),
-        totalT: vertical ? text(nx, G.bin[0][1] + 7, 'lrp-nt-total') : text(G.bin[0][0], ny + 6, 'lrp-nt-total'),
-        contrib: fwd.map((e, i) => {
-          const [x, y] = bez(e.p, 0.86);
-          return vertical ? text(i ? x + 14 : x - 14, y, 'lrp-nt-small', i ? 'start' : 'end') : text(x, i ? y + 30 : y - 16, 'lrp-nt-small');
-        }),
-        gets: G.bin.map(([x, y], i) => text(x, vertical || i ? y + RB + 24 : y - RB - 12, 'lrp-nt-gets')),
+      const { W, H, vertical: vert, n: N, fin, bin, heads } = GEOM[name];
+      const scene = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: `lrp-neuron-scene lrp-nt-${name}`, role: 'group',
+        'aria-label': 'A neuron with two inputs. On one side the inputs compute the output, on the other side the output flows back to the inputs as relevance.' });
+      const [gTrack, gStream, gFlow, gNodes, gText] = [0, 0, 0, 0, 0].map(() => scene.appendChild(svg('g')));
+      const text = (x, y, cls, s = '', anchor = 'middle') => gText.appendChild(svg('text', { x, y, class: cls, 'text-anchor': anchor }, s));
+      const path = (p, g, cls) => g.appendChild(svg('path', { d: `M${p[0]}C${p[1]} ${p[2]} ${p[3]}`, class: cls }));
+      // the point on the rim of a node (radius r) that faces t, and the S-curve from a node to the neuron
+      const rim = ([cx, cy], [tx, ty], r) => (vert ? [cx, cy + Math.sign(ty - cy) * r] : [cx + Math.sign(tx - cx) * r, cy]);
+      const curve = (c, r) => {
+        const a = rim(c, N, r), b = rim(N, c, RN), s = Math.sign(vert ? b[1] - a[1] : b[0] - a[0]) * 90;
+        const [dx, dy] = vert ? [0, s] : [s, 0];
+        return [a, [a[0] + dx, a[1] + dy], [b[0] - dx, b[1] - dy], b];
       };
-      refs.chips = [
-        chip(refs, gText, 'x1', ...G.fin[0], (q) => fmt(q, 1)), chip(refs, gText, 'x2', ...G.fin[1], (q) => fmt(q, 1)),
+
+      // a value chip: drag sideways or use the arrow keys
+      const chip = (key, cx, cy, show) => {
+        const t = svg('text', { x: cx, y: cy + 7, 'text-anchor': 'middle' });
+        const arrow = (dx, s) => svg('text', { x: cx + dx, y: cy + 6, 'text-anchor': 'middle', class: 'lrp-nt-arrow' }, s);
+        const set = (q) => { v[key] = clamp(Math.round(q * 10) / 10, ...LIM[key]); update(); };
+        const end = () => node.classList.remove('lrp-nt-drag');
+        let x0 = 0, v0 = 0, scale = 1;
+        const node = gText.appendChild(svg('g', {
+          class: 'lrp-nt-chip', tabindex: 0, role: 'slider', 'aria-label': key[0] + SUB[key[1] - 1],
+          'aria-valuemin': LIM[key][0], 'aria-valuemax': LIM[key][1],
+          onpointerdown: (e) => {
+            node.setPointerCapture(e.pointerId);
+            x0 = e.clientX; v0 = v[key]; scale = W / scene.getBoundingClientRect().width;
+            node.classList.add('lrp-nt-drag'); root.classList.add('lrp-nt-touched');
+          },
+          onpointermove: (e) => { if (node.hasPointerCapture(e.pointerId)) set(v0 + (e.clientX - x0) * scale / 40); },
+          onpointerup: end,
+          onpointercancel: end,
+          onkeydown: (e) => {
+            const s = { ArrowRight: 0.1, ArrowUp: 0.1, ArrowLeft: -0.1, ArrowDown: -0.1, PageUp: 1, PageDown: -1 }[e.key];
+            if (s) { e.preventDefault(); set(v[key] + s); root.classList.add('lrp-nt-touched'); }
+          },
+        }, svg('rect', { x: cx - 48, y: cy - 18, width: 96, height: 36, rx: 18 }), arrow(-37, '‹'), t, arrow(37, '›')));
+        return () => { t.textContent = show(v[key]); node.setAttribute('aria-valuenow', v[key]); };
+      };
+
+      heads.forEach(([x, y, a, s]) => text(x, y, 'lrp-nt-head', s, a));
+      const fwd = fin.map((c, i) => {
+        const p = curve(c, vert ? 18 : 44), [x, y] = bez(p, 0.86);
+        return {
+          p, band: path(p, gStream, 'lrp-nt-fband'), flow: path(p, gFlow, 'lrp-nt-fflow'),
+          label: vert ? text(x + (i ? 14 : -14), y, 'lrp-nt-small', '', i ? 'start' : 'end') : text(x, i ? y + 30 : y - 16, 'lrp-nt-small'),
+        };
+      });
+      // backward inputs: the name next to the node, the relevance it receives inside it
+      const back = bin.map(([x, y], i) => {
+        const p = curve([x, y], RB);
+        path(p, gTrack, 'lrp-nt-track');
+        text(x, vert || i ? y + RB + 24 : y - RB - 12, 'lrp-nt-name', `x${SUB[i]}`);
+        return { stream: path(p, gStream, 'lrp-nt-stream'), flow: path(p, gFlow, 'lrp-nt-flow'), val: text(x, y + 6, 'lrp-nt-gets') };
+      });
+      gNodes.append(svg('circle', { cx: N[0], cy: N[1], r: RN, class: 'lrp-nt-neuron' }),
+        ...bin.map(([cx, cy]) => svg('circle', { cx, cy, r: RB, class: 'lrp-nt-input' })));
+      const chips = [
+        ...fin.map(([x, y], i) => {
+          text(x, !vert && i ? y + 42 : y - 28, 'lrp-nt-name', `x${SUB[i]}`);
+          return chip(`x${i + 1}`, x, y, (q) => fmt(q, 1));
+        }),
         ...fwd.map((e, i) => {
-          const [x, y] = bez(e.p, vertical ? 0.42 : 0.4);
-          if (vertical) text(i ? x + 58 : x - 58, y + 7, 'lrp-nt-name', i ? 'start' : 'end', `w${'₁₂'[i]}`);
-          else text(x, i ? y + 42 : y - 28, 'lrp-nt-name', 'middle', `w${'₁₂'[i]}`);
-          return chip(refs, gText, `w${i + 1}`, x, y, (q) => `× ${fmt(q, 1)}`);
+          const [x, y] = bez(e.p, vert ? 0.42 : 0.4);
+          if (vert) text(x + (i ? 58 : -58), y + 7, 'lrp-nt-name', `w${SUB[i]}`, i ? 'start' : 'end');
+          else text(x, i ? y + 42 : y - 28, 'lrp-nt-name', `w${SUB[i]}`);
+          return chip(`w${i + 1}`, x, y, (q) => `× ${fmt(q, 1)}`);
         }),
       ];
-      return refs;
+      return {
+        scene, fwd, back, chips,
+        out: text(N[0], N[1] + 9, 'lrp-nt-out'),
+        outLbl: vert ? text(N[0] + RN + 10, N[1] - 6, 'lrp-nt-small', '', 'start') : text(N[0], N[1] + RN + 26, 'lrp-nt-small'),
+        total: vert ? text(N[0], bin[0][1] + 7, 'lrp-nt-total') : text(bin[0][0], N[1] + 6, 'lrp-nt-total'),
+      };
     };
 
-    const chip = (refs, parent, key, cx, cy, fmtv) => {
-      const node = svg('g', { class: 'lrp-nt-chip', tabindex: 0, role: 'slider', 'aria-label': key.replace('1', '₁').replace('2', '₂'), 'aria-valuemin': LIM[key][0], 'aria-valuemax': LIM[key][1] });
-      const t = svg('text', { x: cx, y: cy + 7, 'text-anchor': 'middle' });
-      const l = svg('text', { x: cx - 37, y: cy + 6, 'text-anchor': 'middle', class: 'lrp-nt-arrow' }); l.textContent = '‹';
-      const r = svg('text', { x: cx + 37, y: cy + 6, 'text-anchor': 'middle', class: 'lrp-nt-arrow' }); r.textContent = '›';
-      node.append(svg('rect', { x: cx - 48, y: cy - 18, width: 96, height: 36, rx: 18 }), l, t, r);
-      parent.append(node);
-      const setv = (q) => { v[key] = clamp(Math.round(q * 10) / 10, ...LIM[key]); update(); };
-      let x0 = 0, v0 = 0, scale = 1;
-      node.addEventListener('pointerdown', (e) => {
-        node.setPointerCapture(e.pointerId); x0 = e.clientX; v0 = v[key];
-        scale = refs.W / refs.scene.getBoundingClientRect().width;
-        node.classList.add('lrp-nt-drag'); root.classList.add('lrp-nt-touched');
-      });
-      node.addEventListener('pointermove', (e) => { if (node.hasPointerCapture(e.pointerId)) setv(v0 + (e.clientX - x0) * scale / 40); });
-      const end = () => node.classList.remove('lrp-nt-drag');
-      node.addEventListener('pointerup', end); node.addEventListener('pointercancel', end);
-      node.addEventListener('keydown', (e) => {
-        const s = { ArrowRight: 0.1, ArrowUp: 0.1, ArrowLeft: -0.1, ArrowDown: -0.1, PageUp: 1, PageDown: -1 }[e.key];
-        if (s) { e.preventDefault(); setv(v[key] + s); root.classList.add('lrp-nt-touched'); }
-      });
-      return { render() { t.textContent = fmtv(v[key]); node.setAttribute('aria-valuenow', v[key]); } };
+    // stream width follows the amount; the moving dashes only show on streams wide enough to carry them
+    const thick = (band, flow, q, max, min = 0) => {
+      const w = Math.min(Math.abs(q) * UNIT, max);
+      band.style.strokeWidth = `${Math.max(w, min)}px`;
+      flow.style.strokeWidth = `${Math.min(2.6, w * 0.35)}px`;
+      flow.style.opacity = w > 2.2 ? '' : '0';
     };
-
-    const buttons = MODES.map(([k, label]) => h('button', { type: 'button', 'aria-pressed': String(k === mode), onclick: () => { if (k === mode) return; mode = k; update(); }, text: label }));
-    const note = h('p', { class: 'lrp-small lrp-nt-note', 'aria-live': 'polite' });
-    const eq = h('output', { class: 'lrp-nt-eq' });
-
-    const paint = (e, r) => {
-      const w = Math.min(Math.abs(r) * UNIT, 44);
-      e.stream.style.strokeWidth = `${w}px`;
-      e.flow.style.strokeWidth = `${Math.min(2.6, w * 0.35)}px`;
-      e.stream.classList.toggle('lrp-nt-neg', r < 0);
-      e.flow.style.opacity = w > 2.2 ? '' : '0';
-    };
-    const fpaint = (e, q) => {
-      const w = Math.min(Math.abs(q) * FUNIT, 32);
-      e.band.style.strokeWidth = `${Math.max(w, 1.5)}px`;
-      e.flow.style.strokeWidth = `${Math.min(2.6, w * 0.35)}px`;
-      e.flow.style.opacity = w > 2.2 ? '' : '0';
-    };
+    const signed = (q, gap = '') => `${q < 0 ? '−' : '+'}${gap}${fmt(Math.abs(q), 1)}`;
+    const f1 = (q) => (q < 0 ? `(${fmt(q, 1)})` : fmt(q, 1));
 
     const update = () => {
       const z = [v.x1 * v.w1, v.x2 * v.w2], y = z[0] + z[1];
@@ -327,30 +137,44 @@
       const r = mode === 'grad' ? [v.w1 * y, v.w2 * y]
         : mode === 'lrp0' ? z
         : z.map((q) => (pos > 0 ? Math.max(0, q) / pos * R : 0));
-      S.chips.forEach((c) => c.render());
-      S.fwd.forEach((e, i) => fpaint(e, z[i]));
-      S.contrib.forEach((c, i) => { c.textContent = `${z[i] < 0 ? '−' : '+'}${fmt(Math.abs(z[i]), 1)}`; });
-      S.outVal.textContent = fmt(y, 1);
+      const total = r[0] + r[1], leak = Math.abs(total - R) > 0.005;
+
+      S.chips.forEach((render) => render());
+      S.fwd.forEach((e, i) => { thick(e.band, e.flow, z[i], 32, 1.5); e.label.textContent = signed(z[i]); });
+      S.back.forEach((e, i) => {
+        thick(e.stream, e.flow, r[i], 44);
+        e.stream.classList.toggle('lrp-nt-neg', r[i] < 0);
+        e.val.textContent = fmt(r[i], 1);
+        e.val.classList.toggle('lrp-nt-neg', r[i] < -0.005);
+        e.val.classList.toggle('lrp-nt-pos', r[i] > 0.005);
+      });
+      S.out.textContent = fmt(y, 1);
       S.outLbl.textContent = mode === 'zplus' && y <= 0 ? 'output, nothing flows back' : 'output';
-      S.back.forEach((e, i) => paint(e, r[i]));
-      S.gets.forEach((t, i) => { t.textContent = `gets ${fmt(r[i], 1)}`; t.classList.toggle('lrp-nt-neg', r[i] < -0.005); t.classList.toggle('lrp-nt-pos', r[i] > 0.005); });
-      const total = r[0] + r[1];
-      S.totalT.textContent = `total ${fmt(total, 1)}`;
-      S.totalT.classList.toggle('lrp-nt-warn', Math.abs(total - R) > 0.005);
-      buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(MODES[i][0] === mode)));
-      const f1 = (q) => (q < 0 ? `(${fmt(q, 1)})` : fmt(q, 1));
-      eq.textContent = `${f1(v.x1)} × ${f1(v.w1)} + ${f1(v.x2)} × ${f1(v.w2)} = ${fmt(z[0], 1)} ${z[1] < 0 ? '−' : '+'} ${fmt(Math.abs(z[1]), 1)} = ${fmt(y, 1)}`;
-      const neg = z.some((q) => q < 0), zero = [v.x1, v.x2].some((q) => q === 0);
+      S.total.textContent = `total ${fmt(total, 1)}`;
+      S.total.classList.toggle('lrp-nt-warn', leak);
+      buttons.forEach((b) => b.setAttribute('aria-pressed', b.value === mode));
+      eq.textContent = `${f1(v.x1)} × ${f1(v.w1)} + ${f1(v.x2)} × ${f1(v.w2)} = ${fmt(z[0], 1)} ${signed(z[1], ' ')} = ${fmt(y, 1)}`;
       note.textContent =
         mode === 'grad'
           ? (v.w1 === 1 && v.w2 === 1 ? 'With two weights of 1, as at a residual connection, the gradient hands the full amount to both inputs, and the total doubles.'
-            : Math.abs(total - R) > 0.005 ? `The gradient hands each input its weight times the output, whatever the input contributed, so the inputs hold ${fmt(total, 1)} in total instead of the output of ${fmt(R, 1)}.`
+            : leak ? `The gradient hands each input its weight times the output, whatever the input contributed, so the inputs hold ${fmt(total, 1)} in total instead of the output of ${fmt(R, 1)}.`
             : 'The gradient hands each input its weight times the output. Here the weights add up to 1, so the total happens to match. Change one and it drifts.')
         : mode === 'zplus' && y <= 0 ? `The output is ${y < 0 ? 'negative' : 'zero'}, so there is no positive relevance to divide, and the z⁺ rule starts with 0, as in the first figure. Even an input that raised the output gets nothing. In a network, a ReLU would set such a neuron to zero anyway.`
-        : zero ? 'An input of zero contributes nothing and receives nothing, however large its weight.'
-        : neg ? (mode === 'lrp0' ? 'One input works against the output and receives its negative contribution. The inputs still hold exactly the output.' : `The z⁺ rule ignores the input that works against the output and gives all of the ${fmt(R, 1)} to the other one.`)
+        : v.x1 === 0 || v.x2 === 0 ? 'An input of zero contributes nothing and receives nothing, however large its weight.'
+        : z.some((q) => q < 0) ? (mode === 'lrp0' ? 'One input works against the output and receives its negative contribution. The inputs still hold exactly the output.' : `The z⁺ rule ignores the input that works against the output and gives all of the ${fmt(R, 1)} to the other one.`)
         : 'Each input receives exactly what it contributed, so the inputs hold the whole output and nothing more.';
     };
+
+    const buttons = Object.entries(MODES).map(([k, label]) => h('button', { type: 'button', value: k, text: label, onclick: () => { mode = k; update(); } }));
+    const holder = h('div', { class: 'lrp-nt-holder' });
+    const eq = h('output', { class: 'lrp-nt-eq' });
+    const note = h('p', { class: 'lrp-small lrp-nt-note', 'aria-live': 'polite' });
+    root.append(h('div', {},
+      holder,
+      h('div', { class: 'lrp-nt-bar' },
+        h('p', { class: 'lrp-nt-eqline' }, 'output = ', eq),
+        h('div', { class: 'lrp-buttons lrp-nt-modes', role: 'group', 'aria-label': 'How the relevance is passed back' }, buttons)),
+      note));
 
     const fit = () => {
       const name = root.clientWidth >= 560 ? 'wide' : 'tall';
@@ -360,73 +184,14 @@
       holder.replaceChildren(S.scene);
       update();
     };
-
-    root.append(h('div', {},
-      holder,
-      h('div', { class: 'lrp-nt-bar' },
-        h('p', { class: 'lrp-nt-eqline' }, 'output = ', eq),
-        h('div', { class: 'lrp-buttons lrp-nt-modes', role: 'group', 'aria-label': 'How the relevance is passed back' }, buttons)),
-      note));
     fit();
     new ResizeObserver(fit).observe(root);
     new IntersectionObserver(([en]) => root.classList.toggle('lrp-nt-paused', !en.isIntersecting)).observe(root);
   };
 
-  /* ------------------------------------------------------------------------------ residual toy */
-  const residualToy = (root) => {
-    let skip = 1.0, upd = 0.4;
-    const all = {
-      copy: ['Plain addition', () => [1, 1]],
-      equal: ['Equal', () => [0.5, 0.5]],
-      proportional: ['Proportional', (a, b) => { const y = stab(a + b); return [a / y, b / y]; }],
-      magnitude: ['Magnitude', (a, b) => { const t = Math.abs(a) + Math.abs(b) || 1; return [Math.abs(a) / t, Math.abs(b) / t]; }],
-      gamma: ['γ (ResLRP)', (a, b) => {
-        const y = a + b, w = [a, b].map((z) => z * (1 + (Math.sign(z) === Math.sign(y) ? 1 : 0)));
-        const d = stab(w[0] + w[1]); return [w[0] / d, w[1] / d];
-      }],
-    };
-    const rules = (root.dataset.rules || 'copy,equal,proportional,magnitude,gamma').split(',').map((k) => all[k.trim()]).filter(Boolean);
-    const presets = root.dataset.presets !== 'false';
-    const bars = rules.map(() => [bar(2.5), bar(2.5)]);
-    const totals = rules.map(() => h('output', { class: 'lrp-total' }));
-    const out = h('output');
-    const sSkip = slider('Skip path', { min: -2, max: 2, value: skip, onInput: (q) => { skip = q; update(); } });
-    const sUpd = slider('Update', { min: -2, max: 2, value: upd, onInput: (q) => { upd = q; update(); } });
-    const update = () => {
-      out.textContent = fmt(skip + upd);
-      rules.forEach(([, f], i) => {
-        const [a, b] = f(skip, upd);
-        bars[i][0].set(a); bars[i][1].set(b);
-        totals[i].textContent = fmt(a + b);
-      });
-    };
-    const preset = (a, b) => () => { skip = a; upd = b; sSkip.set(a); sUpd.set(b); update(); };
-    root.append(h('div', {},
-      h('div', { class: 'lrp-sliders' }, sSkip.root, sUpd.root),
-      h('p', { class: 'lrp-small' }, 'The block outputs their sum, ', out, ', and holds a relevance of 1.00.'),
-      presets ? h('div', { class: 'lrp-buttons' },
-        h('button', { type: 'button', onclick: preset(1, 0.4), text: 'A small update' }),
-        h('button', { type: 'button', onclick: preset(1, -0.9), text: 'The update almost cancels the input' }),
-        h('button', { type: 'button', onclick: preset(-0.3, 1.2), text: 'The update outweighs the input' })) : null,
-      h('div', { class: 'lrp-table', style: '--lrp-cols: 4' },
-        ['Rule', 'To the skip path', 'To the update', 'Total'].map((c) => h('span', { class: 'lrp-head', text: c })),
-        rules.map(([name], i) => [h('span', { class: 'lrp-rule', text: name }), bars[i][0].root, bars[i][1].root, totals[i]]))));
-    totals.forEach((t) => t.classList.add('lrp-total--row'));
-    update();
-  };
-
-  /* ------------------------------------------------------------------------- stacked layers */
-  /* [where, short label] for a level name from the exported data */
-  const LEVEL = (name) => {
-    if (name === 'features') return ['the start', 'start'];
-    if (name === 'pixels') return ['the pixels', 'pixels'];
-    if (name === 'below the final norm') return ['below the final norm', 'final norm'];
-    let m = name.match(/^below block (\d+)$/);
-    if (m) return [`below block ${m[1]}`, `block ${m[1]}`];
-    m = name.match(/→ (?:stage )?(\d+)$/);
-    if (m) return [`below stage ${m[1]}`, `stage ${m[1]}`];
-    return [name, name];
-  };
+  /* -------------------------------------------------------------------------------- stack explorer */
+  /* where a level from the exported data sits, for its caption */
+  const where = (name) => (name === 'pixels' ? 'the pixels' : name.replace(/^.*→ (?:stage )?(\d+)$/, 'below stage $1'));
   const SHOWN = ['below the final norm', 'below block 9', 'below block 5', 'below block 1', 'pixels'];
   const OPACITY = 70;                               // default map opacity, in percent
   const M = 112;                                    // display resolution of the layer maps
@@ -435,34 +200,86 @@
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   const stackExplorer = (root, app) => {
-    const base = app.dataset.base;
     const models = JSON.parse(app.dataset.models);
     const thumbs = [...root.querySelectorAll('.fg-thumb')];
-    const state = { model: models[0].id, item: thumbs[0]?.dataset.item, data: null, img: null, hover: -1, picked: null, common: false };
-    const cache = new Map(), images = new Map();
+    const state = { model: models[0].id, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, common: false, amounts: null };
 
-    const modelSelect = h('select', { 'aria-label': 'Model' }, models.map((m) => h('option', { value: m.id, text: m.label })));
-    const icon = (label, d, fill) => {
-      const b = h('button', { type: 'button', class: 'lrp-icon', title: label, 'aria-label': label });
-      const g = svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' });
-      d.forEach((path, i) => g.append(svg('path', { d: path, class: fill && fill[i] ? 'lrp-icon-fill' : '' })));
-      b.append(g);
-      return b;
+    /* data, fetched once per model and image: int8 maps per level and start cell, with one scale per cell */
+    const cache = new Map();
+    const once = (key, fn) => { if (!cache.has(key)) cache.set(key, fn()); return cache.get(key); };
+    const load = (key) => once(key, async () => {
+      const [meta, buf] = await Promise.all([
+        fetch(`${app.dataset.base}${key}.json`).then((r) => r.json()),
+        fetch(`${app.dataset.base}${key}.dat`).then((r) => new Response(r.body.pipeThrough(new DecompressionStream('deflate'))).arrayBuffer()),
+      ]);
+      const q = new Int8Array(buf);
+      meta.cells = meta.grid[0] * meta.grid[1];
+      let o = 0;
+      for (const lv of meta.levels) lv.q = q.subarray(o, (o += meta.cells * lv.size[0] * lv.size[1]));
+      return meta;
+    });
+    const image = (item) => once(`img:${item}`, () => new Promise((resolve, reject) => Object.assign(new Image(), {
+      onload() { resolve(this); }, onerror: reject, src: thumbs.find((t) => t.dataset.item === item).dataset.src,
+    })));
+
+    /* controls */
+    const setOpacity = (x) => {
+      opacity.value = x; opacityOut.textContent = `${x}%`;
+      root.style.setProperty('--lrp-heat-opacity', x / 100);
     };
-    const invertBtn = icon('Invert the selection', ['M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z', 'M12 4a8 8 0 0 1 0 16z'], [0, 1]);
-    const resetBtn = icon('Reset: all cells, default scale and opacity', ['M4 12a8 8 0 1 0 2.4-5.7', 'M4 4v4.5h4.5']);
-    const commonBox = h('input', { type: 'checkbox' });
-    const opacity = h('input', { type: 'range', min: 0, max: 100, step: 5, value: OPACITY, 'aria-label': 'Map opacity' });
-    const opacityOut = h('output', { text: `${OPACITY}%` });
-    const layer = (cls, size) => h('canvas', { class: `lrp-canvas ${cls}`, width: size, height: size });
-    const startBase = layer('', 448), startHeat = layer('lrp-heat', 448), startMarks = layer('', 448);
-    const startBox = h('div', { class: 'lrp-start', role: 'img', 'aria-label': 'The start. Hover a cell to preview it, click cells to select them.' }, startBase, startHeat, startMarks);
-    const tools = h('div', { class: 'lrp-tools', role: 'toolbar', 'aria-label': 'Start cells' }, invertBtn, resetBtn);
+    // nothing picked means all cells, so inverting all cells comes back to the full start
+    const invert = () => {
+      if (!state.picked) return;
+      const any = state.picked.some(Boolean);
+      state.picked = state.picked.map((p) => any && !p);
+      if (state.picked.every(Boolean)) state.picked.fill(false);
+      render();
+    };
+    const reset = () => {
+      state.picked?.fill(false);
+      commonBox.checked = state.common = false;
+      setOpacity(OPACITY);
+      render();
+    };
+    const hover = (c) => { if (c !== state.hover) { state.hover = c; render(); } };
+    const cellAt = (e) => {
+      if (!state.data) return -1;
+      const r = startBox.getBoundingClientRect(), [gr, gc] = state.data.grid;
+      const c = Math.floor((e.clientX - r.left) / r.width * gc), q = Math.floor((e.clientY - r.top) / r.height * gr);
+      return c >= 0 && c < gc && q >= 0 && q < gr ? q * gc + c : -1;
+    };
+    const icon = (label, onclick, ...paths) => h('button', { type: 'button', class: 'lrp-icon', title: label, 'aria-label': label, onclick },
+      svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, paths.map(([d, fill]) => svg('path', { d, class: fill && 'lrp-icon-fill' }))));
+    const canvas = (heat) => h('canvas', { class: heat ? 'lrp-canvas lrp-heat' : 'lrp-canvas', width: 448, height: 448 });
+
+    const modelSelect = h('select', { 'aria-label': 'Model', onchange: () => { state.model = modelSelect.value; render(); } },
+      models.map((m) => h('option', { value: m.id, text: m.label })));
+    const opacity = h('input', { type: 'range', min: 0, max: 100, step: 5, value: OPACITY, 'aria-label': 'Map opacity', oninput: () => setOpacity(Number(opacity.value)) });
+    const opacityOut = h('output');
+    const commonBox = h('input', { type: 'checkbox', onchange: () => { state.common = commonBox.checked; render(); } });
+    const startBase = canvas(), startHeat = canvas(true), startMarks = canvas();
+    const startBox = h('div', {
+      class: 'lrp-start', role: 'img', 'aria-label': 'The start. Hover a cell to preview it, click cells to select them.',
+      onpointermove: (e) => { if (e.pointerType === 'mouse') hover(cellAt(e)); },
+      onpointerleave: () => hover(-1),
+      onclick: (e) => { const c = cellAt(e); if (c >= 0) { state.picked[c] = !state.picked[c]; render(); } },
+    }, startBase, startHeat, startMarks);
+    const tools = h('div', { class: 'lrp-tools', role: 'toolbar', 'aria-label': 'Start cells' },
+      icon('Invert the selection', invert, ['M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z'], ['M12 4a8 8 0 0 1 0 16z', true]),
+      icon('Reset: all cells, default scale and opacity', reset, ['M4 12a8 8 0 1 0 2.4-5.7'], ['M4 4v4.5h4.5']));
     const startCol = h('div', { class: 'lrp-col lrp-col--start' },
-      h('p', { class: 'lrp-layer-top', text: 'where it starts' }), startBox,
-      h('p', { class: 'lrp-layer-name' }, 'the features'), tools);
+      h('p', { class: 'lrp-layer-top', text: 'where it starts' }), startBox, h('p', { class: 'lrp-layer-name' }, 'the features'), tools);
     const ribbons = svg('svg', { class: 'lrp-ribbons', 'aria-hidden': 'true' });
-    const row = h('div', { class: 'lrp-row' }, ribbons, startCol);
+    const row = h('div', {
+      class: 'lrp-row',
+      onpointermove: (e) => {
+        if (e.pointerType !== 'mouse') return;
+        if (startCol.contains(e.target) || layers.at(-1)?.col.contains(e.target)) return zoomTo(-1);
+        const j = mids().findIndex((l) => { const r = l.col.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right; });
+        if (j >= 0) zoomTo(j);                        // in a gap keep the current one, so the row does not flicker
+      },
+      onpointerleave: () => zoomTo(-1),
+    }, ribbons, startCol);
     const readout = h('p', { class: 'lrp-result', 'aria-live': 'polite' });
     const status = h('p', { class: 'lrp-small lrp-status' });
     app.append(
@@ -472,34 +289,7 @@
         h('label', { class: 'lrp-check' }, commonBox, ' One colour scale for all depths')),
       row, readout, status);
 
-    const load = (model, item) => {
-      const key = `${model}_${item}`;
-      if (!cache.has(key)) {
-        cache.set(key, (async () => {
-          const [meta, buf] = await Promise.all([
-            fetch(`${base}${key}.json`).then((r) => r.json()),
-            fetch(`${base}${key}.dat`).then((r) => new Response(r.body.pipeThrough(new DecompressionStream('deflate'))).arrayBuffer()),
-          ]);
-          const q = new Int8Array(buf), cells = meta.grid[0] * meta.grid[1];
-          let offset = 0;
-          meta.levels.forEach((lv) => { const n = lv.size[0] * lv.size[1]; lv.q = q.subarray(offset, offset + cells * n); offset += cells * n; });
-          meta.cells = cells;
-          return meta;
-        })());
-      }
-      return cache.get(key);
-    };
-    const image = (item) => {
-      if (!images.has(item)) {
-        images.set(item, new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.src = thumbs.find((t) => t.dataset.item === item).dataset.src;
-        }));
-      }
-      return images.get(item);
-    };
-
+    /* relevance arithmetic */
     const sumLevel = (lv, sel) => {
       const n = lv.size[0] * lv.size[1], out = new Float32Array(n);
       sel.forEach((on, c) => {
@@ -519,37 +309,35 @@
     const resample = (v, [r, c]) => {               // nearest, so token and stage grids stay visible
       const out = new Float32Array(M * M);
       for (let y = 0; y < M; y++) {
-        const row = Math.min(r - 1, (y * r / M) | 0) * c;
-        for (let x = 0; x < M; x++) out[y * M + x] = v[row + Math.min(c - 1, (x * c / M) | 0)];
+        const o = Math.min(r - 1, (y * r / M) | 0) * c;
+        for (let x = 0; x < M; x++) out[y * M + x] = v[o + Math.min(c - 1, (x * c / M) | 0)];
       }
       return out;
     };
     const selection = () => {                       // clicked cells plus the hovered one; nothing clicked = all
       const any = state.picked.some(Boolean);
       if (state.hover < 0) return any ? state.picked : state.picked.map(() => true);
-      const sel = any ? state.picked.slice() : state.picked.map(() => false);
+      const sel = state.picked.map((p) => any && p);
       sel[state.hover] = true;
       return sel;
     };
 
+    /* drawing */
     const off = document.createElement('canvas');
-    const photo = (canvas, img) => canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    const photo = (c, img) => c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     // The maps are opaque, so the opacity slider blends between the plain photo (0) and the map alone (100).
     // soft: colour by the square root, so that the weak spread of the plain ViTs stays visible.
-    const paint = (canvas, values, n, { smooth = false, soft = false } = {}) => {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!values) return;
-      off.width = n[1]; off.height = n[0];
-      const octx = off.getContext('2d'), px = octx.createImageData(n[1], n[0]);
-      for (let i = 0; i < values.length; i++) {
-        const t = clamp(values[i], 0, 1), rgb = hot(soft ? Math.sqrt(t) : t);
-        px.data[i * 4] = rgb[0] * 255; px.data[i * 4 + 1] = rgb[1] * 255; px.data[i * 4 + 2] = rgb[2] * 255;
-        px.data[i * 4 + 3] = 255;
-      }
+    const heat = (target, values, [rows, cols], { smooth = false, soft = false } = {}) => {
+      off.width = cols; off.height = rows;
+      const octx = off.getContext('2d'), px = octx.createImageData(cols, rows);
+      values.forEach((x, i) => {
+        const t = clamp(x, 0, 1), [r, g, b] = hot(soft ? Math.sqrt(t) : t);
+        px.data.set([r * 255, g * 255, b * 255, 255], i * 4);
+      });
       octx.putImageData(px, 0, 0);
+      const ctx = target.getContext('2d');
       ctx.imageSmoothingEnabled = smooth;
-      ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(off, 0, 0, target.width, target.height);
     };
 
     let layers = [], token = 0, queued = 0;
@@ -557,39 +345,32 @@
       const names = meta.levels.length > 8 ? SHOWN : meta.levels.map((l) => l.name).filter((n) => n !== 'features');
       layers.forEach((l) => l.col.remove());
       layers = names.map((name) => {
-        const k = meta.levels.findIndex((l) => l.name === name);
-        const last = name === 'pixels';
-        const base = layer('', 448), canvas = layer('lrp-heat', 448);
-        const plane = h('div', { class: 'lrp-plane' }, base, canvas);
-        const num = h('b');
+        const last = name === 'pixels', base = canvas(), map = canvas(true), num = h('b');
+        const plane = h('div', { class: 'lrp-plane' }, base, map);
         const col = h('div', { class: 'lrp-col lrp-col--layer' },
-          h('p', { class: 'lrp-layer-top', text: last ? 'where it lands' : '' }),
-          plane,
-          h('p', { class: 'lrp-layer-name' }, LEVEL(name)[0], num));
+          h('p', { class: 'lrp-layer-top', text: last ? 'where it lands' : '' }), plane, h('p', { class: 'lrp-layer-name' }, where(name), num));
         row.append(col);
-        return { k, lv: meta.levels[k], base, canvas, plane, num, col, last };
+        return { lv: meta.levels.find((l) => l.name === name), base, map, plane, num, col, last };
       });
-      fish.sizes = []; layout();
+      relayout();
     };
 
     // The start and the pixels are the large panels at both ends. The depths between them are smaller, and the one
     // under the pointer grows like a thumbnail in the dock, its neighbours a little, while the others give up the
     // space, so the row keeps its width.
-    const fish = { zoom: -1, sizes: [], target: [], s0: 0, big: 0, frame: 0 };
+    const fish = { zoom: -1, sizes: [], target: [], s0: 0, frame: 0 };
     const mids = () => layers.slice(0, -1);
-    const sizesFor = (zoom, n, s0) => {
-      const w = Array.from({ length: n }, (_, i) => (zoom < 0 ? 1 : 1 + GROW * (i === zoom ? 1 : Math.abs(i - zoom) === 1 ? NEAR : 0)));
-      const sum = w.reduce((a, b) => a + b, 0);
-      return w.map((x) => x / sum * n * s0);
+    const sizesFor = (zoom, n) => {
+      const w = Array.from({ length: n }, (_, i) => 1 + GROW * (zoom < 0 ? 0 : i === zoom ? 1 : Math.abs(i - zoom) === 1 ? NEAR : 0));
+      const k = n * fish.s0 / w.reduce((a, b) => a + b, 0);
+      return w.map((x) => x * k);
     };
     const apply = () => {
-      startCol.style.width = `${fish.big}px`;
-      layers.at(-1).col.style.width = `${fish.big}px`;
+      startCol.style.width = layers.at(-1).col.style.width = `${BIG * fish.s0}px`;
       mids().forEach((l, i) => { l.col.style.width = `${fish.sizes[i]}px`; });
       drawRibbons();
     };
     const step = () => {
-      fish.frame = 0;
       let moving = false;
       fish.sizes = fish.sizes.map((s, i) => {
         const t = fish.target[i], next = calm.matches ? t : s + (t - s) * 0.24;
@@ -598,61 +379,53 @@
         return next;
       });
       apply();
-      if (moving) fish.frame = requestAnimationFrame(step);
+      fish.frame = moving ? requestAnimationFrame(step) : 0;
     };
     const layout = () => {
       if (narrow.matches || !layers.length) {
         [startCol, ...layers.map((l) => l.col)].forEach((c) => { c.style.width = ''; });
-        row.style.height = row.style.paddingBottom = ''; fish.zoom = -1;
-        drawRibbons();
-        return;
+        row.style.height = row.style.paddingBottom = '';
+        fish.zoom = -1;
+        return drawRibbons();
       }
-      const n = mids().length;
+      const n = layers.length - 1;
       // as wide as the row allows, but short enough that the panels and the controls fit on one screen
       fish.s0 = Math.min(0.28 * innerHeight, (row.clientWidth - (n + 1) * GAP) / (n + 2 * BIG));
-      fish.big = BIG * fish.s0;
-      fish.target = sizesFor(fish.zoom, n, fish.s0);
+      fish.target = sizesFor(fish.zoom, n);
       if (fish.sizes.length !== n) fish.sizes = fish.target.slice();
-      // room for the largest panel any hover can produce, so the page below never moves
-      const top = Math.max(fish.big, ...mids().map((_, j) => Math.max(...sizesFor(j, n, fish.s0))));
+      // room for the largest panel any hover can produce (an end depth, which has one neighbour), so the page below never moves
+      const top = Math.max(BIG * fish.s0, ...sizesFor(0, n));
       const labels = startCol.offsetHeight - startBox.offsetHeight;   // the toolbar hangs below, outside the column
-      const pad = tools.offsetHeight + 14;             // the toolbar under the start
+      const pad = tools.offsetHeight + 14;
       row.style.paddingBottom = `${pad}px`;
       row.style.height = `${Math.ceil(top + labels + pad)}px`;
       apply();
     };
+    const relayout = () => { fish.sizes = []; layout(); };
     const zoomTo = (j) => {
       if (j === fish.zoom || narrow.matches) return;
       fish.zoom = j;
-      fish.target = sizesFor(j, mids().length, fish.s0);
-      if (!fish.frame) fish.frame = requestAnimationFrame(step);
+      fish.target = sizesFor(j, mids().length);
+      fish.frame ||= requestAnimationFrame(step);
     };
-    row.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse') return;
-      if (startCol.contains(e.target) || layers.at(-1)?.col.contains(e.target)) { zoomTo(-1); return; }
-      const j = mids().findIndex((l) => { const r = l.col.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right; });
-      if (j >= 0) zoomTo(j);                          // in a gap keep the current one, so the row does not flicker
-    });
-    row.addEventListener('pointerleave', () => zoomTo(-1));
 
     // bands between the panels, as high as the amount that passes there (the same scale for all of them)
     const drawRibbons = () => {
       ribbons.replaceChildren();
-      const amounts = state.amounts;
-      if (getComputedStyle(ribbons).display === 'none' || !layers.length || !amounts) return;
+      const a = state.amounts;
+      if (!a || !layers.length || getComputedStyle(ribbons).display === 'none') return;
       const wrap = row.getBoundingClientRect();
       ribbons.setAttribute('viewBox', `0 0 ${wrap.width} ${wrap.height}`);
       const boxes = [startBox, ...layers.map((l) => l.plane)].map((el) => el.getBoundingClientRect());
-      const k = 0.45 * Math.min(...boxes.map((b) => b.height)) / Math.max(1, ...amounts);
-      const defs = svg('defs'), grad = svg('linearGradient', { id: 'lrp-ribbon', x1: 0, x2: 1, y1: 0, y2: 0 });
-      grad.append(svg('stop', { offset: 0, 'stop-color': '#e2552b', 'stop-opacity': 0.5 }), svg('stop', { offset: 1, 'stop-color': '#f2a33a', 'stop-opacity': 0.5 }));
-      defs.append(grad);
-      ribbons.append(defs);
-      for (let i = 0; i < boxes.length - 1; i++) {
-        const a = boxes[i], b = boxes[i + 1];
-        const ax = a.right - wrap.left, bx = b.left - wrap.left, mx = (ax + bx) / 2;
-        const ay = a.top - wrap.top + a.height / 2, by = b.top - wrap.top + b.height / 2;
-        const ha = k * clamp(amounts[i], 0, Infinity), hb = k * clamp(amounts[i + 1], 0, Infinity);
+      const k = 0.45 * Math.min(...boxes.map((b) => b.height)) / Math.max(1, ...a);
+      ribbons.append(svg('defs', {}, svg('linearGradient', { id: 'lrp-ribbon', x1: 0, x2: 1, y1: 0, y2: 0 },
+        svg('stop', { offset: 0, 'stop-color': '#e2552b', 'stop-opacity': 0.5 }),
+        svg('stop', { offset: 1, 'stop-color': '#f2a33a', 'stop-opacity': 0.5 }))));
+      for (let i = 1; i < boxes.length; i++) {
+        const p = boxes[i - 1], q = boxes[i];
+        const ax = p.right - wrap.left, bx = q.left - wrap.left, mx = (ax + bx) / 2;
+        const ay = p.top + p.height / 2 - wrap.top, by = q.top + q.height / 2 - wrap.top;
+        const ha = k * Math.max(0, a[i - 1]), hb = k * Math.max(0, a[i]);
         ribbons.append(svg('path', {
           class: 'lrp-ribbon',
           d: `M${ax},${ay - ha} C${mx},${ay - ha} ${mx},${by - hb} ${bx},${by - hb} L${bx},${by + hb} C${mx},${by + hb} ${mx},${ay + ha} ${ax},${ay + ha} Z`,
@@ -664,113 +437,66 @@
       const my = ++token;
       let meta, img;
       try {
-        [meta, img] = await Promise.all([load(state.model, state.item), image(state.item)]);
-      } catch (e) {
+        [meta, img] = await Promise.all([load(`${state.model}_${state.item}`), image(state.item)]);
+      } catch {
         status.textContent = 'The precomputed relevance could not be loaded.';
         return;
       }
       if (my !== token) return;
+      status.textContent = '';
       if (state.data !== meta) {
-        state.data = meta; state.img = img; state.hover = -1;
-        state.picked = new Array(meta.cells).fill(false);
+        Object.assign(state, { data: meta, hover: -1, picked: new Array(meta.cells).fill(false), amounts: null });
         build(meta);
-        photo(startBase, img);
-        layers.forEach((l) => photo(l.base, img));
+        [startBase, ...layers.map((l) => l.base)].forEach((c) => photo(c, img));
       }
-      const sel = selection(), all = sel.map(() => true), lv0 = meta.levels[0], g = meta.grid;
+      const sel = selection(), all = sel.map(() => true), lv0 = meta.levels[0], gc = meta.grid[1];
 
       // the start: positive features per cell (min to max), with the selection
-      const start = toGrid(sumLevel(lv0, all), lv0.size, g);
-      let lo = Infinity, hi = -Infinity;
-      for (const v of start) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-      paint(startHeat, start.map((v) => (v - lo) / (hi - lo || 1)), g, {});
-      const ctx = startMarks.getContext('2d'), cw = startMarks.width / g[1], ch = startMarks.height / g[0];
-      ctx.clearRect(0, 0, startMarks.width, startMarks.height);
+      const start = toGrid(sumLevel(lv0, all), lv0.size, meta.grid);
+      const lo = Math.min(...start), hi = Math.max(...start);
+      heat(startHeat, start.map((x) => (x - lo) / (hi - lo || 1)), meta.grid);
+      const ctx = startMarks.getContext('2d'), cw = startMarks.width / gc, ch = startMarks.height / meta.grid[0];
       const any = state.picked.some(Boolean), few = state.picked.filter(Boolean).length <= 12;
-      for (let r = 0; r < g[0]; r++) {
-        for (let c = 0; c < g[1]; c++) {
-          const i = r * g[1] + c, pick = state.picked[i], hov = i === state.hover;
-          if (any && !pick && !hov) { ctx.fillStyle = 'rgba(10, 16, 12, 0.6)'; ctx.fillRect(c * cw, r * ch, cw, ch); }
-          ctx.strokeStyle = pick ? (few ? '#fff' : 'rgba(255, 255, 255, 0.45)') : hov ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.2)';
-          ctx.lineWidth = pick ? (few ? 5 : 2) : hov ? 3 : 1.5;
-          ctx.setLineDash(hov && !pick ? [8, 6] : []);
-          ctx.strokeRect(c * cw + 2.5, r * ch + 2.5, cw - 5, ch - 5);
-        }
-      }
-      ctx.setLineDash([]);
+      ctx.clearRect(0, 0, startMarks.width, startMarks.height);
+      state.picked.forEach((pick, i) => {
+        const x = (i % gc) * cw, y = Math.floor(i / gc) * ch, hov = i === state.hover;
+        if (any && !pick && !hov) { ctx.fillStyle = 'rgba(10, 16, 12, 0.6)'; ctx.fillRect(x, y, cw, ch); }
+        ctx.strokeStyle = pick ? (few ? '#fff' : 'rgba(255, 255, 255, 0.45)') : hov ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = pick ? (few ? 5 : 2) : hov ? 3 : 1.5;
+        ctx.setLineDash(hov && !pick ? [8, 6] : []);
+        ctx.strokeRect(x + 2.5, y + 2.5, cw - 5, ch - 5);
+      });
 
       // the layers: exact maps, each scaled to its maximum or all on one scale (relevance per image area)
-      const raw = layers.map((l) => {
-        const area = l.lv.size[0] * l.lv.size[1];
-        return resample(sumLevel(l.lv, sel), l.lv.size).map((v) => Math.max(0, v * area));
+      const raw = layers.map(({ lv }) => {
+        const area = lv.size[0] * lv.size[1];
+        return resample(sumLevel(lv, sel), lv.size).map((x) => Math.max(0, x * area));
       });
-      let refs = raw.map((v) => { let p = 0; for (const x of v) p = Math.max(p, x); return p || 1; });
-      if (state.common) {
-        const p99 = raw.map((v) => { const s = Float32Array.from(v).sort(); return s[Math.floor(0.99 * (s.length - 1))]; });
-        refs = refs.map(() => Math.max(...p99) || 1);
-      }
+      const p99 = (x) => x.slice().sort()[Math.floor(0.99 * (x.length - 1))];
+      const common = state.common && (Math.max(...raw.map(p99)) || 1);
       const startAmount = amount(lv0, sel);
       const amounts = [1, ...layers.map((l) => amount(l.lv, sel) / startAmount)];
       layers.forEach((l, i) => {
-        paint(l.canvas, raw[i].map((v) => v / refs[i]), [M, M], { smooth: l.last, soft: true });
+        const ref = common || raw[i].reduce((m, x) => Math.max(m, x), 0) || 1;
+        heat(l.map, raw[i].map((x) => x / ref), [M, M], { smooth: l.last, soft: true });
         l.num.textContent = fmt(amounts[i + 1]);
       });
       state.amounts = amounts;
       drawRibbons();
 
-      const n = sel.filter(Boolean).length, share = startAmount / amount(lv0, all);
-      const arrive = fmt(amounts[amounts.length - 1]);
+      const n = sel.filter(Boolean).length, arrive = fmt(amounts.at(-1));
       readout.textContent = n === sel.length
         ? `All cells start with the whole amount of 1.00, and ${arrive} of it reaches the pixels. The rest stays with biases and other learned constants on the way.`
-        : `${n === 1 ? 'This cell holds' : `These ${n} cells hold`} ${fmt(share)} of the starting amount. Of that, ${arrive} reaches the pixels.`;
+        : `${n === 1 ? 'This cell holds' : `These ${n} cells hold`} ${fmt(startAmount / amount(lv0, all))} of the starting amount. Of that, ${arrive} reaches the pixels.`;
     };
-    const render = () => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; draw(); }); };
+    const render = () => { queued ||= requestAnimationFrame(() => { queued = 0; draw(); }); };
 
-    const cellAt = (e) => {
-      if (!state.data) return -1;
-      const r = startBox.getBoundingClientRect(), [gr, gc] = state.data.grid;
-      const c = Math.floor((e.clientX - r.left) / r.width * gc), q = Math.floor((e.clientY - r.top) / r.height * gr);
-      return c >= 0 && c < gc && q >= 0 && q < gr ? q * gc + c : -1;
-    };
-    startBox.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse') return;
-      const c = cellAt(e);
-      if (c !== state.hover) { state.hover = c; render(); }
-    });
-    startBox.addEventListener('pointerleave', () => { if (state.hover >= 0) { state.hover = -1; render(); } });
-    startBox.addEventListener('click', (e) => {
-      const c = cellAt(e);
-      if (c < 0 || !state.picked) return;
-      state.picked[c] = !state.picked[c];
-      render();
-    });
-    // nothing picked means all cells, so inverting all cells comes back to the full start
-    invertBtn.addEventListener('click', () => {
-      if (!state.picked) return;
-      const any = state.picked.some(Boolean);
-      state.picked = any ? state.picked.map((p) => !p) : state.picked.map(() => false);
-      if (state.picked.every(Boolean)) state.picked.fill(false);
-      render();
-    });
-    const setOpacity = (v) => {
-      opacity.value = v; opacityOut.textContent = `${v}%`;
-      root.style.setProperty('--lrp-heat-opacity', v / 100);
-    };
-    opacity.addEventListener('input', () => setOpacity(Number(opacity.value)));
-    resetBtn.addEventListener('click', () => {
-      if (state.picked) state.picked.fill(false);
-      commonBox.checked = false; state.common = false;
-      setOpacity(OPACITY);
-      render();
-    });
-    commonBox.addEventListener('change', () => { state.common = commonBox.checked; render(); });
-    modelSelect.addEventListener('change', () => { state.model = modelSelect.value; render(); });
     // the dock belongs to the shared gallery script; follow its selection
     new MutationObserver(() => {
       const on = thumbs.find((t) => t.getAttribute('aria-selected') === 'true');
       if (on && on.dataset.item !== state.item) { state.item = on.dataset.item; render(); }
     }).observe(root.querySelector('.fg-dock'), { attributes: true, subtree: true, attributeFilter: ['aria-selected'] });
-    addEventListener('resize', () => { fish.sizes = []; layout(); }, { passive: true });
+    addEventListener('resize', relayout, { passive: true });
 
     if (!('DecompressionStream' in window)) {
       status.textContent = 'This browser cannot unpack the precomputed relevance. A recent version of any major browser can.';
@@ -780,27 +506,13 @@
     render();
   };
 
-  const markColumns = (root) => root.querySelectorAll('.lrp-table').forEach((t) => {
-    const cols = Number(getComputedStyle(t).getPropertyValue('--lrp-cols')) || 4;
-    [...t.children].forEach((c, i) => c.classList.toggle('lrp-c0', i % cols === 0));
+  const init = () => document.querySelectorAll('[data-lrp-toy], [data-lrp-stack]').forEach((el) => {
+    if (el.dataset.ready) return;
+    el.dataset.ready = 'true';
+    el.replaceChildren();
+    if ('lrpStack' in el.dataset) stackExplorer(el.closest('figure'), el);
+    else if (el.dataset.lrpToy === 'neuron') neuronToy(el);
   });
-
-  const init = () => {
-    const toys = { neuron: neuronToy, activation: activationToy, layernorm: layerNormToy, attention: attentionToy, residual: residualToy };
-    document.querySelectorAll('[data-lrp-toy]').forEach((el) => {
-      if (el.dataset.ready) return;
-      el.dataset.ready = 'true';
-      el.replaceChildren();
-      toys[el.dataset.lrpToy]?.(el);
-      markColumns(el);
-    });
-    document.querySelectorAll('[data-lrp-stack]').forEach((el) => {
-      if (el.dataset.ready) return;
-      el.dataset.ready = 'true';
-      el.replaceChildren();
-      stackExplorer(el.closest('figure'), el);
-    });
-  };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();

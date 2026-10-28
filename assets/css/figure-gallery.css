@@ -1,14 +1,5 @@
 .fg {
-  --fg-accent: #14685f;
-  --fg-ink: #23362c;
-  --fg-muted: #5b6d63;
-  --fg-surface: #fafbf8;
-  --fg-raised: #fff;
-  --fg-line: #d9e2dc;
-  --fg-shadow: 18 44 34;
-  --fg-ink-inverse: #fff;
-  --fg-cell-bg: #eef1ec;
-  --fg-sticky-bg: var(--fg-surface);
+  --fg-sticky-bg: var(--fig-surface);
 
   --fg-thumb-min: 40px;
   --fg-thumb-selected: 62px;
@@ -33,39 +24,6 @@
   --fg-settle-step: 130ms;
   --fg-settle-wave: 420ms;
   --fg-settle-move: .2s;
-
-  margin: 2rem 0;
-  padding: 1.25rem;
-  border: 1px solid var(--fg-line);
-  border-radius: 14px;
-  background: var(--fg-surface);
-  color: var(--fg-ink);
-  font: .9375rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
-  box-sizing: border-box;
-
-  isolation: isolate;
-}
-
-.fg * {
-  box-sizing: border-box;
-}
-
-.fg-kicker {
-  margin: 0 0 .9rem;
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--fg-muted);
-}
-
-.fg figcaption {
-  margin-top: 1rem;
-  padding-top: .9rem;
-  border-top: 1px solid var(--fg-line);
-  text-align: left;
-  color: var(--fg-muted);
-  font-size: .8rem;
 }
 
 .fg-dock {
@@ -87,7 +45,7 @@
   padding: 0;
   border: 0;
   border-radius: 22%;
-  background: var(--fg-raised);
+  background: var(--fig-raised);
   cursor: pointer;
 
   transition:
@@ -107,13 +65,13 @@
   border: 0;
   border-radius: inherit;
   object-fit: cover;
-  box-shadow: 0 1px 2px rgb(var(--fg-shadow) / .18), 0 0 0 1px rgb(var(--fg-shadow) / .1) inset;
+  box-shadow: 0 1px 2px rgb(var(--fig-shadow) / .18), 0 0 0 1px rgb(var(--fig-shadow) / .1) inset;
   transition: box-shadow .2s ease;
 }
 
 .fg-thumb:hover img,
 .fg-thumb:focus-visible img {
-  box-shadow: 0 6px 16px -6px rgb(var(--fg-shadow) / .45), 0 0 0 1px rgb(var(--fg-shadow) / .12) inset;
+  box-shadow: 0 6px 16px -6px rgb(var(--fig-shadow) / .45), 0 0 0 1px rgb(var(--fig-shadow) / .12) inset;
 }
 
 .fg-thumb:focus {
@@ -121,15 +79,15 @@
 }
 
 .fg-thumb:focus-visible {
-  outline: 3px solid var(--fg-accent);
+  outline: 3px solid var(--fig-accent);
   outline-offset: 3px;
 }
 
 .fg-thumb[aria-selected="true"] img {
   box-shadow:
-    0 0 0 2px var(--fg-raised),
-    0 0 0 4px var(--fg-accent),
-    0 10px 20px -10px rgb(var(--fg-shadow) / .5);
+    0 0 0 2px var(--fig-raised),
+    0 0 0 4px var(--fig-accent),
+    0 10px 20px -10px rgb(var(--fig-shadow) / .5);
 }
 
 .fg-thumb[aria-selected="true"]::after {
@@ -139,7 +97,7 @@
   bottom: -.85rem;
   width: 7px;
   height: 7px;
-  background: var(--fg-accent);
+  background: var(--fig-accent);
   border-radius: 2px;
   transform: translateX(-50%) rotate(45deg);
 }
@@ -152,8 +110,8 @@
   padding: .16rem .5rem;
   max-width: 11rem;
   border-radius: 999px;
-  background: var(--fg-ink);
-  color: var(--fg-ink-inverse);
+  background: var(--fig-ink);
+  color: var(--fig-surface);
   font-size: .7rem;
   line-height: 1.5;
   white-space: nowrap;
@@ -183,7 +141,7 @@
 }
 
 .fg-count {
-  color: var(--fg-muted);
+  color: var(--fig-muted);
   font-size: .8rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -207,8 +165,8 @@
 
 .fg-controls-display {
   padding-top: .55rem;
-  border-top: 1px dashed var(--fg-line);
-  color: var(--fg-muted);
+  border-top: 1px dashed var(--fig-line);
+  color: var(--fig-muted);
 }
 
 .fg-control-slider,
@@ -230,7 +188,7 @@
   flex: 1 1 5rem;
   min-width: 5rem;
   min-height: 40px;
-  accent-color: var(--fg-accent);
+  accent-color: var(--fig-accent);
 }
 
 .fg-control-select select {
@@ -238,39 +196,20 @@
   min-height: 40px;
   max-width: 100%;
   padding: .3rem .5rem;
-  border: 1px solid var(--fg-line);
+  border: 1px solid var(--fig-line);
   border-radius: 6px;
-  background: var(--fg-raised);
+  background: var(--fig-raised);
   color: inherit;
   font: inherit;
   font-weight: 400;
 }
 
 .fg-control-slider output {
-  color: var(--fg-muted);
+  color: var(--fig-muted);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   min-width: 2.6rem;
   text-align: right;
-}
-
-.fg-control-toggle {
-  display: flex;
-  gap: .4rem;
-  align-items: center;
-  min-height: 40px;
-  cursor: pointer;
-}
-
-.fg-control-toggle input[type=checkbox] {
-  width: 17px;
-  height: 17px;
-  accent-color: var(--fg-accent);
-}
-
-.fg :is(input, select, button):focus-visible {
-  outline: 3px solid var(--fg-accent);
-  outline-offset: 3px;
 }
 
 .fg-panels {
@@ -280,10 +219,10 @@
   overscroll-behavior-x: contain;
 
   background:
-    linear-gradient(to right, var(--fg-surface) 30%, transparent) left / 26px 100% no-repeat local,
-    linear-gradient(to left, var(--fg-surface) 30%, transparent) right / 26px 100% no-repeat local,
-    radial-gradient(farthest-side at 0 50%, rgb(var(--fg-shadow) / .16), transparent) left / 11px 100% no-repeat scroll,
-    radial-gradient(farthest-side at 100% 50%, rgb(var(--fg-shadow) / .16), transparent) right / 11px 100% no-repeat scroll;
+    linear-gradient(to right, var(--fig-surface) 30%, transparent) left / 26px 100% no-repeat local,
+    linear-gradient(to left, var(--fig-surface) 30%, transparent) right / 26px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(var(--fig-shadow) / .16), transparent) left / 11px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(var(--fig-shadow) / .16), transparent) right / 11px 100% no-repeat scroll;
 }
 
 .fg-grid {
@@ -299,8 +238,12 @@
   grid-template-columns: repeat(var(--fg-cols, 3), minmax(0, var(--fg-cell-max)));
 }
 
+.fg.wide {
+  --fg-cell-max: 1fr;
+}
+
 .fg-grid > .fg-head {
-  color: var(--fg-muted);
+  color: var(--fig-muted);
   font-size: .69rem;
   font-weight: 700;
   letter-spacing: .05em;
@@ -334,7 +277,7 @@
   display: block;
   font-size: .86em;
   font-weight: 500;
-  color: var(--fg-muted);
+  color: var(--fig-muted);
 }
 
 .fg-grid:has(.fg-row-note) {
@@ -343,7 +286,7 @@
 
 .fg-cell-note {
   margin-top: -.3rem;
-  color: var(--fg-muted);
+  color: var(--fig-muted);
   font-size: .78rem;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -358,8 +301,8 @@
   content-visibility: auto;
   border-radius: 7px;
   overflow: hidden;
-  background: var(--fg-cell-bg);
-  box-shadow: 0 0 0 1px rgb(var(--fg-shadow) / .1) inset;
+  background: var(--fig-cell);
+  box-shadow: 0 0 0 1px rgb(var(--fig-shadow) / .1) inset;
 
   -webkit-user-select: none;
   user-select: none;
@@ -411,7 +354,6 @@
 }
 
 .fg-tile {
-
   margin: 0 -1px -1px 0;
   background-image: var(--fg-map);
   background-size: calc(var(--fg-n) * (100% - 1px)) calc(var(--fg-n) * (100% - 1px));
@@ -482,7 +424,7 @@
 .fg-help,
 .fg-note {
   font-size: .78rem;
-  color: var(--fg-muted);
+  color: var(--fig-muted);
 }
 
 .fg-note {
@@ -532,11 +474,11 @@
 }
 
 .fg-help > summary:hover {
-  color: var(--fg-accent);
+  color: var(--fig-accent);
 }
 
 .fg-help > summary:focus-visible {
-  outline: 3px solid var(--fg-accent);
+  outline: 3px solid var(--fig-accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -547,39 +489,9 @@
   padding: 0 0 0 .68rem;
 }
 
-/* on a glass band (.band--glass in _sass/widths.scss): matte glass with light ink */
-.band--glass .fg {
-  --fg-accent: var(--glass-accent, #8fe3d1);
-  --fg-ink: var(--glass-ink);
-  --fg-muted: var(--glass-muted);
-  --fg-surface: var(--glass-surface);
-  --fg-raised: var(--glass-raised);
-  --fg-line: var(--glass-line);
-  --fg-shadow: 0 0 0;
-  --fg-ink-inverse: #10302b;
-  --fg-cell-bg: var(--glass-track);
+:is(.band--glass, .band:not(.band--glass) > .fg) .fg-panels {
   --fg-sticky-bg: transparent;
-  box-shadow: var(--glass-shadow);
-}
-
-/* on a light band (.band in _sass/widths.scss) the band is the card */
-.band:not(.band--glass) > .fg {
-  --fg-sticky-bg: transparent;
-  padding-left: 0;
-  padding-right: 0;
-  border: 0;
-  border-radius: 0;
   background: none;
-}
-
-/* the scroll shadows need an opaque surface to hide behind */
-.band--glass .fg-panels,
-.band:not(.band--glass) > .fg .fg-panels { background: none; }
-
-@media (hover: none) {
-  .fg-control-toggle:has(.fg-reveal-toggle) {
-    display: none;
-  }
 }
 
 @media (max-width: 640px) {
@@ -588,7 +500,6 @@
     --fg-thumb-selected: 54px;
     --fg-thumb-max: 64px;
     --fg-label-width: 1.7rem;
-    padding: 1rem;
   }
 
   .fg-grid {
@@ -609,7 +520,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .fg-thumb,
   .fg-thumb img,
   .fg-thumb-label,
@@ -627,7 +537,6 @@
 }
 
 @media print {
-
   .fg-controls,
   .fg-dock,
   .fg-help {
@@ -637,9 +546,5 @@
   .fg-stack.fg-armed .fg-tiles,
   .fg-stack.fg-armed:not(.fg-tiled) .fg-overlay {
     opacity: var(--fg-overlay-opacity);
-  }
-
-  .fg {
-    break-inside: avoid;
   }
 }

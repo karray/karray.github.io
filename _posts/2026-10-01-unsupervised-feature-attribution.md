@@ -1,7 +1,6 @@
 ---
 layout: post
 styles:
-  - /assets/css/lafam.css
   - /assets/css/posts/lafam-header.css
 header: lafam.html
 header_class: lafam-header
@@ -88,7 +87,7 @@ The reduction itself requires a choice. Unlike the ReLU outputs of a ResNet, ViT
 
 ### Results
 
-{% include heatmap-grid.html id="lafam-results" data=page.lafam_results %}
+{% include heatmap-grid.html id="lafam-results" data=page.lafam_results class="wide" %}
 
 The grid shows label-free heatmaps from a supervised ConvNeXt for five images, four of which contain several objects. When a scene contains more than one object, the map does not pick a winner. The dog and the cat both light up, and so do both dogs and all six objects. With no class to choose, every object the encoder responds to strongly stays in the map.
 
@@ -296,7 +295,7 @@ The example also shows where the maps stop. They tell us where the representatio
 
 The first figure includes three plain vision transformers, DINOv1, DINOv3 and MAE, and their maps behave much like those of the CNNs. For three other plain ViTs, a supervised ViT-B/16, a CLIP ViT-B/16 and DINOv2, the same reduction fails. Their maps are bright almost everywhere apart from a handful of much darker tokens, and the objects are hard to find.
 
-{% include figure-gallery.html id="lafam-reductions" data=site.data.galleries.lafam_reductions %}
+{% include figure-gallery.html id="lafam-reductions" data=site.data.galleries.lafam_reductions class="wide" %}
 
 What sets the two groups apart? The obvious suspect is the ReLU, but it does not throw most of the values away. In every plain ViT we looked at, about half of all feature values are positive, just as in the CNNs. Two other differences stand out.
 

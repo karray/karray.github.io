@@ -1,6 +1,5 @@
 {
  "opacity": 100,
- "reveal": true,
  "rows": [
   {
    "id": "convnext",
@@ -127,6 +126,5 @@
   "dino_vit|layernorm|spider_web": "1.4e+05 reaches the pixels",
   "dino_vit|all|spider_web": "0.07 reaches the pixels"
  },
- "help": "Pick an image from the dock and compare the columns across a row. Each row is one model. The number under a map is how much of the starting amount of 1 arrives at the pixels.",
- "style": "--fg-cell-max: 240px;"
+ "help": "Pick an image from the dock and compare the columns across a row. Each row is one model. The number under a map is how much of the starting amount of 1 arrives at the pixels."
 }

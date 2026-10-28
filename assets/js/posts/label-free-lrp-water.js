@@ -95,36 +95,6 @@
     }
   };
 
-  const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
-  const gelu = (x) => 0.5 * x * (1 + erf(x / Math.SQRT2));
-  const geluSlope = (x) => 0.5 * (1 + erf(x / Math.SQRT2)) + x * Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI);
-  const diagFwd = (a, z) => ({ z, fwd: Array.from(a, (_, i) => { const r = new Float64Array(a.length); r[i] = Math.max(0, z[i]); return r; }) });
-  const spread = (a) => { const n = a.length, m = a.reduce((s, v) => s + v, 0) / n; return { n, m, sd: Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / n + 1e-5) }; };
-  const lnOp = (gam) => ({
-    forward: (a) => {
-      const { n, m, sd } = spread(a), z = Float64Array.from(a, (v, i) => gam[i] * (v - m) / sd), fwd = [...Array(n)].map(() => new Float64Array(n));
-      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const c = gam[i] / sd * ((i === j) - 1 / n) * a[j]; if (c > 0) fwd[j][i] += c; }
-      return { z, fwd };
-    },
-    step: (mode, a, zr, z, cfg) => (R, fn) => {
-      const { n, m, sd } = spread(a), xh = Array.from(a, (v) => (v - m) / sd);
-      for (let i = 0; i < n; i++) {
-        if (!R[i]) continue;
-        if (cfg.ln === 'none') { for (let j = 0; j < n; j++) fn(j, i, gam[i] / sd * ((i === j) - 1 / n - xh[i] * xh[j] / n) * R[i]); continue; }
-        if (Math.abs(z[i]) < 1e-9) continue;
-        for (let j = 0; j < n; j++) fn(j, i, gam[i] / sd * ((i === j) - 1 / n) * a[j] * R[i] / z[i]);
-      }
-    },
-  });
-  const geluOp = () => ({
-    forward: (a) => diagFwd(a, a.map(gelu)),
-    step: (mode, a, zr, z, cfg) => (R, fn) => { for (let i = 0; i < a.length; i++) if (R[i]) fn(i, i, cfg.gelu === 'none' ? geluSlope(a[i]) * R[i] : R[i]); },
-  });
-  const addOp = () => ({
-    forward: (a) => diagFwd(a, Float64Array.from(a)),
-    step: (mode, a, zr, z, cfg) => (R, fn) => { for (let i = 0; i < a.length; i++) if (R[i]) fn(i, i, cfg.add === 'copy' ? R[i] : Math.abs(z[i]) > 1e-9 ? a[i] / z[i] * R[i] : 0); },
-  });
-
   const convOp = (C, H, w, O) => ({
     forward: (a) => convFwd(a, C, H, w, O),
     step: (mode, a, z) => (mode === 'lrp0' ? conv0(a, C, H, w, O) : mode === 'rules' ? conv5(a, C, H, w, O) : gconv5(C, H, w, O, z, mode === 'guided')),
@@ -151,37 +121,6 @@
       { from: 4, to: 5, op: denseOp(W4, 10) },
     ],
   });
-  const blockNet = ([W0, W1, W2, G, F1, F2, W3, W4]) => ({
-    layers: [
-      { kind: 'image', count: 1, side: 28, ms: 96, x: 56, gap: 0, name: () => 'the pixels' },
-      { kind: 'map', count: 3, side: 14, ms: 70, x: 152, gap: 100, relu: true, name: (i) => `first-layer map ${i + 1}` },
-      { kind: 'map', count: 5, side: 7, ms: 44, x: 228, gap: 62, relu: true, name: (i) => `second-layer map ${i + 1}` },
-      { kind: 'unit', count: 8, x: 286, gap: 40, relu: true, name: (i) => `unit ${i + 1} before the block` },
-      { kind: 'unit', count: 8, x: 330, gap: 40, dy: 20, label: 'LayerNorm', name: (i) => `LayerNorm unit ${i + 1}` },
-      { kind: 'unit', count: 8, x: 372, gap: 40, dy: 20, label: 'linear', name: (i) => `linear unit ${i + 1}` },
-      { kind: 'unit', count: 8, x: 414, gap: 40, dy: 20, label: 'GELU', name: (i) => `GELU unit ${i + 1}` },
-      { kind: 'unit', count: 8, x: 456, gap: 40, dy: 20, label: 'linear', name: (i) => `second linear unit ${i + 1}` },
-      { kind: 'unit', count: 8, x: 500, gap: 40, label: 'sum', name: (i) => `unit ${i + 1} after the block` },
-      { kind: 'unit', count: 5, x: 550, gap: 56, relu: true, name: (i) => `feature ${i + 1}` },
-      { kind: 'output', count: 10, x: 600, gap: 36, name: () => 'the output' },
-    ],
-    links: [
-      { from: 0, to: 1, op: convOp(1, 28, W0, 3) },
-      { from: 1, to: 2, op: convOp(3, 14, W1, 5) },
-      { from: 2, to: 3, op: denseOp(W2, 8, 49) },
-      { from: 3, to: 4, op: lnOp(G) },
-      { from: 4, to: 5, op: denseOp(F1, 8) },
-      { from: 5, to: 6, op: geluOp(), diag: true },
-      { from: 6, to: 7, op: denseOp(F2, 8) },
-      { from: 7, to: 8, op: addOp(), diag: true },
-      { from: 3, to: 8, op: addOp(), diag: true, skip: true },
-      { from: 8, to: 9, op: denseOp(W3, 5) },
-      { from: 9, to: 10, op: denseOp(W4, 10) },
-    ],
-    band: [4, 7],
-  });
-  const NETS = { digit: digitNet, block: blockNet };
-  const RULES = { add: 'split', ln: 'rule', gelu: 'rule' };
 
   /* ---------- colours and map images ---------- */
   const greyRamp = (t) => { const v = Math.round(255 - 205 * t); return [v, v, v + 2]; };
@@ -240,10 +179,10 @@
       if (!weights.has(root.dataset.src)) weights.set(root.dataset.src, fetch(root.dataset.src).then((r) => r.json()));
       data = await weights.get(root.dataset.src);
     } catch (e) { readoutEl.textContent = 'The network could not be loaded.'; return; }
-    const spec = (NETS[root.dataset.net] || digitNet)(data.weights), LY = spec.layers, LK = spec.links, L = LY.length - 1;
+    const spec = digitNet(data.weights), LY = spec.layers, LK = spec.links, L = LY.length - 1;
     LY.forEach((ly) => {
       ly.group = ly.side ? ly.side * ly.side : 1;
-      ly.ys = Array.from({ length: ly.count }, (_, i) => CY + (i - (ly.count - 1) / 2) * ly.gap + (ly.dy || 0));
+      ly.ys = Array.from({ length: ly.count }, (_, i) => CY + (i - (ly.count - 1) / 2) * ly.gap);
     });
     LK.forEach((lk, n) => { lk.n = n; });
     const into = LY.map((_, l) => LK.filter((lk) => lk.to === l));
@@ -259,7 +198,7 @@
       }
       const act = LY.slice(0, L).map((ly, l) => Array.from({ length: ly.count }, (_, i) => { let s = 0; for (let p = 0; p < ly.group; p++) s += A[l][i * ly.group + p]; return s / ly.group; }));
       const cache = {};
-      const stepsFor = (mode, cfg = RULES) => (cache[`${mode}|${JSON.stringify(cfg)}`] ??= LK.map((lk) => lk.op.step(mode, A[lk.from], LY[lk.to].relu ? Z[lk.to] : null, Z[lk.to], cfg)));
+      const stepsFor = (mode) => (cache[mode] ??= LK.map((lk) => lk.op.step(mode, A[lk.from], LY[lk.to].relu ? Z[lk.to] : null)));
       return { A, Z, F, act, logits: A[L], stepsFor };
     };
 
@@ -281,7 +220,7 @@
     // LRP from the score of class cls, optionally kept to one node of one layer. Down: the relevance from the start
     // (only the node's share continues below it). Up: the part of every earlier flow that ends up in that node.
     const explain = (only) => {
-      const steps = net.stepsFor(state.mode, state.cfg), R = zeros();
+      const steps = net.stepsFor(state.mode), R = zeros();
       R[L][cls] = startOf(cls);
       const C = backward(R, L, steps);
       if (!only) return { disp: R, flows: LK.map((lk) => flowMatrix(lk, C[lk.n])) };
@@ -334,9 +273,6 @@
     const startOf = (k) => (!isLRP() || net.logits[k] >= 0 ? 1 : state.mode === 'lrp0' ? -1 : 0);
     const modeOf = () => (state.method === 'gradient' ? (state.sign === 'pos' ? 'guided' : 'gradient') : (state.sign === 'pos' ? 'rules' : 'lrp0'));
     state.mode = modeOf();
-    state.cfg = { ...RULES };
-    root.querySelectorAll('.lrpw-op[aria-pressed=true]').forEach((b) => { state.cfg[b.dataset.op] = b.dataset.val; });
-    const modeKey = () => `${state.mode}|${state.cfg.add}|${state.cfg.ln}|${state.cfg.gelu}`;
     const leaveTimers = {};
     const enterSoon = (kind) => { clearTimeout(leaveTimers[kind]); };
     const leaveSoon = (kind, fn) => { clearTimeout(leaveTimers[kind]); leaveTimers[kind] = setTimeout(fn, 160); };
@@ -350,12 +286,6 @@
       S('text', { class: 'lrpw-title lrpw-title--rel', x: 900, y: 34, 'text-anchor': 'middle' }, svg).textContent = 'Explanation';
       S('line', { class: 'lrpw-divider', x1: W / 2, x2: W / 2, y1: 52, y2: 452 }, svg);
       S('text', { class: 'lrpw-total-label', x: W - LY[L - 1].x - 30, y: 474, 'text-anchor': 'end' }, svg).textContent = 'total';
-      const labelled = LY.filter((ly) => ly.label), top = labelled.length ? Math.min(...labelled.flatMap((ly) => ly.ys)) : 0;
-      labelled.forEach((ly, n) => { for (const x of [ly.x, W - ly.x]) S('text', { class: 'lrpw-col-label', x, y: top - 22 - (n % 2) * 13, 'text-anchor': 'middle' }, svg).textContent = ly.label; });
-      if (spec.band) {
-        const [a, b] = spec.band.map((l) => LY[l]), ys = LY.slice(spec.band[0], spec.band[1] + 1).flatMap((ly) => ly.ys);
-        for (const x of [a.x - 24, W - b.x - 24]) S('rect', { class: 'lrpw-band', x, y: Math.min(...ys) - 18, width: b.x - a.x + 48, height: Math.max(...ys) - Math.min(...ys) + 36, rx: 12 }, svg);
-      }
       const totals = LY.slice(0, L).map((ly) => S('text', { class: 'lrpw-total', x: W - ly.x, y: 474, 'text-anchor': 'middle' }, svg));
       S('text', { class: 'lrpw-hint', x: LY[0].x, y: CY - LY[0].ms / 2 - 10, 'text-anchor': 'middle' }, svg).textContent = 'draw a digit here';
       const gE = S('g', {}, svg), gN = S('g', {}, svg), gH = S('g', {}, svg);
@@ -383,10 +313,10 @@
         return curve(a.anchor(1, off(a, na, side === 'fwd' ? k : j)), b.anchor(-1, off(b, nb, side === 'fwd' ? j : k)));
       };
       const edge = (side, lk, j, k) => {
-        const el = S('path', { class: `lrpw-edge lrpw-edge--${side}${lk.skip ? ' lrpw-edge--skip' : ''}`, d: pair(side, lk, j, k) }, gE);
+        const el = S('path', { class: `lrpw-edge lrpw-edge--${side}`, d: pair(side, lk, j, k) }, gE);
         return { el, n: lk.n, j, k };
       };
-      const pairs = (lk, fn) => { for (let j = 0; j < LY[lk.from].count; j++) for (let k = 0; k < LY[lk.to].count; k++) if (!lk.diag || j === k) fn(j, k); };
+      const pairs = (lk, fn) => { for (let j = 0; j < LY[lk.from].count; j++) for (let k = 0; k < LY[lk.to].count; k++) fn(j, k); };
       LK.forEach((lk) => pairs(lk, (j, k) => fwdEdges.push(edge('fwd', lk, j, k))));
       [...LK].reverse().forEach((lk) => pairs(lk, (j, k) => relEdges.push(edge('rel', lk, j, k))));
       // hover: units and whole maps on both sides (not the image, the pixels or the output); a tap does the same
@@ -431,7 +361,7 @@
     };
 
     /* ---------- views: computed once per hovered node and class, then kept ---------- */
-    const key = (h) => `${modeKey()}|${h ? `${h.side}|${h.l}|${h.i}` : 'none'}`;
+    const key = (h) => `${state.mode}|${h ? `${h.side}|${h.l}|${h.i}` : 'none'}`;
     const view = (h) => {
       const k = key(h);
       if (views.has(k)) return views.get(k);
@@ -503,17 +433,12 @@
       readout(v);
     };
     const refresh = () => {
-      const fk = `${modeKey()}|${cls}`;
+      const fk = `${state.mode}|${cls}`;
       if (!fulls.has(fk)) { fulls.set(fk, explain(null)); viewSets.set(fk, new Map()); }
       full = fulls.get(fk); views = viewSets.get(fk);
     };
     const setClass = (k) => { cls = k; refresh(); paint(); };
     const setHover = (h) => { if (key(h) !== key(state.hover)) { state.hover = h; paint(); } };
-    root.querySelectorAll('.lrpw-op').forEach((b) => b.addEventListener('click', () => {
-      state.cfg[b.dataset.op] = b.dataset.val; state.hover = null;
-      root.querySelectorAll(`.lrpw-op[data-op=${b.dataset.op}]`).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
-      refresh(); paint();
-    }));
     for (const [sel, field] of [['.lrpw-mode', 'method'], ['.lrpw-sign', 'sign']]) root.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => {
       state[field] = b.dataset[field === 'method' ? 'mode' : 'sign']; state.mode = modeOf(); state.hover = null;
       root.querySelectorAll(sel).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
@@ -543,14 +468,6 @@
           guided: 'Guided backpropagation passes back only the positive part of the gradient at every unit, and the amount still changes from layer to layer. Blue in a column is what arrives there before its units drop it. The pixels drop nothing, so some blue remains in the final map.',
         }[state.mode]);
         if (state.mode !== 'rules') parts.push('Blue lines and pixels carry negative amounts.');
-        if (root.querySelector('.lrpw-op')) {
-          const T = v.tot, c = state.cfg, skip = c.add === 'copy' ? T[8] : T[8] - T[7];
-          parts.push(c.add === 'copy' ? `The addition copies, so the skip and the block each receive the full <b>${fmt(T[8])}</b>, and the units before the block end up with <b>${fmtTot(T[3])}</b>.`
-            : `The addition splits the <b>${fmt(T[8])}</b> between the skip, <b>${fmt(skip)}</b>, and the block, <b>${fmt(T[7])}</b>, in proportion to what each added.`);
-          if (c.gelu === 'none') parts.push(`Without its rule, GELU multiplies the relevance by its slope, and only <b>${fmt(T[5])}</b> of the <b>${fmt(T[6])}</b> gets past it.`);
-          if (c.ln === 'none') parts.push(`Without its rule, LayerNorm turns the <b>${fmt(T[4])}</b> that reaches it into positive and negative amounts that add up to <b>${fmtTot(T[3] - skip)}</b>.`);
-          if (c.add === 'split' && c.gelu === 'rule' && c.ln === 'rule') parts.push('With all three rules, every column holds the same total.');
-        }
       }
       readoutEl.innerHTML = parts.join(' ');
     };

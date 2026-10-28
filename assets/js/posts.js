@@ -1,4 +1,4 @@
-// The scrollbar width, for the page width of .wide and .bleed blocks (see _sass/widths.scss). Watching the root
+// The scrollbar width, for the page width of .wide and .full blocks (see _sass/figures.scss). Watching the root
 // catches a scrollbar that appears as the page grows, not only window resizes.
 (() => {
   const root = document.documentElement;

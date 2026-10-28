@@ -35,8 +35,8 @@ That sounds like the spatial information has disappeared. But look at what happe
 
 Suppose a head turns a feature value into a score by multiplying it by two and adding one. If two locations contain feature values of 1 and 3, we can calculate the answer either way:
 
-<figure class="mil-figure">
-  <div class="mil-kicker">01 / Two routes, one answer</div>
+<figure class="fig mil-figure">
+  <div class="fig-kicker">01 / Two routes, one answer</div>
   <div class="mil-routes">
     <div><strong>Average, then score</strong><span class="mil-step">Features: 1 and 3</span><span class="mil-arrow">↓ average</span><span class="mil-step">Summary: 2</span><span class="mil-arrow">↓ multiply by 2, add 1</span><span class="mil-answer">Score: 5</span></div>
     <div><strong>Score, then average</strong><span class="mil-step">Features: 1 and 3</span><span class="mil-arrow">↓ multiply each by 2, add 1</span><span class="mil-step">Local scores: 3 and 7</span><span class="mil-arrow">↓ average</span><span class="mil-answer">Score: 5</span></div>
@@ -82,8 +82,8 @@ Consider a toy grid with 36 positions. At object positions, the dog score is 6 a
 
 Every object position favors “dog.” Yet if there are only six such positions, the average dog score is 1 and the average bicycle score is about 1.67. The final prediction is “bicycle.”
 
-<figure class="mil-figure" id="mil-area">
-  <div class="mil-kicker">02 / When local evidence loses</div>
+<figure class="fig mil-figure" id="mil-area">
+  <div class="fig-kicker">02 / When local evidence loses</div>
   <p class="mil-instruction">Change how many positions support the dog. Their individual scores stay fixed.</p>
   <label for="mil-count">Dog-supporting positions: <output id="mil-count-value" for="mil-count">6 of 36</output></label>
   <input id="mil-count" type="range" min="1" max="35" value="6" disabled>
@@ -111,8 +111,8 @@ There is an important boundary to this example. Adding positions with zero score
 
 If averaging loses a small object, taking the maximum score sounds attractive. One strong position would be enough. But it would also be enough if that position were wrong.
 
-<figure class="mil-figure" id="mil-outlier">
-  <div class="mil-kicker">03 / The loudest observer can be mistaken</div>
+<figure class="fig mil-figure" id="mil-outlier">
+  <div class="fig-kicker">03 / The loudest observer can be mistaken</div>
   <p>Eight positions support dog with score 2. One other position supports bicycle with the score below. All remaining class scores are zero.</p>
   <label for="mil-spike">One bicycle score: <output id="mil-spike-value" for="mil-spike">5</output></label>
   <input id="mil-spike" type="range" min="0" max="20" step="1" value="5" disabled>
@@ -139,8 +139,8 @@ The lesson is to ask what an error actually measures. Failure to choose the one 
 
 The paper also checks pretrained ImageNet classifiers against object bounding boxes. For ResNet-50, the image prediction is correct on 80.3% of images; the target wins at least one foreground grid cell on 94.3%. Yet only 33.7% of foreground cells predict the target. These are three different measurements, shown below. [Source: Table 1](https://arxiv.org/html/2606.14555v1#S5.T1).
 
-<figure class="mil-figure">
-  <div class="mil-kicker">04 / A correct answer somewhere is not a complete object map</div>
+<figure class="fig mil-figure">
+  <div class="fig-kicker">04 / A correct answer somewhere is not a complete object map</div>
   <p><strong>ResNet-50 · ImageNet validation</strong></p>
   <div class="mil-evidence-row"><span>Correct image prediction</span><strong>80.3%</strong><div class="mil-track"><div class="mil-bar mil-neutral-bar" style="width:80.3%"></div></div></div>
   <div class="mil-evidence-row"><span>Target wins somewhere in foreground</span><strong>94.3%</strong><div class="mil-track"><div class="mil-bar mil-dog-bar" style="width:94.3%"></div></div></div>

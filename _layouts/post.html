@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="post-layout" lang="{{ page.lang | default: site.lang | default: "en" }}">
+<html lang="{{ page.lang | default: site.lang | default: "en" }}">
 {%- include head.html %}
 <body itemscope itemtype="http://schema.org/BlogPosting">
   {%- assign date_format = site.minima.date_format | default: "%-d %B %Y" -%}
@@ -9,17 +9,10 @@
   <span>·</span><span>{{ content | strip_html | number_of_words | divided_by: 220 | at_least: 1 }} min read</span>
   {%- endcapture -%}
 
-  {%- if page.header %}
-  {% include masthead.html kind="post" title=page.title art=page.header class=page.header_class dark=page.header_dark %}
-  {%- else %}
   {%- assign kicker = page.tags | slice: 0, 3 | join: " · " | remove: "," | replace: "-", " " %}
-  {% include masthead.html kind="post" title=page.title kicker=kicker meta=meta %}
-  {%- endif %}
+  {% include masthead.html kind="post" title=page.title kicker=kicker meta=meta art=page.header class=page.header_class dark=page.header_dark %}
   <main class="page-content" aria-label="Content">
     <div class="wrapper">
-      {%- if page.header %}
-      <p class="post-meta">{{ meta }}</p>
-      {%- endif %}
       <article class="post h-entry">
         <div class="post-content e-content" itemprop="articleBody">
           {{ content }}

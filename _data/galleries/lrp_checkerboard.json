@@ -1,7 +1,6 @@
 {
   "kicker": "03 · A checkerboard made of two branches",
   "opacity": 100,
-  "reveal": true,
   "controls": [
     {
       "name": "model",
@@ -29,32 +28,32 @@
     {"label": "Split · Shortcut", "layer": "magnitude_shortcut"},
     {"label": "Split · Sum", "layer": "magnitude_sum"}
   ],
-  "overlay": "/assets/img/posts/lrp-without-labels/checkerboard_{row}_{item}_{layer}.png",
+  "overlay": "/assets/img/posts/lrp-architecture/checkerboard_{row}_{item}_{layer}.png",
   "items": [
     {
       "id": "dog_cat",
       "label": "Dog and cat",
-      "src": "/assets/img/posts/lrp-without-labels/dog_cat.png"
+      "src": "/assets/img/posts/lrp-architecture/dog_cat.png"
     },
     {
       "id": "dog_dog",
       "label": "Two dogs",
-      "src": "/assets/img/posts/lrp-without-labels/dog_dog.png"
+      "src": "/assets/img/posts/lrp-architecture/dog_dog.png"
     },
     {
       "id": "fish_person",
       "label": "Fish and person",
-      "src": "/assets/img/posts/lrp-without-labels/fish_person.png"
+      "src": "/assets/img/posts/lrp-architecture/fish_person.png"
     },
     {
       "id": "spider_web",
       "label": "Spider web",
-      "src": "/assets/img/posts/lrp-without-labels/spider_web.png"
+      "src": "/assets/img/posts/lrp-architecture/spider_web.png"
     },
     {
       "id": "misc",
       "label": "Six-object montage",
-      "src": "/assets/img/posts/lrp-without-labels/misc.png"
+      "src": "/assets/img/posts/lrp-architecture/misc.png"
     }
   ],
   "help": "Choose an image with the dock and a checkpoint from the dropdown. “Unsplit” and “Split” use identical incoming relevance — only how the residual is divided between branches differs. Hover over a map to reveal the original; on a touch screen, tap or hold it.",

@@ -2,8 +2,7 @@
 The water figure of the LRP post: the classic LRP illustration as a live network. The forward pass and LRP run in
 assets/js/posts/label-free-lrp-water.js on a tiny CNN trained on MNIST (weights in assets/data/label-free-lrp/water.json).
 {%- endcomment -%}
-{%- if include.net == 'block' %}{% assign lrp_water_src = '/assets/data/label-free-lrp/water-block.json' %}{% else %}{% assign lrp_water_src = '/assets/data/label-free-lrp/water.json' %}{% endif %}
-<figure class="lrp-fig lrp-water wide" data-lrp-water data-net="{{ include.net | default: 'digit' }}" data-src="{{ lrp_water_src | relative_url }}">
+<figure class="fig lrp-fig lrp-water wide" data-lrp-water data-src="{{ '/assets/data/label-free-lrp/water.json' | relative_url }}">
   {%- if include.gradient %}
   <div class="lrpw-controls">
     <div class="lrpw-modes" role="group" aria-label="How the relevance is passed back">
@@ -13,25 +12,6 @@ assets/js/posts/label-free-lrp-water.js on a tiny CNN trained on MNIST (weights 
     <div class="lrpw-modes" role="group" aria-label="Which amounts are passed back">
       <button type="button" class="lrpw-sign" data-sign="all" aria-pressed="{% if include.sign == 'pos' %}false{% else %}true{% endif %}">Keep negative amounts</button>
       <button type="button" class="lrpw-sign" data-sign="pos" aria-pressed="{% if include.sign == 'pos' %}true{% else %}false{% endif %}">Positive only</button>
-    </div>
-  </div>
-  {%- endif %}
-  {%- if include.net == 'block' %}
-  <div class="lrpw-controls">
-    <div class="lrpw-modes" role="group" aria-label="The addition">
-      <span class="lrpw-label">addition</span>
-      <button type="button" class="lrpw-op" data-op="add" data-val="split" aria-pressed="true">Split</button>
-      <button type="button" class="lrpw-op" data-op="add" data-val="copy" aria-pressed="false">Copy</button>
-    </div>
-    <div class="lrpw-modes" role="group" aria-label="LayerNorm">
-      <span class="lrpw-label">LayerNorm</span>
-      <button type="button" class="lrpw-op" data-op="ln" data-val="rule" aria-pressed="true">With its rule</button>
-      <button type="button" class="lrpw-op" data-op="ln" data-val="none" aria-pressed="false">Without</button>
-    </div>
-    <div class="lrpw-modes" role="group" aria-label="GELU">
-      <span class="lrpw-label">GELU</span>
-      <button type="button" class="lrpw-op" data-op="gelu" data-val="rule" aria-pressed="true">With its rule</button>
-      <button type="button" class="lrpw-op" data-op="gelu" data-val="none" aria-pressed="false">Without</button>
     </div>
   </div>
   {%- endif %}

@@ -1,6 +1,5 @@
 {
  "opacity": 100,
- "reveal": true,
  "rows": [
   {
    "id": "resnet50",
@@ -224,6 +223,5 @@
   "mae|gamma|spider_web": "0.37 reaches the pixels"
  },
  "help": "Pick an image, then compare the four splits across a row. Each row is one model, and every other rule stays the same.",
- "caption": "As in the first gallery, each map shows the positive part of the relevance, scaled to its own maximum, and the number under it is the relevance that reaches the pixels.",
- "style": "--fg-cell-max: 220px;"
+ "caption": "As in the first gallery, each map shows the positive part of the relevance, scaled to its own maximum, and the number under it is the relevance that reaches the pixels."
 }
