@@ -18,6 +18,7 @@ a:hover { color: var(--ink); }
 hr { border-color: var(--line); }
 blockquote { color: var(--muted); border-left-color: var(--accent); }
 pre, code { background: var(--surface); border-color: var(--line); }
+code { color: inherit; }
 .highlight { background: var(--surface); }
 table { color: var(--ink); border-color: var(--line); }
 table th, table td { border-color: var(--line); }

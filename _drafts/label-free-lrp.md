@@ -5,6 +5,11 @@ styles:
   - /assets/css/posts/label-free-lrp.css
 tags: XAI, LRP, CNN, ViT, Self-Supervised Learning
 description: When LRP encounters a layer without a rule, it silently falls back to the gradient, turning heatmaps into noise or producing convincing pictures backed by impossible numbers.
+image:
+  path: /assets/img/posts/label-free-lrp/preview.jpg
+  width: 1200
+  height: 630
+  alt: Relevance streams from a 7 by 7 feature grid branching through intermediate network stages to form a pixel heatmap of a dog and a cat.
 ---
 
 
@@ -31,7 +36,7 @@ The relevance usually starts with the score of the class being explained. Here i
 
 ## Relevance is not a gradient
 
-Most explanation methods for neural networks are built on the gradient, but the gradient answers a different question than relevance. A single neuron is enough to see the difference. Take one with inputs $x_1 = 2$ and $x_2 = 1$, and weights $w_1 = 1.5$ and $w_2 = -1$. It multiplies each input by its weight and adds the results, so it outputs $3 - 1 = 2$. The gradient asks how sensitive the output is to a small nudge in each input, and for this neuron the answer is simply the weights, 1.5 and -1.
+Most explanation methods for neural networks are built on the gradient, but the gradient answers a different question than relevance. A single neuron is enough to see the difference. Take one with inputs $x_1 = 2$ and $x_2 = 1$, and weights $w_1 = 1.5$ and $w_2 = -1$. It multiplies each input by its weight and adds the results, so it outputs $3 - 1 = 2$. The gradient asks how sensitive the output is to a small nudge in each input, and for this neuron the answer is simply the weights, 1.5 and −1.
 
 The figure below shows this neuron. Like the digit network, it is mirrored around the output. Drag the inputs and the weights on the forward side, and the relevance flows back to the inputs on the other side, red for positive and blue for negative.
 
@@ -39,7 +44,7 @@ The figure below shows this neuron. Like the digit network, it is mirrored aroun
   <div data-lrp-toy="neuron"><p class="lrp-small">This figure needs JavaScript.</p></div>
 </figure>
 
-Relevance asks instead how much of the output came from each input. An input contributes its value times its weight, so $x_1$ contributed 3 and $x_2$ contributed -1, while an input of zero would contribute nothing, however large its weight. LRP divides the relevance that arrives in these proportions, and this basic rule is called LRP-0. Starting from the output of 2, it passes 3 back to $x_1$ and -1 to $x_2$, so the input that worked against the output receives negative relevance, and the total stays $2$. The $z^+$ rule of the first figure follows only the positive contributions, with $z$ for a contribution and $+$ for its positive part. It gives all of the 2 to $x_1$ and nothing to $x_2$, so relevance never turns negative. Since every layer is made of such neurons, repeating this step layer by layer carries the relevance all the way to the pixels.
+Relevance asks instead how much of the output came from each input. An input contributes its value times its weight, so $x_1$ contributed 3 and $x_2$ contributed −1, while an input of zero would contribute nothing, however large its weight. LRP divides the relevance that arrives in these proportions, and this basic rule is called LRP-0. Starting from the output of 2, it passes 3 back to $x_1$ and −1 to $x_2$, so the input that worked against the output receives negative relevance, and the total stays 2. The $z^+$ rule of the first figure follows only the positive contributions, with $z$ for a contribution and $+$ for its positive part. It gives all of the 2 to $x_1$ and nothing to $x_2$, so relevance never turns negative. Since every layer is made of such neurons, repeating this step layer by layer carries the relevance all the way to the pixels.
 
 In code, LRP runs on the same backward pass that computes gradients, and each rule overrides how its layer passes values back. A layer without a rule raises no error and simply multiplies the incoming relevance by its gradient, here $1.5 \times 2 = 3$ and $-1 \times 2 = -2$, which adds up to 1 instead of the 2 that arrived. We will call this the gradient fallback, and it is behind every failure in this post. The switch in the figure above shows it for any inputs and weights.
 
@@ -72,12 +77,12 @@ Only the positive part is used because the features of most modern encoders are 
 
 </details>
 
-To see how LRP behaves on modern architectures, we will test encoders across the current design space: ConvNeXt (a modernised convolutional network), the plain Vision Transformer (ViT), masked autoencoders (MAE), and two hybrids that blend convolutions with attention, Swin and MaxViT. All of them do most of their work in convolutions and fully connected layers. Both simply multiply each input by a weight and add the results, so we will call them linear layers. Two PyTorch libraries already provide ready-made LRP rules for them and for several surrounding operations. [Zennit](https://github.com/chr5tphr/zennit) covers classic convolutional networks such as VGG and ResNet [<a href="#anders2021software" data-ref="anders2021software">Anders et al.</a>]. Instead of editing the model's code, it attaches rules to the layers while an explanation runs, and restores it afterwards. [LXT](https://github.com/rachtibat/LRP-eXplains-Transformers), the implementation of AttnLRP, covers language models and the original vision transformer [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
+To see how LRP behaves on modern architectures, we will test encoders across the current design space: ConvNeXt (a modernised convolutional network), the plain Vision Transformer (ViT), masked autoencoders (MAE), and two hybrids that blend convolutions with attention, Swin and MaxViT. All of them do most of their work in convolutions and fully connected layers. Both simply multiply each input by a weight and add the results, so we will call them linear layers. Two PyTorch libraries already provide ready-made LRP rules for them and for several surrounding operations. [zennit](https://github.com/chr5tphr/zennit) covers classic convolutional networks such as VGG and ResNet [<a href="#anders2021software" data-ref="anders2021software">Anders et al.</a>]. Instead of editing the model's code, it attaches rules to the layers while an explanation runs, and restores it afterwards. [LXT](https://github.com/rachtibat/LRP-eXplains-Transformers), the implementation of AttnLRP, covers language models and the original vision transformer [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
 
 <details markdown="1">
-<summary>Why not simply use Zennit or LXT?</summary>
+<summary>Why not simply use zennit or LXT?</summary>
 
-Both libraries have rules for linear layers, and these carry over to the encoders here. Zennit, however, has no rules for LayerNorm or attention. LXT does have rules for LayerNorm, GELU, and attention, but it relies on custom model implementations written for a few specific architectures. The encoders we use here come from the [timm](https://github.com/huggingface/pytorch-image-models) library, which defines these blocks with its own code. We therefore implement the missing rules in Zennit's way, attaching them directly to the existing layers.
+Both libraries have rules for linear layers, and these carry over to the encoders here. However, `zennit` has no rules for LayerNorm or attention. LXT does have rules for LayerNorm, GELU, and attention, but it relies on custom model implementations written for a few specific architectures. The encoders we use here come from the [timm](https://github.com/huggingface/pytorch-image-models) library, which defines these blocks with its own code. We therefore implement the missing rules in `zennit`'s way, attaching them directly to the existing layers.
 
 </details>
 
@@ -118,7 +123,7 @@ Two linear layers in a row would act like a single one, so an activation functio
 
 GELU and layer scale change each value on its own and mix nothing, so LRP passes relevance through them unchanged, which AttnLRP calls the identity rule. The gradient fallback instead multiplies the relevance by the slope of GELU or by the learned numbers of layer scale. For the small negative values that GELU lets through, the slope is close to zero, so the relevance they carry is lost. Layer scale shrinks some channels, grows others, and flips the sign of a few.
 
-Zennit applies the identity rule to the activation functions it knows. However, `timm` implements GELU with a custom class that Zennit fails to recognise, falling back to the gradient silently. With the rule, 0.66 of the starting relevance reaches the pixels, and without it only 0.48, so about a quarter is lost on the way. Yet the two maps look the same.
+In `zennit`, the identity rule is applied to every standard activation function, but timm implements GELU with a custom class that `zennit` fails to recognise, falling back to the gradient silently. With the rule, 0.66 of the starting relevance reaches the pixels, and without it only 0.48, so about a quarter is lost on the way. Yet the two maps look the same.
 
 ### Attention
 
@@ -142,7 +147,7 @@ With a rule for every part, the maps make sense again, and we can follow the rel
 
 The encoders differ in how far the relevance moves on its way. A convolution only combines neighbouring cells, so in ConvNeXt the relevance stays close to where it started, and about 70% of it lands on the starting cell and its eight neighbours. Attention connects every token with every other one, so in a ViT the relevance can jump across the image within a single block. In the DINOv1 ViT, only 40 to 50% stays this close.
 
-ResNet-50 adds a pattern of its own. In its middle stages, one cell in every $2 \times 2$ square holds roughly 60% of the relevance, imprinting a fine checkerboard that has nothing to do with the image. It comes from the downsampling shortcut when a stage halves the spatial resolution. The $1 \times 1$ shortcut steps by two cells at a time and reads only one cell in every $2 \times 2$ square, so on the way back the relevance can only return to the cells that were read. By the time it reaches the pixels, the pattern has evened out.
+ResNet-50 adds a pattern of its own. In its middle stages, one cell in every $2 \times 2$ square holds roughly 60% of the relevance, imprinting a fine checkerboard that has nothing to do with the image [<a href="#odena2016deconvolution" data-ref="odena2016deconvolution">Odena et al.</a>]. It comes from the downsampling shortcut when a stage halves the spatial resolution. The $1 \times 1$ shortcut steps by two cells at a time and reads only one cell in every $2 \times 2$ square, so on the way back the relevance can only return to the cells that were read. By the time it reaches the pixels, the pattern has evened out.
 
 The bands between the layers also narrow on the way, because not all of the starting relevance reaches the pixels. How much arrives differs a lot between models, from 0.02 in ResNet-50 to 0.85 in the supervised ViT.
 
@@ -204,11 +209,11 @@ The equal split delivered the least relevance (0.00 to 0.12 for most models), an
 
 ### The rule inside the blocks
 
-The linear layers inside the blocks had a rule from the start, but Zennit offers several, and they trade detail against focus. The encoders here use the Gamma rule, which lies between LRP-0 and the $z^+$ rule. Like LRP-0, it keeps negative contributions, but it gives the positive ones extra weight, and the larger its parameter $\gamma$, the closer it comes to $z^+$. This makes the maps less noisy, and AttnLRP recommends it for the linear layers of vision transformers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
+The linear layers inside the blocks had a rule from the start, but `zennit` offers several, and they trade detail against focus. The encoders here use the Gamma rule, which lies between LRP-0 and the $z^+$ rule. Like LRP-0, it keeps negative contributions, but it gives the positive ones extra weight, and the larger its parameter $\gamma$, the closer it comes to $z^+$. This makes the maps less noisy, and AttnLRP recommends it for the linear layers of vision transformers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
 
 ### The last step to the pixels
 
-The first layer of many modern encoders cuts the image into patches and turns each patch into a feature vector, four by four pixels in ConvNeXt and Swin and sixteen by sixteen in a ViT. Its rule decides how a patch's relevance is spread over its pixels, and with that, most of the fine detail in the map. Zennit offers several rules for this step, but it is not obvious which one suits a patch layer.
+The first layer of many modern encoders cuts the image into patches and turns each patch into a feature vector, four by four pixels in ConvNeXt and Swin and sixteen by sixteen in a ViT. Its rule decides how a patch's relevance is spread over its pixels, and with that, most of the fine detail in the map. Several rules in `zennit` can handle this step, and it is not obvious which one suits a patch layer.
 
 - **$z^+$** follows the positive contributions of the actual pixel values, as in the digit network.
 - **WSquare** spreads the relevance according to the squared weights alone and ignores the pixel values. It is recommended for inputs without natural bounds [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>].
@@ -239,37 +244,10 @@ Look closely at the full-resolution maps and the patch grid bleeds through. WSqu
 </details>
 
 ## Conclusion
-{%- comment -%}TODO: write once the sections are agreed. Open questions grounded in the figures: why ViT maps
-barely depend on their start; which residual split to trust; where the grids come from (next post).{%- endcomment %}
-
-LRP does not fail loudly. Where a modern encoder has a part without a rule, the explanation falls back to the gradient and still returns a map. Sometimes it is noise, and sometimes it is a convincing picture built on totals that are orders of magnitude too large or a quarter too small. Visual inspection alone cannot tell a healthy map from a broken one. The totals can: relevance that is only divided should never multiply on its way to the pixels.
-
-All rules from this post live in a small package that comes with the [companion notebook](https://github.com/karray/deep-unboxing/blob/main/02_label_free_lrp.ipynb). Explaining an encoder takes a few lines.
-
-
-<details markdown="1">
-<summary>What was checked and what was not</summary>
-
-A broken rule can still produce a plausible map, so the pictures alone are not enough. These simple checks are worth running for any new model.
-
-- The model's output must not change when the rules are installed, since every rewrite only changes the backward pass.
-- Every layer must receive a rule. Counting the layers without one catches cases like the GELU above.
-- The relevance reaching the pixels should be plausible and never exceed the starting relevance by orders of magnitude.
-- After the explanation, the model must be restored exactly, so that later predictions are not affected.
-
-{%- comment -%}TODO: these checks come from the research code; add them to notebook 02 (and xai_utils) so the claim holds for the published package.{%- endcomment %}
-
-The checks catch broken rules, but several questions remain open.
-
-- The maps depend on the rules. The residual split alone changes how much relevance arrives and where it goes.
-- In plain ViTs, the maps barely depend on where the relevance starts, and for the supervised ViT this held under every residual rule tried here. If the starting point hardly matters, it is not obvious what exactly such a map explains.
-- Faithfulness was not measured. Readers who need it will find established measures in the work of Achtibat et al. and Berend et al.
-
-</details>
 
 Maps like these do more than catch a shortcut like the horses at the start. They can also point to quirks of the architecture itself. The checkerboard in ResNet-50 traces back to how its strided layers are wired, and ResNet-D, a later variant, removes the same weakness by averaging before the shortcut [<a href="#he2019bag" data-ref="he2019bag">He et al.</a>]. MAE keeps a grid along the borders of its patches under every first-layer rule tried here, and part of it seems to come from its own learned weights, which favour the borders of each patch. Where these patterns come from and what they mean for the models is a story for another post.
 
-With the rules described here, the maps of ConvNeXt, Swin, and ViTs make sense again, but a map that makes sense is not yet a faithful one. Two questions from the figures remain. Why do the maps of plain ViTs barely depend on where the relevance starts? And which of the residual splits describes what the model actually does?
+LRP does not fail loudly. Where a modern encoder has a part without a rule, the explanation falls back to the gradient and still returns a map. Sometimes it is noise, and sometimes it is a convincing picture built on totals that are orders of magnitude too large or a quarter too small. Visual inspection alone cannot tell a healthy map from a broken one. The totals can, because relevance that is only divided should never multiply on its way to the pixels. With the rules described here, the maps of ConvNeXt, Swin, and ViTs make sense again.
 
 ## References
 
@@ -277,6 +255,7 @@ With the rules described here, the maps of ConvNeXt, Swin, and ViTs make sense a
 Simonyan, K., Vedaldi, A., & Zisserman, A. | 2014 | Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps;
 Springenberg, J. T., Dosovitskiy, A., Brox, T., & Riedmiller, M. | 2015 | Striving for Simplicity: The All Convolutional Net;
 Bach, S., Binder, A., Montavon, G., Klauschen, F., Müller, K.-R., & Samek, W. | 2015 | On Pixel-Wise Explanations for Non-Linear Classifier Decisions by Layer-Wise Relevance Propagation;
+Odena, A., Dumoulin, V., & Olah, C. | 2016 | Deconvolution and Checkerboard Artifacts;
 Montavon, G., Binder, A., Lapuschkin, S., Samek, W., & Müller, K.-R. | 2019 | Layer-Wise Relevance Propagation: An Overview;
 Lapuschkin, S., Wäldchen, S., Binder, A., Montavon, G., Samek, W., & Müller, K.-R. | 2019 | Unmasking Clever Hans Predictors and Assessing What Machines Really Learn;
 He, T., Zhang, Z., Zhang, H., Zhang, Z., Xie, J., & Li, M. | 2019 | Bag of Tricks for Image Classification with Convolutional Neural Networks;
