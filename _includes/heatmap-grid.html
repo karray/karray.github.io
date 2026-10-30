@@ -8,6 +8,7 @@
 {%- assign style = include.style | default: g.style -%}
 {%- unless heatmap_grid_assets -%}
 <link rel="stylesheet" href="{{ '/assets/css/heatmap-grid.css' | relative_url }}">
+<script src="{{ '/assets/js/tile-reveal.js' | relative_url }}" defer></script>
 <script src="{{ '/assets/js/heatmap-grid.js' | relative_url }}" defer></script>
 {%- assign heatmap_grid_assets = true -%}
 {%- endunless -%}

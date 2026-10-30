@@ -130,46 +130,11 @@
 .hg-tiles {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   z-index: 1;
-  display: grid;
-  grid-template: repeat(var(--hg-n), 1fr) / repeat(var(--hg-n), 1fr);
+  pointer-events: none;
   opacity: var(--hg-overlay-opacity);
-  image-rendering: pixelated;
-}
-
-.hg-tiles[data-rendering="auto"] {
-  image-rendering: auto;
-}
-
-.hg-tile {
-  margin: 0 -1px -1px 0;
-  background-image: var(--hg-map);
-  background-size: calc(var(--hg-n) * (100% - 1px)) calc(var(--hg-n) * (100% - 1px));
-  background-repeat: no-repeat;
-
-  transform: scale(var(--hg-tile-bleed));
-  transition:
-    transform var(--hg-tile-move) cubic-bezier(.3, .9, .3, 1),
-    opacity var(--hg-tile-move) ease;
-}
-
-.hg-tiles:not([data-rendering="auto"]) > .hg-tile {
-  background-size: calc(var(--hg-n) * 100%) calc(var(--hg-n) * 100%);
-}
-
-.hg-tiles.hg-wave .hg-tile {
-  transition-delay: calc(var(--d, 0) * var(--hg-wave));
-}
-
-.hg-tiles.hg-settling .hg-tile {
-  transition-duration: var(--hg-settle-move);
-  transition-delay:
-    calc(var(--hg-settle-hold) + var(--hg-i, 0) * var(--hg-settle-step)
-      + var(--d, 0) * var(--hg-settle-wave));
-}
-
-.hg-tiles.hg-instant .hg-tile {
-  transition: none;
 }
 
 .hg-stack.hg-armed :is(.hg-overlay, .hg-tiles) {
@@ -192,8 +157,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hg-stack,
-  .hg-stack .hg-overlay,
-  .hg-tile {
+  .hg-stack .hg-overlay {
     transition: none;
   }
 
