@@ -146,8 +146,11 @@
   };
   const signed = (vals, n) => { let m = 1e-12; for (const v of vals) m = Math.max(m, Math.abs(v)); return image(vals, n, (v) => (v >= 0 ? red(v / m) : blue(-v / m))); };
 
-  const W = 1400, HGT = 486, R1 = 132, R2 = 404, MS = 76, IN = 88, GAP = 6, ARC = 52;
-  const XS = [230, 470, 710, 950, 1190], XIN = 52, XSTEM = 146, XHEAD = 1282, XCLS = 1368;
+  const W = 1400, HGT = 486, R1 = 132, R2 = 404, MS = 76, GAP = 6, ARC = 52;
+  const XS = [230, 470, 710, 950, 1190], XSTEM = 146, XHEAD = 1282, XCLS = 1368;
+  const VW = 500, VTOP = 84, VH = W + VTOP;
+  const narrow = matchMedia('(max-width: 640px)');
+  const upright = (e, cx, cy) => e.setAttribute('transform', `matrix(0 1 1 0 ${cx - cy} ${cy - cx})`);
 
   const figure = async (root) => {
     const svg = root.querySelector('.lrpc-scene'), pad = root.querySelector('.lrpw-pad'), clearBtn = root.querySelector('.lrpw-clear'), readoutEl = root.querySelector('.lrpw-readout');
@@ -171,22 +174,27 @@
     const scene = {};
     const build = () => {
       svg.replaceChildren();
+      const tall = narrow.matches, IN = tall ? 120 : 88, XIN = tall ? 36 : 52;
+      svg.setAttribute('viewBox', tall ? `0 ${-VTOP} ${VW} ${VH}` : `0 0 ${W} ${HGT}`);
       const defs = S('defs', {}, svg), mk = S('marker', { id: 'lrpc-head', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, defs);
       S('path', { d: 'M0,0 L10,5 L0,10 z', class: 'lrpc-arrowhead' }, mk);
-      T(svg, 8, 30, 'Prediction', 'lrpc-row', 'start');
-      T(svg, 8, R2 - 98, 'Explanation', 'lrpc-row lrpc-row--rel', 'start');
+      const sc = tall ? S('g', { transform: 'matrix(0 1 1 0 0 0)' }, svg) : svg;
+      if (tall) { T(sc, -58, R1, 'Prediction', 'lrpc-row'); T(sc, -58, R2, 'Explanation', 'lrpc-row lrpc-row--rel'); }
+      else { T(sc, 8, 30, 'Prediction', 'lrpc-row', 'start'); T(sc, 8, R2 - 98, 'Explanation', 'lrpc-row lrpc-row--rel', 'start'); }
       scene.rows = [R1, R2].map((y, r) => {
-        const g = S('g', {}, svg), rel = r === 1, out = { maps: [], boxes: [], totals: [], parts: [], skips: [], bands: { blocks: [] } };
+        const g = S('g', {}, sc), rel = r === 1, out = { maps: [], boxes: [], totals: [], parts: [], skips: [], bands: { blocks: [] } };
         const gB = S('g', {}, g), lane = (sign, w) => y + sign * (GAP / 2 + w / 2), hz = (a, b) => (sign, w) => `M${a},${lane(sign, w)} L${b},${lane(sign, w)}`;
         const sq = (x, size, label) => {
           const img = S('image', { x: x - size / 2, y: y - size / 2, width: size, height: size, preserveAspectRatio: 'none', style: 'image-rendering: pixelated' }, g);
           S('rect', { class: 'lrpc-frame', x: x - size / 2, y: y - size / 2, width: size, height: size }, g);
-          if (label) T(g, x, y - size / 2 - 8, label, 'lrpc-label');
+          if (label && !tall) T(g, x, y - size / 2 - 8, label, 'lrpc-label');
+          else if (label && !rel) T(g, size === IN ? x - size / 2 - 8 : x + 4, size === IN ? y : y - size / 2 - 8, label, 'lrpc-label', size === IN ? 'middle' : 'end');
+          else if (label && size === IN) T(g, x + 4, y + size / 2 + 8, label, 'lrpc-label', 'start');
           return img;
         };
         const box = (x, w, lines, cls = '') => {
           const bg = S('g', { class: `lrpc-box ${cls}` }, g);
-          S('rect', { x: x - w / 2, y: y - 24, width: w, height: 48, rx: 8 }, bg);
+          S('rect', { x: x - w / 2, y: y - (tall ? w : 48) / 2, width: w, height: tall ? w : 48, rx: 8 }, bg);
           const texts = lines.map((t, i) => T(bg, x, y - (lines.length - 1) * 7 + i * 14 + 4, t, i ? 'lrpc-boxsub' : 'lrpc-boxtitle'));
           return { g: bg, texts };
         };
@@ -198,45 +206,56 @@
         if (rel) { out.bands.pix = band(gB, hz(XIN + IN / 2, XSTEM - 36)); out.bands.stem = band(gB, hz(XSTEM + 36, XS[0] - MS / 2)); out.bands.top = band(gB, hz(XS[B] + MS / 2, XHEAD - 35)); }
         XS.forEach((x, k) => {
           out.maps.push(sq(x, MS, k ? `after block ${k}` : 'after the stem'));
-          out.totals.push(rel ? T(g, x - MS / 2, y + MS / 2 + 18, '', 'lrpc-total', 'start') : null);
-          out.parts.push(rel ? T(g, x - MS / 2, y + MS / 2 + 32, '', 'lrpc-parts', 'start') : null);
+          out.totals.push(!rel ? null : tall ? T(g, x - 4, y - MS / 2 - 8, '', 'lrpc-total', 'end') : T(g, x - MS / 2, y + MS / 2 + 18, '', 'lrpc-total', 'start'));
+          out.parts.push(!rel ? null : tall ? T(g, x + 12, y - MS / 2 - 8, '', 'lrpc-parts', 'end') : T(g, x - MS / 2, y + MS / 2 + 32, '', 'lrpc-parts', 'start'));
           if (k === B) return;
           const L = x + MS / 2 + 20, bx = x + 114, px = x + 172, nx = XS[k + 1];
           dir(x + MS / 2 + 3, bx - 39);
           out.boxes.push(box(bx, 70, rel ? [`block ${k + 1}`, '', ''] : [`block ${k + 1}`], 'lrpc-block'));
           dir(bx + 39, px - 14);
-          if (!rel) { S('circle', { class: 'lrpc-plus', cx: px, cy: y, r: 11 }, g); T(g, px, y + 5, '+', 'lrpc-plussign'); }
+          if (!rel) { S('circle', { class: 'lrpc-plus', cx: px, cy: y, r: 11 }, g); T(g, px, y, '+', 'lrpc-plussign').setAttribute('dominant-baseline', 'central'); }
           if (rel) S('circle', { cx: px, cy: y, r: 15, fill: 'transparent', style: 'cursor: pointer' }, g).addEventListener('click', () => look(k + 1));
           dir(px + 14, nx - MS / 2 - 3);
           if (rel) {
             const pair = () => ({ pos: S('path', { class: 'lrpc-band' }, gB), neg: S('path', { class: 'lrpc-band lrpc-band--neg' }, gB) });
             out.bands.blocks.push({ x, L, bx, px, nx, y, through: pair(), back: pair(), skip: pair() });
-            out.skips.push({ pos: T(g, (L + px) / 2, y - ARC - 16, '', 'lrpc-skiplabel'), neg: T(g, (L + px) / 2, y + ARC + 24, '', 'lrpc-skiplabel lrpc-skiplabel--neg') });
+            out.skips.push(tall ? { pos: T(g, (L + px) / 2, y - ARC - 18, '', 'lrpc-skiplabel', 'end'), neg: T(g, (L + px) / 2, y + ARC + 16, '', 'lrpc-skiplabel lrpc-skiplabel--neg', 'start') }
+              : { pos: T(g, (L + px) / 2, y - ARC - 16, '', 'lrpc-skiplabel'), neg: T(g, (L + px) / 2, y + ARC + 24, '', 'lrpc-skiplabel lrpc-skiplabel--neg') });
           } else {
             S('circle', { class: 'lrpc-junction', cx: L, cy: y, r: 3.5 }, g);
             const sp = `M${L},${y - 4} L${L},${y - ARC + 10} Q${L},${y - ARC} ${L + 10},${y - ARC} L${px - 10},${y - ARC} Q${px},${y - ARC} ${px},${y - ARC + 10} L${px},${y - 14}`;
-            out.skips.push({ path: arrow(g, sp, 'lrpc-skip'), label: T(g, (L + px) / 2, y - ARC - 7, 'skip', 'lrpc-skiplabel') });
+            out.skips.push({ path: arrow(g, sp, 'lrpc-skip'), label: tall ? T(g, (L + px) / 2, y - ARC - 8, 'skip', 'lrpc-skiplabel', 'end') : T(g, (L + px) / 2, y - ARC - 7, 'skip', 'lrpc-skiplabel') });
           }
         });
         dir(XS[B] + MS / 2 + 3, XHEAD - 38);
         box(XHEAD, 70, ['head', 'pool, norm,', 'linear']);
-        if (rel) out.pixTotal = T(g, XIN, y + IN / 2 + 18, '', 'lrpc-total');
+        if (rel) out.pixTotal = tall ? T(g, XIN + 4, y - IN / 2 - 8, '', 'lrpc-total', 'end') : T(g, XIN, y + IN / 2 + 18, '', 'lrpc-total');
         return out;
       });
-      scene.back = band(S('g', {}, svg), null);
-      const cy = (R1 + R2) / 2, gC = S('g', {}, svg);
+      scene.back = band(S('g', {}, sc), null);
+      const cy = (R1 + R2) / 2, gC = S('g', {}, sc);
       scene.cls = Array.from({ length: 10 }, (_, k) => {
         const y = cy + (k - 4.5) * 25, g = S('g', { class: 'lrpc-class' }, gC);
         S('circle', { class: 'lrpw-node', cx: XCLS, cy: y, r: 10 }, g);
-        T(g, XCLS, y + 4, String(k), 'lrpw-digit');
+        T(g, XCLS, y, String(k), 'lrpw-digit').setAttribute('dominant-baseline', 'central');
         return g;
       });
-      arrow(svg, `M${XHEAD + 38},${R1} C${XCLS - 30},${R1} ${XCLS - 40},${cy - 120} ${XCLS - 15},${cy - 115}`, 'lrpc-wire');
+      arrow(sc, `M${XHEAD + 38},${R1} C${XCLS - 30},${R1} ${XCLS - 40},${cy - 120} ${XCLS - 15},${cy - 115}`, 'lrpc-wire');
       scene.rows.forEach((row) => row.boxes.forEach((bx, k) => {
         Object.entries({ tabindex: 0, role: 'button', 'aria-label': `Open block ${k + 1} below` }).forEach(([a, v]) => bx.g.setAttribute(a, v));
         bx.g.addEventListener('click', () => look(k + 1));
         bx.g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); look(k + 1); } });
       }));
+      if (tall) {
+        sc.querySelectorAll('.lrpc-box').forEach((b) => { const r = b.querySelector('rect'); upright(b, +r.getAttribute('x') + +r.getAttribute('width') / 2, +r.getAttribute('y') + +r.getAttribute('height') / 2); });
+        sc.querySelectorAll('text').forEach((e) => { if (!e.closest('.lrpc-box')) upright(e, +e.getAttribute('x'), +e.getAttribute('y')); });
+        sc.querySelectorAll('image').forEach((e) => upright(e, +e.getAttribute('x') + +e.getAttribute('width') / 2, +e.getAttribute('y') + +e.getAttribute('height') / 2));
+        Object.assign(pad.style, { left: `${(R1 - IN / 2) / VW * 100}%`, top: `${(XIN - IN / 2 + VTOP) / VH * 100}%`, width: `${IN / VW * 100}%`, height: `${IN / VH * 100}%` });
+        Object.assign(clearBtn.style, { left: `${(R1 - IN / 2 - 46) / VW * 100}%`, top: `calc(${(XIN + VTOP) / VH * 100}% - 11px)` });
+      } else {
+        Object.assign(pad.style, { left: `${(XIN - IN / 2) / W * 100}%`, top: `${(R1 - IN / 2) / HGT * 100}%`, width: `${IN / W * 100}%`, height: `${IN / HGT * 100}%` });
+        Object.assign(clearBtn.style, { left: `${XIN / W * 100}%`, top: `calc(${(R1 + IN / 2) / HGT * 100}% + 6px)` });
+      }
     };
 
     const paintForward = () => {
@@ -310,7 +329,7 @@
         if (!cache.has(key)) cache.set(key, M.explain(f, pred, RULES));
         parts.push(`The maps keep their shape, but <b>${fmt(pix)}</b> arrives at the pixels, against <b>${fmt(sum(cache.get(key).maps[0]))}</b> with every rule.`);
       }
-      parts.push('Click a block to describe it below.');
+      parts.push('Click or tap any block to see what happens to the relevance inside it.');
       readoutEl.innerHTML = parts.join(' ');
     };
 
@@ -387,7 +406,7 @@
       const k = state.look, t = ex.flows[k - 1];
       scene.rows.forEach((row) => row.boxes.forEach((bx, i) => bx.g.classList.toggle('lrpc-open', i === k - 1)));
       const arrive = ex.maps[k + 1], after = ex.maps[k], both = ([P, N]) => (width(N) > 0 && width(P) > 0 ? ` (+${fmt(P)} and ${fmt(-N)})` : '');
-      panelText.innerHTML = [`<b>${fmt(sum(arrive))}</b>${both(pn(arrive))} arrives at the plus sign after <b>block ${k}</b>. The skip takes <b>${fmt(t.skip)}</b>${both(t.bands.skip)}, and <b>${fmt(t.in)}</b>${both(t.bands.in)} enters the block.`,
+      panelText.innerHTML = [`<b class="lrpc-pick">Selected block ${k}:</b> <b>${fmt(sum(arrive))}</b>${both(pn(arrive))} arrives at its plus sign. The skip takes <b>${fmt(t.skip)}</b>${both(t.bands.skip)}, and <b>${fmt(t.in)}</b>${both(t.bands.in)} enters the block.`,
         `Going back through it, <b>layer scale</b> passes on <b>${fmt(t.ls)}</b>, the <b>second linear layer</b> <b>${fmt(t.f2)}</b>, <b>GELU</b> <b>${fmt(t.gelu)}</b>, the <b>first linear layer</b> <b>${fmt(t.f1)}</b>, and <b>LayerNorm</b> <b>${fmt(t.ln)}</b>.`,
         `The <b>convolution</b> hands <b>${fmt(t.dw)}</b> back to the stream, and together with the skip, <b>${fmt(sum(after))}</b> arrives ${k > 1 ? `after block ${k - 1}` : 'after the stem'}.`].join(' ');
       summaryEl.textContent = `What each operation in block ${k} does with the relevance`;
@@ -410,14 +429,13 @@
       root.querySelectorAll(`.lrpw-op[data-op=${op}]`).forEach((o) => o.setAttribute('aria-pressed', String(o.dataset.val === val)));
       paint();
     };
-    root.querySelectorAll('.lrpw-op').forEach((b) => b.addEventListener('click', () => setOp(b.dataset.op, b.dataset.val)));
+    const steady = (el, fn) => { const y = el.getBoundingClientRect().top; fn(); window.scrollBy(0, el.getBoundingClientRect().top - y); };
+    root.querySelectorAll('.lrpw-op').forEach((b) => b.addEventListener('click', () => steady(b, () => setOp(b.dataset.op, b.dataset.val))));
 
     const pctx = pad.getContext('2d'), P = pad.width;
     const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
     const ink = canvas(P, P), ictx = ink.getContext('2d');
     const blank = () => { ictx.fillStyle = '#000'; ictx.fillRect(0, 0, P, P); };
-    Object.assign(pad.style, { left: `${(XIN - IN / 2) / W * 100}%`, top: `${(R1 - IN / 2) / HGT * 100}%`, width: `${IN / W * 100}%`, height: `${IN / HGT * 100}%` });
-    Object.assign(clearBtn.style, { left: `${XIN / W * 100}%`, top: `calc(${(R1 + IN / 2) / HGT * 100}% + 6px)` });
     blank();
     { const c = canvas(20, 20), x = c.getContext('2d'), im = x.createImageData(20, 20);
       for (let q = 0; q < 400; q++) { const v = state.pixels[(4 + ((q / 20) | 0)) * 28 + 4 + (q % 20)]; im.data.set([v, v, v, 255], q * 4); }
@@ -435,14 +453,15 @@
     const stroke = (a, b) => { for (const [ctx, colour] of [[ictx, '#fff'], [pctx, '#26302b']]) { ctx.strokeStyle = colour; ctx.lineWidth = 30; ctx.lineCap = ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke(); } };
     pad.addEventListener('pointerdown', (e) => { drawing = true; pad.setPointerCapture(e.pointerId); last = at(e); stroke(last, last); });
     pad.addEventListener('pointermove', (e) => { if (!drawing) return; const p = at(e); stroke(last, p); last = p; });
-    const finish = () => { if (!drawing) return; drawing = false; state.pixels = toPixels(); load(); pctx.clearRect(0, 0, P, P); };
+    const finish = () => { if (!drawing) return; drawing = false; state.pixels = toPixels(); steady(pad, load); pctx.clearRect(0, 0, P, P); };
     pad.addEventListener('pointerup', finish);
     pad.addEventListener('pointercancel', finish);
-    clearBtn.addEventListener('click', () => { blank(); state.pixels = new Array(784).fill(0); load(); readoutEl.textContent = 'Draw a digit on the input, filling the square.'; });
+    clearBtn.addEventListener('click', () => steady(clearBtn, () => { blank(); state.pixels = new Array(784).fill(0); load(); readoutEl.textContent = 'Draw a digit on the input, filling the square.'; }));
 
     build();
     buildCards();
     load();
+    narrow.addEventListener('change', () => { build(); load(); });
   };
 
   const init = () => document.querySelectorAll('[data-lrp-cnx]').forEach((el) => { if (el.dataset.ready) return; el.dataset.ready = 'true'; figure(el); });
