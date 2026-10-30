@@ -169,6 +169,14 @@
     S('rect', { class: 'lrpw-frame', x: x0, y: y0, width: s, height: s }, g);
     return { img, anchor: (side, off = 0) => [cx + side * s / 2, cy + off] };
   };
+  const swap = (e, a, b) => { const t = e.getAttribute(a); e.setAttribute(a, e.getAttribute(b)); e.setAttribute(b, t); };
+  const turn = (svg) => svg.querySelectorAll('circle, text, rect, image, line, path').forEach((e) => {
+    if (e.tagName === 'path') e.setAttribute('d', e.getAttribute('d').replace(/(-?[\d.]+),(-?[\d.]+)/g, '$2,$1'));
+    else if (e.tagName === 'circle') swap(e, 'cx', 'cy');
+    else if (e.tagName === 'line') { swap(e, 'x1', 'y1'); swap(e, 'x2', 'y2'); }
+    else { swap(e, 'x', 'y'); if (e.hasAttribute('width')) swap(e, 'width', 'height'); }
+  });
+  const narrow = matchMedia('(max-width: 640px)');
   const weights = new Map();
 
   const figure = async (root) => {
@@ -274,6 +282,8 @@
     const modeOf = () => (state.method === 'gradient' ? (state.sign === 'pos' ? 'guided' : 'gradient') : (state.sign === 'pos' ? 'rules' : 'lrp0'));
     state.mode = modeOf();
     const leaveTimers = {};
+    let touch = false;
+    svg.addEventListener('pointerdown', (e) => { touch = e.pointerType !== 'mouse'; });
     const enterSoon = (kind) => { clearTimeout(leaveTimers[kind]); };
     const leaveSoon = (kind, fn) => { clearTimeout(leaveTimers[kind]); leaveTimers[kind] = setTimeout(fn, 160); };
     let net, scene, cls, pred, full, views, probs;
@@ -282,12 +292,14 @@
     /* ---------- geometry, once per digit ---------- */
     const build = () => {
       svg.replaceChildren();
-      S('text', { class: 'lrpw-title', x: 300, y: 34, 'text-anchor': 'middle' }, svg).textContent = 'Prediction';
-      S('text', { class: 'lrpw-title lrpw-title--rel', x: 900, y: 34, 'text-anchor': 'middle' }, svg).textContent = 'Explanation';
-      S('line', { class: 'lrpw-divider', x1: W / 2, x2: W / 2, y1: 52, y2: 452 }, svg);
-      S('text', { class: 'lrpw-total-label', x: W - LY[L - 1].x - 30, y: 474, 'text-anchor': 'end' }, svg).textContent = 'total';
+      const titles = [S('text', { class: 'lrpw-title', x: 300, y: 34, 'text-anchor': 'middle' }, svg), S('text', { class: 'lrpw-title lrpw-title--rel', x: 900, y: 34, 'text-anchor': 'middle' }, svg)];
+      titles[0].textContent = 'Prediction';
+      titles[1].textContent = 'Explanation';
+      const totalLabel = S('text', { class: 'lrpw-total-label', x: W - LY[L - 1].x - 30, y: 474, 'text-anchor': 'end' }, svg);
+      totalLabel.textContent = 'total';
       const totals = LY.slice(0, L).map((ly) => S('text', { class: 'lrpw-total', x: W - ly.x, y: 474, 'text-anchor': 'middle' }, svg));
-      S('text', { class: 'lrpw-hint', x: LY[0].x, y: CY - LY[0].ms / 2 - 10, 'text-anchor': 'middle' }, svg).textContent = 'draw a digit here';
+      const hint = S('text', { class: 'lrpw-hint', x: LY[0].x, y: CY - LY[0].ms / 2 - 10, 'text-anchor': 'middle' }, svg);
+      hint.textContent = 'draw a digit here';
       const gE = S('g', {}, svg), gN = S('g', {}, svg), gH = S('g', {}, svg);
       const nodes = { fwd: [], rel: [] }, fwdEdges = [], relEdges = [];
       for (const side of ['fwd', 'rel']) LY.forEach((ly, l) => {
@@ -300,7 +312,7 @@
             S('circle', { class: 'lrpw-halo', cx: x, cy: y, r: r + 3.5 }, g);
             S('circle', { class: 'lrpw-node', cx: x, cy: y, r }, g);
             Object.assign(rec, { r, anchor: () => [x, y] });
-            if (ly.kind === 'output') S('text', { class: 'lrpw-digit', x, y: y + 4, 'text-anchor': 'middle' }, g).textContent = i;
+            if (ly.kind === 'output') S('text', { class: 'lrpw-digit', x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central' }, g).textContent = i;
             else rec.fill = S('circle', { class: `lrpw-fill lrpw-fill--${side}`, cx: x, cy: y, r: 0 }, g);
           }
           return rec;
@@ -331,7 +343,7 @@
         const h = { side, l, i: rec.i }, el = hit(nodes[side][l], l, rec);
         el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { enterSoon('unit'); setHover(h); } });
         el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') leaveSoon('unit', () => setHover(null)); });
-        el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { setHover(state.hover && key(state.hover) === key(h) ? null : h); } });
+        el.addEventListener('click', () => { if (touch) setHover(state.hover && key(state.hover) === key(h) ? null : h); });
       });
       // the output: hover a class to explain it instead of the prediction; a tap does the same
       const showClass = (k) => { state.classHover = k; setClass(k ?? pred); };
@@ -339,9 +351,26 @@
         const el = hit(nodes.fwd[L], L, rec);
         el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { enterSoon('class'); showClass(rec.i); } });
         el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') leaveSoon('class', () => showClass(null)); });
-        el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') showClass(state.classHover === rec.i ? null : rec.i); });
+        el.addEventListener('click', () => { if (touch) showClass(state.classHover === rec.i ? null : rec.i); });
       });
       scene = { nodes, fwdEdges, relEdges, totals };
+      // the pad and the clear button sit over the input square, in percentages of the scaled figure
+      const tall = narrow.matches, x0 = LY[0].x - LY[0].ms / 2, y0 = CY - LY[0].ms / 2, s = LY[0].ms;
+      const VW = H + 20, TOP = 24, VH = W + TOP;
+      svg.setAttribute('viewBox', tall ? `0 ${-TOP} ${VW} ${VH}` : `0 0 ${W} ${H}`);
+      if (tall) {
+        turn(svg);
+        [...totals, totalLabel].forEach((t) => t.setAttribute('x', H));
+        titles.forEach((t) => t.setAttribute('transform', `rotate(-90 ${t.getAttribute('x')} ${t.getAttribute('y')})`));
+        Object.assign(pad.style, { left: `${y0 / VW * 100}%`, top: `${(x0 + TOP) / VH * 100}%`, width: `${s / VW * 100}%`, height: `${s / VH * 100}%` });
+        Object.assign(clearBtn.style, { left: `${(y0 - 60) / VW * 100}%`, top: `calc(${(LY[0].x + TOP) / VH * 100}% - 11px)` });
+        hint.setAttribute('x', CY);
+        hint.setAttribute('y', x0 - 8);
+        totalLabel.setAttribute('text-anchor', 'middle');
+      } else {
+        Object.assign(pad.style, { left: `${x0 / W * 100}%`, top: `${y0 / H * 100}%`, width: `${s / W * 100}%`, height: `${s / H * 100}%` });
+        Object.assign(clearBtn.style, { left: `${LY[0].x / W * 100}%`, top: `calc(${(y0 + s) / H * 100}% + 8px)` });
+      }
 
       // the fixed forward look: activations, and each edge's positive contribution as a share of what the receiving
       // unit gets, times how active that unit is
@@ -491,11 +520,6 @@
     const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
     const ink = canvas(P, P), ictx = ink.getContext('2d');
     const blank = () => { ictx.fillStyle = '#000'; ictx.fillRect(0, 0, P, P); };
-    { // the pad and the clear button sit over the input square, in percentages of the scaled figure
-      const x0 = LY[0].x - LY[0].ms / 2, y0 = CY - LY[0].ms / 2, s = LY[0].ms;
-      Object.assign(pad.style, { left: `${x0 / W * 100}%`, top: `${y0 / H * 100}%`, width: `${s / W * 100}%`, height: `${s / H * 100}%` });
-      Object.assign(clearBtn.style, { left: `${LY[0].x / W * 100}%`, top: `calc(${(y0 + s) / H * 100}% + 8px)` });
-    }
     blank();
     { const c = canvas(BOX, BOX), x = c.getContext('2d'), img = x.createImageData(BOX, BOX);
       inBox(state.pixels).forEach((v, k) => img.data.set([v, v, v, 255], k * 4)); x.putImageData(img, 0, 0);
@@ -536,6 +560,7 @@
       readoutEl.textContent = 'Draw a digit on the input, filling the square.';
     });
     load();
+    narrow.addEventListener('change', load);
   };
 
   const init = () => document.querySelectorAll('[data-lrp-water]').forEach((el) => {
