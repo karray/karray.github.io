@@ -354,13 +354,12 @@
   }
 
   function bindAnchor(a) {
-    console.log("Binding anchor...", a);
     const rid = a.getAttribute("data-ref");
     const ref = refIndex.get(rid);
-    console.log(ref);
     if (!ref) return;
-    console.log("... found reference", ref);
     a.textContent = `${ref.index}`;
+    const prev = a.previousSibling;
+    if (prev?.nodeType === Node.TEXT_NODE) prev.data = prev.data.replace(/\s+\[$/, " [");
     a.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();

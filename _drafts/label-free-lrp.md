@@ -22,17 +22,18 @@ This post shows why and fills in the missing rules, which come with a [companion
 
 ## What is relevance?
 
-Think of the output of a network as water that we pour back through it. At every layer, the water held by each neuron is divided among the neurons that fed into it, and a neuron that contributed more receives more. Whatever reaches a pixel tells us how much that pixel contributed, forming a heatmap over the image. This quantity is called relevance, and the procedure is layer-wise relevance propagation [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>]. The horse shortcut was found with such maps [<a href="#lapuschkin2019unmasking" data-ref="lapuschkin2019unmasking">Lapuschkin et al.</a>].
+A deep network passes an image through a stack of layers until the last one makes the prediction. We can view each layer as a separate network in its own right: it takes an input, computes an output and passes it to the next layer. Now think of the output of the whole network as water that we pour back through it. At every layer, the water held by each neuron is divided among the neurons that fed into it, and a neuron that contributed more receives more. To know how much each one contributed, we store the intermediate outputs during the forward pass and reuse them on the way back. Whatever reaches a pixel tells us how much that pixel contributed. This quantity is called relevance, and the procedure is layer-wise relevance propagation [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>]. Spread over all the pixels, the relevance forms a heatmap, and a heatmap like this is what caught the horse classifier reading a copyright tag [<a href="#lapuschkin2019unmasking" data-ref="lapuschkin2019unmasking">Lapuschkin et al.</a>].
 
-The figure below does this for a small network that reads handwritten digits. Its left half computes the prediction, and its right half passes the score back to the pixels. You can draw your own digit on the input.
+The figure below does this for a small network that reads handwritten digits. You can draw your own digit on the input.
 
 {% include posts/label-free-lrp-water.html %}
 
-We can view each layer as a separate network in its own right: it takes an input, computes an output, and passes it to the next layer. During the forward pass, we store these intermediate outputs so that we can reuse them in the backward pass to divide the relevance at each layer among its inputs. That is why the right half of the figure mirrors the left half step by step.
-
-How we distribute this relevance is decided by a rule, and each kind of layer needs one that fits what it computes. Choosing these rules well is most of the work, and *Layer-Wise Relevance Propagation: An Overview* describes the common ones and when to use them [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>]. Since relevance is only redistributed and never created, the total at every step equals what we started with. This property is called conservation, and in the figure the number under each column stays the same from layer to layer.
+Notice how the two halves mirror each other. The backward pass walks the same path as the forward pass, only in the opposite direction, and at every step it reuses what the forward pass stored there to split the relevance. Since relevance is only redistributed and never created, the total at every step equals what we started with. This property is called conservation, and in the figure the number under each column stays the same from layer to layer.
 
 The relevance usually starts with the score of the class being explained. Here it starts with 1.00 instead, so the total relevance in each layer stays at one and conservation is easy to see. The maps themselves do not change, because every layer passes on fixed proportions of whatever arrives and starting at 1.00 simply rescales the numbers. For a class with a negative score, the figure starts with 0 and shows an empty map. It uses the $z^+$ rule, which follows only the contributions that raised the score, so it cannot say what pulled the score below zero.
+
+How we distribute this relevance is decided by a rule, and each kind of layer needs one that fits what it computes. Choosing these rules well is most of the work, and *Layer-Wise Relevance Propagation: An Overview* describes the common ones and when to use them [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>].
+
 
 ## Relevance is not a gradient
 
@@ -94,7 +95,7 @@ The maps show the positive part of the relevance, while the number under each ma
 
 ## The missing rules
 
-Beyond their linear layers, these models rely on five operations that off-the-shelf LRP libraries leave uncovered here: residual connections, LayerNorm, GELU, layer scale, and self-attention. To see what each missing rule does, the toy ConvNeXt example below has the same parts as the real encoders, and its switches choose between the rule and the gradient fallback for each one.
+Beyond their linear layers, these models rely on five operations that off-the-shelf LRP libraries leave uncovered here, namely residual connections, LayerNorm, GELU, layer scale, and self-attention. To see what each missing rule does, the toy ConvNeXt example below has the same parts as the real encoders, and its switches choose between the rule and the gradient fallback for each one.
 
 {% include posts/label-free-lrp-cnx.html %}
 
@@ -121,9 +122,9 @@ The rule treats the spread as a constant on the way back, while the forward pass
 
 Two linear layers in a row would act like a single one, so an activation function sits between them and bends each value on its own, which lets the network compute more than weighted sums. ResNet uses ReLU, which zeroes out negative values, while transformers and ConvNeXt use GELU, a smooth cousin of ReLU that lets small negative values pass. Layer scale multiplies each channel of a block's output by a learned number before it joins the residual stream.
 
-GELU and layer scale change each value on its own and mix nothing, so LRP passes relevance through them unchanged, which AttnLRP calls the identity rule. The gradient fallback instead multiplies the relevance by the slope of GELU or by the learned numbers of layer scale. For the small negative values that GELU lets through, the slope is close to zero, so the relevance they carry is lost. Layer scale shrinks some channels, grows others, and flips the sign of a few.
+GELU and layer scale change each value on its own and mix nothing, so LRP passes relevance through them unchanged, which AttnLRP calls the identity rule. The gradient fallback instead multiplies the relevance by the slope of GELU or by the learned numbers of layer scale. For the small negative values that GELU lets through, the slope is small or even negative, so the relevance they carry is mostly lost or flips its sign. Layer scale shrinks some channels, grows others, and flips the sign of a few.
 
-In `zennit`, the identity rule is applied to every standard activation function, but timm implements GELU with a custom class that `zennit` fails to recognise, falling back to the gradient silently. With the rule, 0.66 of the starting relevance reaches the pixels, and without it only 0.48, so about a quarter is lost on the way. Yet the two maps look the same.
+In `zennit`, the identity rule is applied to every standard activation function, but in ConvNeXt timm implements GELU with a custom class that `zennit` fails to recognise, falling back to the gradient silently. In ConvNeXt with the rule, 0.66 of the starting relevance reaches the pixels, and without it only 0.48, so about a quarter is lost on the way. Yet the two maps look the same.
 
 ### Attention
 
@@ -131,13 +132,11 @@ Transformer blocks use attention in place of the convolution. A transformer repr
 
 Under the gradient fallback, each token receives relevance in proportion to its attention weight alone, however much or little it sent. Another part flows into the computation of the weights, in positive and negative amounts that cancel. Because the weights of a token add up to 1, the gradient still divides the relevance among the tokens, only by weight and not by contribution. A missing attention rule therefore does far less harm than a missing rule for LayerNorm or the residual connections.
 
-We can treat the weights as constants on the way back, as if they had been given and not computed from the tokens. No relevance then flows into their computation, and the weighted average works like a linear layer, where each token receives relevance in proportion to its contribution, its weight times what it sent. This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, freezing the weights on the backward pass changes the maps only slightly. Without the rule, Swin's maps pick up a few bright squares and the pixel total shifts by about 10%.
+We can treat the weights as constants on the way back, as if they had been given and not computed from the tokens. No relevance then flows into their computation, and the weighted average works like a linear layer, where each token receives relevance in proportion to its contribution, its weight times what it sent. This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, freezing the weights on the backward pass changes the maps only slightly. Without the rule, Swin's maps pick up a few bright squares and the pixel total shifts by up to about 10%.
 
 ### Smaller pieces
 
-A few smaller parts needed a rule as well. MaxViT scales its channels with learned gates, which pass relevance on unchanged like layer scale. Batch normalisation, used in older networks, can be folded into the convolution before it, which turns two layers into one without changing the forward pass. Folding is only exact when the convolution feeds nothing else, so the code checks that before merging.
-
-{%- comment -%}TODO: cite canonization / batch-norm folding work (e.g. Motzkus et al. 2022; Hui and Binder 2019) after verifying.{%- endcomment %}
+A few smaller parts needed a rule as well. MaxViT scales its channels with gates that it computes from the input itself, a design called squeeze-and-excitation. The rule holds these gates constant on the way back, so relevance passes through them unchanged, as with layer scale. Batch normalisation, used in older networks, can be folded into the convolution before it, which turns two layers into one without changing the forward pass. Such rewrites of a model are called canonization [<a href="#motzkus2022measurably" data-ref="motzkus2022measurably">Motzkus et al.</a>]. Folding is only exact when the convolution feeds nothing else, so the code checks that before merging.
 
 ## Where the relevance goes
 
@@ -145,11 +144,15 @@ With a rule for every part, the maps make sense again, and we can follow the rel
 
 {% include posts/label-free-lrp-stack.html %}
 
-The encoders differ in how far the relevance moves on its way. A convolution only combines neighbouring cells, so in ConvNeXt the relevance stays close to where it started, and about 70% of it lands on the starting cell and its eight neighbours. Attention connects every token with every other one, so in a ViT the relevance can jump across the image within a single block. In the DINOv1 ViT, only 40 to 50% stays this close.
+The encoders differ in how far the relevance moves on its way. A convolution only combines neighbouring cells, so in ConvNeXt the relevance stays close to where it started, and about three quarters of it lands on the starting cell and its eight neighbours. Attention connects every token with every other one, so in a ViT the relevance can jump across the image within a single block. In the DINOv1 ViT, only 40 to 50% stays this close.
 
-ResNet-50 adds a pattern of its own. In its middle stages, one cell in every $2 \times 2$ square holds roughly 60% of the relevance, imprinting a fine checkerboard that has nothing to do with the image [<a href="#odena2016deconvolution" data-ref="odena2016deconvolution">Odena et al.</a>]. It comes from the downsampling shortcut when a stage halves the spatial resolution. The $1 \times 1$ shortcut steps by two cells at a time and reads only one cell in every $2 \times 2$ square, so on the way back the relevance can only return to the cells that were read. By the time it reaches the pixels, the pattern has evened out.
+ResNet-50 adds a pattern of its own. In its middle stages, one cell in every $2 \times 2$ square holds 60 to 70% of the relevance, imprinting a fine checkerboard that has nothing to do with the image [<a href="#odena2016deconvolution" data-ref="odena2016deconvolution">Odena et al.</a>]. It comes from the downsampling shortcut when a stage halves the spatial resolution. The $1 \times 1$ shortcut steps by two cells at a time and reads only one cell in every $2 \times 2$ square, so on the way back the relevance can only return to the cells that were read. By the time it reaches the pixels, the pattern has evened out.
 
-The bands between the layers also narrow on the way, because not all of the starting relevance reaches the pixels. How much arrives differs a lot between models, from 0.02 in ResNet-50 to 0.85 in the supervised ViT.
+MAE behaves differently, even though it is a ViT as well. Like DINOv1, it starts with relevance spread almost evenly over the image. DINOv1 gathers it onto the objects on the way back, but MAE keeps 70 to 80% on the starting cell and its neighbours, so its maps stay nearly flat at every depth. If we select a single cell on the dog, a faint trace of the rest of the animal appears, far weaker than in DINOv1.
+
+At the pixels, MAE adds a second oddity. A fine grid traces the border of every patch, and about 70% of the relevance lands within two pixels of a border, in a strip that covers only 44% of the image. In DINOv1, the same strip receives a share in line with its area. Since each patch still passes on exactly what it received from the layer above, the grid must form in the very last step, where the first layer spreads a patch's relevance over its pixels.
+
+The bands between the layers mostly narrow on the way, because not all of the starting relevance reaches the pixels. How much arrives differs a lot between models, from 0.02 in ResNet-50 to 0.85 in the supervised ViT.
 
 <details markdown="1">
 <summary>Relevance at the pixels for each model</summary>
@@ -173,13 +176,13 @@ The numbers use the rules from the next section and are medians over eight Image
 
 The rest stays inside the network. Most layers add a constant, the bias, to their output. The bias is not an input, yet part of the output is due to it, so the rules leave part of the relevance with it, and small stabilising terms in the rules keep a little more. In transformers, the class token and the register tokens, extra tokens that the model learns and adds to the patch tokens, take their share as well.
 
-Is this a flaw? AttnLRP argues that it is not. Following the original LRP paper, it treats a bias as an extra input whose value is always one, so that its relevance is "preserved, rather than lost" [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. One could force all relevance onto the pixels, either by spreading the bias's share over the inputs or by leaving the bias out of the rules, but AttnLRP shows that both can make the results numerically unstable or flip their signs. Leaving out the bias kept all of the relevance in a ResNet but produced invalid numbers in ConvNeXt. This post therefore leaves part of the relevance inside the network and reports how much reaches the pixels.
+Is this a flaw? AttnLRP argues that it is not. Following the original LRP paper, it treats a bias as an extra input whose value is always one, so that its relevance is "preserved, rather than lost" [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. One could force all relevance onto the pixels, either by spreading the bias's share over the inputs or by leaving the bias out of the rules, but AttnLRP warns that spreading can make the results numerically unstable and that leaving out the bias can flip their signs. Leaving out the bias kept all of the relevance in a ResNet but produced invalid numbers in ConvNeXt with the rules used here. This post therefore leaves part of the relevance inside the network and reports how much reaches the pixels.
 
-Position embeddings are the one place where these rules err in the other direction and send too much to the pixels. A ViT adds them to the patch tokens with a plain addition, so the patches receive the share that belongs to the positions. Bakish et al. show that position embeddings carry relevance of their own and that ignoring them violates conservation [<a href="#bakish2025revisiting" data-ref="bakish2025revisiting">Bakish et al.</a>].
+Position embeddings are the one place where the error goes the other way and too much reaches the pixels. Most ViTs add them to the patch tokens with a plain addition that has no rule here, so its gradient hands the full relevance to the patches, including the share that belongs to the positions. Bakish et al. show that position embeddings carry relevance of their own and that ignoring them violates conservation [<a href="#bakish2025revisiting" data-ref="bakish2025revisiting">Bakish et al.</a>].
 
 ## Choices that remain
 
-Once no part falls back to the gradient, three choices are left. They decide how the relevance is split at each residual connection, which rule the linear layers inside the blocks use, and how the first layer spreads relevance over the pixels. None of them breaks the maps, but each one changes them.
+Once the rules are in place, three choices are left. They decide how the relevance is split at each residual connection, which rule the linear layers inside the blocks use, and how the first layer spreads relevance over the pixels. None of them breaks the maps, but each one changes them.
 
 ### Who gets the credit at a residual connection
 
@@ -194,7 +197,7 @@ The proportional, magnitude, and $\gamma$ splits agree as long as the skip and t
 
 {% include figure-gallery.html id="lrp-residual" data=site.data.galleries.lrp_residual class="wide" %}
 
-In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it stays behind with the biases, so very little reaches the pixels, as little as 0.04 for the DINOv1 ViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees, while the magnitude and $\gamma$ splits keep more of it on the animals. Of these two, the $\gamma$ split passes on more relevance and is a little more detailed.
+In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it stays behind with the biases, so very little reaches the pixels, about 0.04 for the DINOv1 ViT and less than 0.001 for MaxViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees, while the magnitude and $\gamma$ splits keep more of it on the animals. Of these two, the $\gamma$ split passes on more relevance and is a little more detailed.
 
 We can choose a split by looking at maps like these and by checking that small changes to the input do not change the maps much. Which split is more faithful to the model remains untested here, and a handful of images would not be enough to claim one. For anyone who wants to choose between them, Berend et al. compare the $\gamma$ split with the standard rules on several faithfulness measures, which test whether the pixels a map highlights are the ones the model actually depends on.
 
@@ -209,7 +212,7 @@ The equal split delivered the least relevance (0.00 to 0.12 for most models), an
 
 ### The rule inside the blocks
 
-The linear layers inside the blocks had a rule from the start, but `zennit` offers several, and they trade detail against focus. The encoders here use the Gamma rule, which lies between LRP-0 and the $z^+$ rule. Like LRP-0, it keeps negative contributions, but it gives the positive ones extra weight, and the larger its parameter $\gamma$, the closer it comes to $z^+$. This makes the maps less noisy, and AttnLRP recommends it for the linear layers of vision transformers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
+The linear layers inside the blocks had a rule from the start, but `zennit` offers several, and they trade detail against focus. Apart from ResNet-50, the encoders here use the Gamma rule, which lies between LRP-0 and the $z^+$ rule. Like LRP-0, it keeps negative contributions, but it gives the positive ones extra weight, and the larger its parameter $\gamma$, the closer it comes to $z^+$. This makes the maps less noisy, and AttnLRP recommends it for the linear layers of vision transformers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>].
 
 ### The last step to the pixels
 
@@ -223,12 +226,15 @@ Because WSquare ignores the pixels, it fills every patch with the same pattern, 
 
 {% include figure-gallery.html id="lrp-stems" data=site.data.galleries.lrp_stems_rules %}
 
-Look closely at the full-resolution maps and the patch grid bleeds through. WSquare outlines the patch borders sharply, $z^+$ softens them, and Gamma erases them almost completely. The number under each map measures this as the contrast between neighbouring pixels across a patch border compared with inside a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with $z^+$, and 0.97 with Gamma, and Swin and the DINOv1 ViT behave the same way. The table below lists the rules chosen early on, WSquare for ConvNeXt, Swin, and MaxViT and $z^+$ for the ViTs. By these numbers, Gamma would be the better choice for all of them.
+Look closely at the full-resolution maps and the patch grid bleeds through. WSquare outlines the patch borders sharply, $z^+$ softens them, and Gamma erases them almost completely. The number under each map measures this as the contrast between neighbouring pixels across a patch border compared with inside a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with $z^+$, and 0.97 with Gamma, and Swin and the DINOv1 ViT behave the same way.
+
+MAE is the exception. Its grid survives all three rules, and Gamma leaves it almost as strong as $z^+$ does. Its first layer looks unusual too, putting more than half of its squared weights on the outermost pixels of each patch. These pixels make up less than a quarter of a patch, and in DINOv1 and the supervised ViT they receive a share in line with their number. Even the plain gradient shows the same grid, so it is not an artefact of LRP.
 
 <details markdown="1">
 <summary>All rules at a glance</summary>
 
 <div class="lrp-scroll" markdown="1">
+The table below lists the rules chosen early on, WSquare for ConvNeXt, Swin, and MaxViT and $z^+$ for the ViTs. By these numbers, Gamma would be the better choice for all of them except MAE, where no rule removes the grid.
 
 | | ResNets | ConvNeXt | Swin | MaxViT | Plain ViTs |
 |---|---|---|---|---|---|
@@ -245,7 +251,7 @@ Look closely at the full-resolution maps and the patch grid bleeds through. WSqu
 
 ## Conclusion
 
-Maps like these do more than catch a shortcut like the horses at the start. They can also point to quirks of the architecture itself. The checkerboard in ResNet-50 traces back to how its strided layers are wired, and ResNet-D, a later variant, removes the same weakness by averaging before the shortcut [<a href="#he2019bag" data-ref="he2019bag">He et al.</a>]. MAE keeps a grid along the borders of its patches under every first-layer rule tried here, and part of it seems to come from its own learned weights, which favour the borders of each patch. Where these patterns come from and what they mean for the models is a story for another post.
+Maps like these do more than catch a shortcut like the horses at the start. They can also point to quirks of the architecture itself. The checkerboard in ResNet-50 traces back to how its strided layers are wired, and ResNet-D, a later variant, removes the same weakness by averaging before the shortcut [<a href="#he2019bag" data-ref="he2019bag">He et al.</a>]. MAE's maps stay nearly flat and carry a grid along its patch borders that no first-layer rule removes. What causes these patterns, and whether they matter for the model, is a story for another day.
 
 LRP does not fail loudly. Where a modern encoder has a part without a rule, the explanation falls back to the gradient and still returns a map. Sometimes it is noise, and sometimes it is a convincing picture built on totals that are orders of magnitude too large or a quarter too small. Visual inspection alone cannot tell a healthy map from a broken one. The totals can, because relevance that is only divided should never multiply on its way to the pixels. With the rules described here, the maps of ConvNeXt, Swin, and ViTs make sense again.
 
@@ -261,6 +267,7 @@ Lapuschkin, S., Wäldchen, S., Binder, A., Montavon, G., Samek, W., & Müller, K
 He, T., Zhang, Z., Zhang, H., Zhang, Z., Xie, J., & Li, M. | 2019 | Bag of Tricks for Image Classification with Convolutional Neural Networks;
 Anders, C. J., Neumann, D., Samek, W., Müller, K.-R., & Lapuschkin, S. | 2021 | Software for Dataset-wide XAI: From Local Explanations to Global Insights with Zennit, CoRelAy, and ViRelAy;
 Ali, A., Schnake, T., Eberle, O., Montavon, G., Müller, K.-R., & Wolf, L. | 2022 | XAI for Transformers: Better Explanations through Conservative Propagation;
+Motzkus, F., Weber, L., & Lapuschkin, S. | 2022 | Measurably Stronger Explanation Reliability via Model Canonization;
 Achtibat, R., et al. | 2024 | AttnLRP: Attention-Aware Layer-Wise Relevance Propagation for Transformers;
 Bakish, Y., Zimerman, I., Chefer, H., & Wolf, L. | 2025 | Revisiting LRP: Positional Attribution as the Missing Ingredient for Transformer Explainability;
 Berend, J., Achtibat, R., Schäffer, D., Binder, A., Samek, W., Lapuschkin, S., & Dreyer, M. | 2026 | ResLRP: The Role of Residual Cancellation in Attribution Instability in Vision Transformers;
