@@ -147,7 +147,7 @@
   const signed = (vals, n) => { let m = 1e-12; for (const v of vals) m = Math.max(m, Math.abs(v)); return image(vals, n, (v) => (v >= 0 ? red(v / m) : blue(-v / m))); };
 
   const W = 1400, HGT = 486, R1 = 132, R2 = 404, MS = 76, GAP = 6, ARC = 52;
-  const XS = [230, 470, 710, 950, 1190], XSTEM = 146, XHEAD = 1282, XCLS = 1368;
+  const XS = [246, 474, 702, 930, 1158], XSTEM = 152, XHEAD = 1251, XCLS = 1368;
   const VW = 500, VTOP = 84, VH = W + VTOP;
   const narrow = matchMedia('(max-width: 640px)');
   const upright = (e, cx, cy) => e.setAttribute('transform', `matrix(0 1 1 0 ${cx - cy} ${cy - cx})`);
@@ -209,7 +209,7 @@
           out.totals.push(!rel ? null : tall ? T(g, x - 4, y - MS / 2 - 8, '', 'lrpc-total', 'end') : T(g, x - MS / 2, y + MS / 2 + 18, '', 'lrpc-total', 'start'));
           out.parts.push(!rel ? null : tall ? T(g, x + 12, y - MS / 2 - 8, '', 'lrpc-parts', 'end') : T(g, x - MS / 2, y + MS / 2 + 32, '', 'lrpc-parts', 'start'));
           if (k === B) return;
-          const L = x + MS / 2 + 20, bx = x + 114, px = x + 172, nx = XS[k + 1];
+          const L = x + MS / 2 + 10, bx = x + 93, px = x + 159, nx = XS[k + 1];
           dir(x + MS / 2 + 3, bx - 39);
           out.boxes.push(box(bx, 70, rel ? [`block ${k + 1}`, '', ''] : [`block ${k + 1}`], 'lrpc-block'));
           dir(bx + 39, px - 14);
