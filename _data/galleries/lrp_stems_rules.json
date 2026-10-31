@@ -14,6 +14,14 @@
    "label": "DINOv1 ViT-B/16"
   },
   {
+   "id": "dinov2",
+   "label": "DINOv2 ViT-B/14"
+  },
+  {
+   "id": "dinov3_vit",
+   "label": "DINOv3 ViT-B/16"
+  },
+  {
    "id": "mae",
    "label": "MAE ViT-B/16"
   }
@@ -123,7 +131,37 @@
   "mae|gamma|misc": "patch edges 2.77\u00d7",
   "mae|zplus|spider_web": "patch edges 2.53\u00d7",
   "mae|wsquare|spider_web": "patch edges 1.47\u00d7",
-  "mae|gamma|spider_web": "patch edges 2.34\u00d7"
+  "mae|gamma|spider_web": "patch edges 2.34\u00d7",
+  "dinov2|zplus|dog_cat": "patch edges 1.58\u00d7",
+  "dinov2|wsquare|dog_cat": "patch edges 3.62\u00d7",
+  "dinov2|gamma|dog_cat": "patch edges 0.90\u00d7",
+  "dinov2|zplus|dog_dog": "patch edges 1.69\u00d7",
+  "dinov2|wsquare|dog_dog": "patch edges 3.83\u00d7",
+  "dinov2|gamma|dog_dog": "patch edges 0.96\u00d7",
+  "dinov2|zplus|fish_person": "patch edges 1.74\u00d7",
+  "dinov2|wsquare|fish_person": "patch edges 2.52\u00d7",
+  "dinov2|gamma|fish_person": "patch edges 1.02\u00d7",
+  "dinov2|zplus|misc": "patch edges 4.00\u00d7",
+  "dinov2|wsquare|misc": "patch edges 7.00\u00d7",
+  "dinov2|gamma|misc": "patch edges 1.59\u00d7",
+  "dinov2|zplus|spider_web": "patch edges 2.21\u00d7",
+  "dinov2|wsquare|spider_web": "patch edges 2.76\u00d7",
+  "dinov2|gamma|spider_web": "patch edges 1.28\u00d7",
+  "dinov3_vit|zplus|dog_cat": "patch edges 1.46\u00d7",
+  "dinov3_vit|wsquare|dog_cat": "patch edges 2.52\u00d7",
+  "dinov3_vit|gamma|dog_cat": "patch edges 0.80\u00d7",
+  "dinov3_vit|zplus|dog_dog": "patch edges 1.55\u00d7",
+  "dinov3_vit|wsquare|dog_dog": "patch edges 2.50\u00d7",
+  "dinov3_vit|gamma|dog_dog": "patch edges 0.89\u00d7",
+  "dinov3_vit|zplus|fish_person": "patch edges 1.69\u00d7",
+  "dinov3_vit|wsquare|fish_person": "patch edges 2.19\u00d7",
+  "dinov3_vit|gamma|fish_person": "patch edges 0.94\u00d7",
+  "dinov3_vit|zplus|misc": "patch edges 3.56\u00d7",
+  "dinov3_vit|wsquare|misc": "patch edges 5.74\u00d7",
+  "dinov3_vit|gamma|misc": "patch edges 1.71\u00d7",
+  "dinov3_vit|zplus|spider_web": "patch edges 2.35\u00d7",
+  "dinov3_vit|wsquare|spider_web": "patch edges 2.08\u00d7",
+  "dinov3_vit|gamma|spider_web": "patch edges 1.65\u00d7"
  },
  "help": "Pick an image and compare the three rules for the first layer across a row. Each row is one model, and everything above the first layer is identical. Move the pointer over a map to see the image underneath."
 }

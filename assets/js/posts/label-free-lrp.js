@@ -193,7 +193,7 @@
   /* where a level from the exported data sits, for its caption */
   const where = (name) => (name === 'pixels' ? 'the pixels' : name.replace(/^.*→ (?:stage )?(\d+)$/, 'below stage $1'));
   const SHOWN = ['below the final norm', 'below block 9', 'below block 5', 'below block 1', 'pixels'];
-  const OPACITY = 70;                               // default map opacity, in percent
+  const OPACITY = 80;                               // default map opacity, in percent
   const M = 112;                                    // display resolution of the layer maps
   const GAP = 40, BIG = 1.6, GROW = 1.4, NEAR = 0.3; // space for the bands; end panels vs. the depths; how much a hovered depth and its neighbours grow
   const narrow = window.matchMedia('(max-width: 640px)');
@@ -202,7 +202,7 @@
   const stackExplorer = (root, app) => {
     const models = JSON.parse(app.dataset.models);
     const thumbs = [...root.querySelectorAll('.fg-thumb')];
-    const state = { model: models[0].id, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, common: false, amounts: null };
+    const state = { model: models[0].id, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, amounts: null };
 
     /* data, fetched once per model and image: int8 maps per level and start cell, with one scale per cell */
     const cache = new Map();
@@ -237,7 +237,6 @@
     };
     const reset = () => {
       state.picked?.fill(false);
-      commonBox.checked = state.common = false;
       setOpacity(OPACITY);
       render();
     };
@@ -256,7 +255,6 @@
       models.map((m) => h('option', { value: m.id, text: m.label })));
     const opacity = h('input', { type: 'range', min: 0, max: 100, step: 5, value: OPACITY, 'aria-label': 'Map opacity', oninput: () => setOpacity(Number(opacity.value)) });
     const opacityOut = h('output');
-    const commonBox = h('input', { type: 'checkbox', onchange: () => { state.common = commonBox.checked; render(); } });
     const startBase = canvas(), startHeat = canvas(true), startMarks = canvas();
     const startBox = h('div', {
       class: 'lrp-start', role: 'img', 'aria-label': 'The start. Hover a cell to preview it, click cells to select them.',
@@ -266,7 +264,7 @@
     }, startBase, startHeat, startMarks);
     const tools = h('div', { class: 'lrp-tools', role: 'toolbar', 'aria-label': 'Start cells' },
       icon('Invert the selection', invert, ['M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z'], ['M12 4a8 8 0 0 1 0 16z', true]),
-      icon('Reset: all cells, default scale and opacity', reset, ['M4 12a8 8 0 1 0 2.4-5.7'], ['M4 4v4.5h4.5']));
+      icon('Reset: all cells and default opacity', reset, ['M4 12a8 8 0 1 0 2.4-5.7'], ['M4 4v4.5h4.5']));
     const startCol = h('div', { class: 'lrp-col lrp-col--start' },
       h('p', { class: 'lrp-layer-top', text: 'where it starts' }), startBox, h('p', { class: 'lrp-layer-name' }, 'the features'), tools);
     const ribbons = svg('svg', { class: 'lrp-ribbons', 'aria-hidden': 'true' });
@@ -285,8 +283,7 @@
     app.append(
       h('div', { class: 'lrp-stack-controls' },
         h('label', { class: 'lrp-select' }, 'Model', modelSelect),
-        h('label', { class: 'lrp-range' }, 'Map opacity', opacity, opacityOut),
-        h('label', { class: 'lrp-check' }, commonBox, ' One colour scale for all depths')),
+        h('label', { class: 'lrp-range' }, 'Map opacity', opacity, opacityOut)),
       row, readout, status);
 
     /* relevance arithmetic */
@@ -326,12 +323,11 @@
     const off = document.createElement('canvas');
     const photo = (c, img) => c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     // The maps are opaque, so the opacity slider blends between the plain photo (0) and the map alone (100).
-    // soft: colour by the square root, so that the weak spread of the plain ViTs stays visible.
-    const heat = (target, values, [rows, cols], { smooth = false, soft = false } = {}) => {
+    const heat = (target, values, [rows, cols], { smooth = false } = {}) => {
       off.width = cols; off.height = rows;
       const octx = off.getContext('2d'), px = octx.createImageData(cols, rows);
       values.forEach((x, i) => {
-        const t = clamp(x, 0, 1), [r, g, b] = hot(soft ? Math.sqrt(t) : t);
+        const t = clamp(x, 0, 1), [r, g, b] = hot(t);
         px.data.set([r * 255, g * 255, b * 255, 255], i * 4);
       });
       octx.putImageData(px, 0, 0);
@@ -418,9 +414,6 @@
       ribbons.setAttribute('viewBox', `0 0 ${wrap.width} ${wrap.height}`);
       const boxes = [startBox, ...layers.map((l) => l.plane)].map((el) => el.getBoundingClientRect());
       const k = 0.45 * Math.min(...boxes.map((b) => b.height)) / Math.max(1, ...a);
-      ribbons.append(svg('defs', {}, svg('linearGradient', { id: 'lrp-ribbon', x1: 0, x2: 1, y1: 0, y2: 0 },
-        svg('stop', { offset: 0, 'stop-color': '#e2552b', 'stop-opacity': 0.5 }),
-        svg('stop', { offset: 1, 'stop-color': '#f2a33a', 'stop-opacity': 0.5 }))));
       for (let i = 1; i < boxes.length; i++) {
         const p = boxes[i - 1], q = boxes[i];
         const ax = p.right - wrap.left, bx = q.left - wrap.left, mx = (ax + bx) / 2;
@@ -467,18 +460,13 @@
         ctx.strokeRect(x + 2.5, y + 2.5, cw - 5, ch - 5);
       });
 
-      // the layers: exact maps, each scaled to its maximum or all on one scale (relevance per image area)
-      const raw = layers.map(({ lv }) => {
-        const area = lv.size[0] * lv.size[1];
-        return resample(sumLevel(lv, sel), lv.size).map((x) => Math.max(0, x * area));
-      });
-      const p99 = (x) => x.slice().sort()[Math.floor(0.99 * (x.length - 1))];
-      const common = state.common && (Math.max(...raw.map(p99)) || 1);
+      // the layers: exact maps, each scaled to its maximum
+      const raw = layers.map(({ lv }) => resample(sumLevel(lv, sel), lv.size).map((x) => Math.max(0, x)));
       const startAmount = amount(lv0, sel);
       const amounts = [1, ...layers.map((l) => amount(l.lv, sel) / startAmount)];
       layers.forEach((l, i) => {
-        const ref = common || raw[i].reduce((m, x) => Math.max(m, x), 0) || 1;
-        heat(l.map, raw[i].map((x) => x / ref), [M, M], { smooth: l.last, soft: true });
+        const ref = raw[i].reduce((m, x) => Math.max(m, x), 0) || 1;
+        heat(l.map, raw[i].map((x) => x / ref), [M, M], { smooth: l.last });
         l.num.textContent = fmt(amounts[i + 1]);
       });
       state.amounts = amounts;

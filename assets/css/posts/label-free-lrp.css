@@ -30,7 +30,6 @@
 .lrp-stack-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .6rem 1.4rem; padding: .7rem 0; border-top: 1px dashed var(--fig-line); border-bottom: 1px dashed var(--fig-line); }
 .lrp-stack-controls .lrp-select { display: flex; align-items: center; gap: .5rem; font-size: .86rem; font-weight: 650; }
 .lrp-stack-controls select { min-height: 34px; padding: .2rem .5rem; border: 1px solid var(--fig-control); border-radius: 6px; background: var(--fig-raised); color: var(--fig-ink); font: inherit; font-weight: 500; }
-.lrp-stackfig .lrp-check { display: flex; align-items: center; gap: .4rem; font-size: .84rem; color: var(--fig-muted); }
 .lrp-row { position: relative; display: flex; justify-content: center; align-items: center; gap: 40px; margin-top: 1.8rem; }
 .lrp-col { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; width: 160px; }
 .lrp-col--start { z-index: 2; }
@@ -49,7 +48,8 @@
 .lrp-stack-controls .lrp-range input { width: 140px; accent-color: var(--fig-accent); }
 .lrp-stack-controls .lrp-range output { min-width: 3em; font-weight: 500; color: var(--fig-accent); font-variant-numeric: tabular-nums; }
 .lrp-ribbons { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 0; }
-.lrp-ribbon { fill: url(#lrp-ribbon); }
+.lrp-ribbon { fill: #ea7c33; fill-opacity: .5; }
+:root[data-theme="dark"] .lrp-ribbon { fill: #c08562; fill-opacity: .28; }
 .lrp-start, .lrp-plane { width: 100%; }
 .lrp-plane { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #1b211d;
   box-shadow: 0 0 0 1px rgb(18 44 34 / .12), 0 6px 16px rgb(18 44 34 / .14); }

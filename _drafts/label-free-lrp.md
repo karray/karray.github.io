@@ -136,7 +136,7 @@ A few smaller parts needed a rule as well. MaxViT scales its channels with gates
 
 ## Where the relevance goes
 
-With a rule for every part, the maps make sense again, and we can follow the relevance on its way through the network. The figure below does this for five encoders. Each row starts on the left with the final-layer features and tracks the relevance step by step toward the input pixels on the right.
+With a rule for every part, the maps make sense again, and we can follow the relevance on its way through the network. The figure below does this for seven encoders. Each row starts on the left with the final-layer features and tracks the relevance step by step toward the input pixels on the right.
 
 {% include posts/label-free-lrp-stack.html %}
 
@@ -148,14 +148,18 @@ MAE behaves differently, even though it is a ViT as well. Like DINOv1, it starts
 
 At the pixels, MAE adds a second oddity. A fine grid traces the border of every patch, and about 70% of the relevance lands within two pixels of a border, in a strip that covers only 44% of the image. In DINOv1, the same strip receives a share in line with its area. Since each patch still passes on exactly what it received from the layer above, the grid must form in the very last step, where the first layer spreads a patch's relevance over its pixels.
 
-The two ViTs with the most scattered maps have something else in common. ConvNeXt, ResNet-50 and Swin learned from labelled images, while DINOv1 and MAE learned from the images alone, without any labels. A supervised model only needs the features that tell its classes apart, so it may learn to ignore much of the background. A self-supervised model has no labels to tell it what matters and may keep features of everything in the image, which would spread the relevance more widely. In this figure the two self-supervised models are also the only plain ViTs, so their training and their architecture cannot be told apart.
+In DINOv2, a few dark cells in the background start with much less relevance than the rest. They belong to outlier tokens, a known quirk of some ViTs [<a href="#darcet2024vision" data-ref="darcet2024vision">Darcet et al.</a>], and they fade within a block or two without leaving a trace at the pixels.
 
-A scattered or flat map is not necessarily noise, though. As in the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), every map in the figure adds up all the features at a position into a single number, so it shows where the relevance lands but not what it stands for. Relevance on the grass and the trees may come from features that describe the background as well as others describe the dog. Once the features are added up, a map has no way to say which is which.
+The plain ViTs, whose maps are the most scattered, have something else in common. ConvNeXt, ResNet-50 and Swin learned from labelled images, while the DINO models and MAE are trained in label-free settings. A supervised model only needs the features that tell its classes apart, so it may learn to ignore much of the background. A self-supervised model has no labels to tell it what matters and may keep features of everything in the image, which would spread the relevance more widely.
+
+A scattered or flat map is not necessarily noise, though. As discussed in the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), every map in the figure adds up all the features at a position into a single number, so it shows where the relevance lands but not what it stands for. Relevance on the grass and the trees may come from features that describe the background as well as others describe the dog. Once the features are added up, a map has no way to say which is which.
 
 <details markdown="1">
 <summary>Where the rest of the relevance goes</summary>
 
-How much relevance arrives differs a lot between models, from 0.02 in ResNet-50 to 0.85 in the supervised ViT. The rest stays inside the network. Most layers add a constant, the bias, to their output. The bias is not an input, yet part of the output is due to it, so the rules leave part of the relevance with it, and small stabilising terms in the rules keep a little more. In transformers, the class token and the register tokens, extra tokens that the model learns and adds to the patch tokens, take their share as well.
+How much relevance arrives differs a lot between models, from 0.03 in ResNet-50 to 0.69 in Swin. The rest stays inside the network. Most layers add a constant, the bias, to their output. The bias is not an input, yet part of the output is due to it, so the rules leave part of the relevance with it, and small stabilising terms in the rules keep a little more. In transformers, the class token and the register tokens, extra tokens that the model learns and adds to the patch tokens, take their share as well.
+
+A bias can even hold a negative share. The final normalisation of DINOv3 adds a bias to each feature, and over the features where the relevance starts, these biases add up to a negative amount. The features were therefore larger before the bias was added, so the tokens below receive 5 to 11% more relevance than the start, and the bias keeps the difference as negative relevance. Counted together with the bias, the total is still 1.
 
 Is this a flaw? AttnLRP argues that it is not. Following the original LRP paper, it treats a bias as an extra input whose value is always one, so that its relevance is "preserved, rather than lost" [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. One could force all relevance onto the pixels, either by spreading the bias's share over the inputs or by leaving the bias out of the rules, but AttnLRP warns that spreading can make the results numerically unstable and that leaving out the bias can flip their signs. Leaving out the bias kept all of the relevance in a ResNet but produced invalid numbers in ConvNeXt with the rules used here. This post therefore leaves part of the relevance inside the network and reports how much reaches the pixels.
 
@@ -179,18 +183,9 @@ The proportional, magnitude, and $\gamma$ splits agree as long as the skip and t
 
 {% include figure-gallery.html id="lrp-residual" data=site.data.galleries.lrp_residual class="wide" %}
 
-In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it stays behind with the biases, so very little reaches the pixels, about 0.04 for the DINOv1 ViT and less than 0.001 for MaxViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees, while the magnitude and $\gamma$ splits keep more of it on the animals. Of these two, the $\gamma$ split passes on more relevance and is a little more detailed.
+In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it stays behind with the biases, so very little reaches the pixels, about 0.04 for the DINOv1 ViT and less than 0.0005 for MaxViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees, while the magnitude and $\gamma$ splits keep more of it on the animals. Of these two, the $\gamma$ split passes on more relevance and is a little more detailed.
 
 We can choose a split by looking at maps like these and by checking that small changes to the input do not change the maps much. Which split is more faithful to the model remains untested here, and a handful of images would not be enough to claim one. For anyone who wants to choose between them, Berend et al. compare the $\gamma$ split with the standard rules on several faithfulness measures, which test whether the pixels a map highlights are the ones the model actually depends on.
-
-<details markdown="1">
-<summary>A few numbers behind the maps</summary>
-
-The numbers come from eight ImageNet images per model and measure three things for each rule. The first is how much relevance reaches the pixels. The second is how much the map changes when the input moves by a tiny amount. The third is whether the map follows where the relevance starts, checked by starting only from the features inside the object box and then only from those outside.
-
-The equal split delivered the least relevance (0.00 to 0.12 for most models), and its maps barely depended on where they started. The proportional split delivered the most (up to 0.97), followed its starting features most closely, and stayed stable on these images. The magnitude and $\gamma$ splits were the most stable, and the $\gamma$ split followed its starting features almost as closely as the proportional one. The maps of the supervised ViT barely depended on their starting features under any rule.
-
-</details>
 
 ### The rule inside the blocks
 
@@ -198,7 +193,7 @@ The linear layers inside the blocks had a rule from the start, but `zennit` offe
 
 ### The last step to the pixels
 
-The first layer of many modern encoders cuts the image into patches and turns each patch into a feature vector, four by four pixels in ConvNeXt and Swin and sixteen by sixteen in a ViT. Its rule decides how a patch's relevance is spread over its pixels, and with that, most of the fine detail in the map. Several rules in `zennit` can handle this step, and it is not obvious which one suits a patch layer.
+The first layer of many modern encoders cuts the image into patches and turns each patch into a feature vector, $4 \times 4$ pixels in ConvNeXt and Swin and $16 \times 16$ in a ViT. Its rule decides how a patch's relevance is spread over its pixels, and with that, most of the fine detail in the map. Several rules in `zennit` can handle this step, and it is not obvious which one suits a patch layer.
 
 - **$z^+$** splits a patch's relevance by how much each pixel pushed the layer's output up, as in the digit network.
 - **WSquare** splits it by the weights alone, so the image itself plays no part. It is recommended for inputs without natural bounds [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>].
@@ -251,6 +246,7 @@ Anders, C. J., Neumann, D., Samek, W., Müller, K.-R., & Lapuschkin, S. | 2021 |
 Ali, A., Schnake, T., Eberle, O., Montavon, G., Müller, K.-R., & Wolf, L. | 2022 | XAI for Transformers: Better Explanations through Conservative Propagation;
 Motzkus, F., Weber, L., & Lapuschkin, S. | 2022 | Measurably Stronger Explanation Reliability via Model Canonization;
 Achtibat, R., et al. | 2024 | AttnLRP: Attention-Aware Layer-Wise Relevance Propagation for Transformers;
+Darcet, T., Oquab, M., Mairal, J., & Bojanowski, P. | 2024 | Vision Transformers Need Registers;
 Bakish, Y., Zimerman, I., Chefer, H., & Wolf, L. | 2025 | Revisiting LRP: Positional Attribution as the Missing Ingredient for Transformer Explainability;
 Berend, J., Achtibat, R., Schäffer, D., Binder, A., Samek, W., Lapuschkin, S., & Dreyer, M. | 2026 | ResLRP: The Role of Residual Cancellation in Attribution Instability in Vision Transformers;
 {%- endcapture -%}
