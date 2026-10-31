@@ -1,6 +1,7 @@
 ---
 layout: post
 title: What LRP Is and Why It Fails Quietly on Modern Vision Models
+date: 2026-10-31 17:59:00 +0100
 styles:
   - /assets/css/posts/label-free-lrp.css
 tags: XAI, LRP, CNN, ViT, Self-Supervised Learning
@@ -56,7 +57,7 @@ The second switch decides whether to keep negative values, giving four methods i
 <details markdown="1">
 <summary>What is guided backpropagation?</summary>
 
-Guided backpropagation was introduced to produce sharper pictures of what a convolutional network responds to [<a href="#springenberg2015striving" data-ref="springenberg2015striving">Springenberg et al.</a>]. It runs ordinary backpropagation, but at every neuron it keeps only the positive part of the gradient, and only if that neuron was active in the forward pass. Because this filtering happens at the neurons, multiplying by negative weights on the way to the previous layer can create new negative values. Inside the network, the next set of neurons drops those negative values again, but the input pixels have no neurons to filter them out, leaving some blue in the final heatmap. Since it still multiplies by the weights instead of dividing a fixed share, the totals change from layer to layer.
+Guided backpropagation was introduced to produce sharper pictures of what a convolutional network responds to [<a href="#springenberg2015striving" data-ref="springenberg2015striving">Springenberg et al.</a>]. It runs ordinary backpropagation, but at every neuron it keeps only the positive part of the gradient, and only if that neuron was active in the forward pass. This filtering happens at the neurons, so multiplying by negative weights on the way to the previous layer can create new negative values. Inside the network, the next set of neurons drops those negative values again, but the input pixels have no neurons to filter them out, leaving some blue in the final heatmap. Since it still multiplies by the weights instead of dividing a fixed share, the totals change from layer to layer.
 </details>
 
 The two LRP rules treat the classes differently. Since LRP-0 keeps negative contributions, we can explain a class with a negative score by setting its starting relevance to −1. In the figure above, this produces a distinct map for each class. The $z^+$ rule follows only positive contributions, so it starts at 0 when the score is negative. Even for another class with a positive score, using $z^+$ in every layer produces almost the same map as for the prediction, because without negative contributions the backward pass depends mostly on the input and hardly on the class. For that reason, the figure shows the $z^+$ map only for the predicted class and sets the rest to 0.
@@ -126,7 +127,7 @@ In `zennit`, the identity rule is applied to every standard activation function,
 
 Transformer blocks use attention in place of the convolution. A transformer represents the image as tokens, one feature vector per patch, and attention lets each token take a weighted average of what the other tokens send, with weights computed anew for every image. This is the one part that the toy ConvNeXt example lacks.
 
-Under the gradient fallback, each token receives relevance in proportion to its attention weight alone, however much or little it sent. Another part flows into the computation of the weights, in positive and negative amounts that cancel. Because the weights of a token add up to 1, the gradient still divides the relevance among the tokens, only by weight and not by contribution. A missing attention rule therefore does far less harm than a missing rule for LayerNorm or the residual connections.
+Under the gradient fallback, each token receives relevance in proportion to its attention weight alone, however much or little it sent. Another part flows into the computation of the weights, in positive and negative amounts that cancel. The weights of a token add up to 1, so the gradient still divides the relevance among the tokens, only by weight and not by contribution. A missing attention rule therefore does far less harm than a missing rule for LayerNorm or the residual connections.
 
 We can treat the weights as constants on the way back, as if they had been given and not computed from the tokens. No relevance then flows into their computation, and the weighted average works like a linear layer, where each token receives relevance in proportion to its contribution, its weight times what it sent. This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, freezing the weights on the backward pass changes the maps only slightly. Without the rule, Swin's maps pick up a few bright squares and the pixel total shifts by up to about 10%.
 
@@ -150,14 +151,14 @@ At the pixels, MAE adds a second oddity. A fine grid traces the border of every 
 
 In DINOv2, a few dark cells in the background start with much less relevance than the rest. They belong to outlier tokens, a known quirk of some ViTs [<a href="#darcet2024vision" data-ref="darcet2024vision">Darcet et al.</a>], and they fade within a block or two without leaving a trace at the pixels.
 
-The plain ViTs, whose maps are the most scattered, have something else in common. ConvNeXt, ResNet-50 and Swin learned from labelled images, while the DINO models and MAE are trained in label-free settings. A supervised model only needs the features that tell its classes apart, so it may learn to ignore much of the background. A self-supervised model has no labels to tell it what matters and may keep features of everything in the image, which would spread the relevance more widely.
+The plain ViTs, whose maps are the most scattered, have something else in common. ConvNeXt, ResNet-50 and Swin learned from labelled images, while the DINO models and MAE were trained in label-free settings. A supervised model only needs the features that tell its classes apart, so it may learn to ignore much of the background. A self-supervised model has no labels to tell it what matters and may keep features of everything in the image, which would spread the relevance more widely.
 
 A scattered or flat map is not necessarily noise, though. As discussed in the [previous post]({% post_url 2026-10-01-unsupervised-feature-attribution %}), every map in the figure adds up all the features at a position into a single number, so it shows where the relevance lands but not what it stands for. Relevance on the grass and the trees may come from features that describe the background as well as others describe the dog. Once the features are added up, a map has no way to say which is which.
 
 <details markdown="1">
 <summary>Where the rest of the relevance goes</summary>
 
-How much relevance arrives differs a lot between models, from 0.03 in ResNet-50 to 0.69 in Swin. The rest stays inside the network. Most layers add a constant, the bias, to their output. The bias is not an input, yet part of the output is due to it, so the rules leave part of the relevance with it, and small stabilising terms in the rules keep a little more. In transformers, the class token and the register tokens, extra tokens that the model learns and adds to the patch tokens, take their share as well.
+How much relevance arrives differs a lot between models, from 0.03 in ResNet-50 to 0.69 in Swin for the dog and cat. The rest stays inside the network. Most layers add a constant, the bias, to their output. The bias is not an input, yet part of the output is due to it, so the rules leave part of the relevance with it, and small stabilising terms in the rules keep a little more. In transformers, the class token and the register tokens, extra tokens that the model learns and adds to the patch tokens, take their share as well.
 
 A bias can even hold a negative share. The final normalisation of DINOv3 adds a bias to each feature, and over the features where the relevance starts, these biases add up to a negative amount. The features were therefore larger before the bias was added, so the tokens below receive 5 to 11% more relevance than the start, and the bias keeps the difference as negative relevance. Counted together with the bias, the total is still 1.
 
@@ -183,7 +184,7 @@ The proportional, magnitude, and $\gamma$ splits agree as long as the skip and t
 
 {% include figure-gallery.html id="lrp-residual" data=site.data.galleries.lrp_residual class="wide" %}
 
-In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it stays behind with the biases, so very little reaches the pixels, about 0.04 for the DINOv1 ViT and less than 0.0005 for MaxViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees, while the magnitude and $\gamma$ splits keep more of it on the animals. Of these two, the $\gamma$ split passes on more relevance and is a little more detailed.
+In the maps, the equal split stands out first. In a deep network, it sends half of the relevance into every block's update, where part of it stays behind with the biases, so very little reaches the pixels, about 0.04 for the DINOv1 ViT and less than 0.001 for MaxViT. The proportional split delivers the most relevance, but in DINOv1 it also spreads it over the grass and the trees, while the magnitude and $\gamma$ splits keep more of it on the animals. Of these two, the $\gamma$ split passes on more relevance and is a little more detailed.
 
 We can choose a split by looking at maps like these and by checking that small changes to the input do not change the maps much. Which split is more faithful to the model remains untested here, and a handful of images would not be enough to claim one. For anyone who wants to choose between them, Berend et al. compare the $\gamma$ split with the standard rules on several faithfulness measures, which test whether the pixels a map highlights are the ones the model actually depends on.
 
@@ -199,11 +200,11 @@ The first layer of many modern encoders cuts the image into patches and turns ea
 - **WSquare** splits it by the weights alone, so the image itself plays no part. It is recommended for inputs without natural bounds [<a href="#montavon2019layer-wise" data-ref="montavon2019layer-wise">Montavon et al.</a>].
 - **Gamma** also counts the pixels that pushed the output down, but favours those that pushed it up. It is the rule the encoders already use for their linear layers deeper in the network.
 
-Because WSquare ignores the pixels, it fills every patch with the same pattern, scaled by the patch's relevance. In the DINOv2 and DINOv3 ViTs, this one repeated pattern accounts for more than 99% of the detail within the patches. $z^+$ follows the image inside each patch instead, which is why it is the first-layer rule for the ViTs.
+WSquare ignores the pixels, so it fills every patch with the same pattern, scaled by the patch's relevance. In the DINOv2 and DINOv3 ViTs, this one repeated pattern accounts for more than 99% of the detail within the patches. $z^+$ follows the image inside each patch instead, which is why it is the first-layer rule for the ViTs.
 
 {% include figure-gallery.html id="lrp-stems" data=site.data.galleries.lrp_stems_rules %}
 
-Look closely at the full-resolution maps and the patch grid bleeds through. WSquare outlines the patch borders sharply, $z^+$ softens them, and Gamma erases them almost completely. The number under each map measures this as the contrast between neighbouring pixels across a patch border compared with inside a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with $z^+$, and 0.97 with Gamma, and Swin and the DINOv1 ViT behave the same way.
+Look closely at the full-resolution maps and the patch grid bleeds through. WSquare outlines the patch borders sharply, $z^+$ softens them, and Gamma erases them almost completely. The number under each map measures this as the contrast between neighbouring pixels across a patch border compared with inside a patch, where 1 means no edges. Over the five images, the median for ConvNeXt is 2.11 with WSquare, 1.66 with $z^+$, and 0.97 with Gamma, and Swin and the DINO ViTs behave the same way.
 
 MAE is the exception. Its grid survives all three rules, and Gamma leaves it almost as strong as $z^+$ does. Its first layer looks unusual too, putting more than half of its squared weights on the outermost pixels of each patch. These pixels make up less than a quarter of a patch, and in DINOv1 and the supervised ViT they receive a share in line with their number. Even the plain gradient shows the same grid, so it is not an artefact of LRP.
 
