@@ -43,7 +43,7 @@
 .hd :is(.kicker, .hd-name, h1, .meta) { text-shadow: 0 0 2px var(--head), 0 0 6px var(--head), 0 0 12px var(--head); }
 .home .hd-name { position: absolute; z-index: 21; left: 0; top: var(--top); font: 400 var(--nh)/1 var(--serif); letter-spacing: -.02em; color: var(--ink); text-decoration: none; white-space: nowrap;
   transform-origin: 0 50%; }
-.home .kicker { position: absolute; left: 0; top: calc(var(--top) - 32px); }
+.home .kicker { position: absolute; left: 0; top: calc(var(--top) - 32px); max-width: calc(100% - var(--navw) - 16px); }
 /* Each link has a fixed width --w at a known offset --x (set with the link), so CSS can compute
    where its icon docks; docking only moves and fades, so the GPU does it without repainting. */
 .hd-links { --ip: 12px; --step: 36px; pointer-events: none; position: absolute; z-index: 21; left: 0; top: calc(var(--top) + var(--nh) + 20px); display: flex; gap: 8px; }
@@ -51,14 +51,15 @@
 .hd-links a::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--head) 80%, transparent); }
 .hd-links a:hover { color: var(--accent); }
 .hd-links .ico { display: grid; place-items: center; width: 17px; height: 17px; }
-.hd:not(.home) .hd-text { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: var(--m) 0; box-sizing: border-box; }
-/* clear of the toolbar's buttons, which the text passes while it stays centred */
-.hd .kicker, .hd:not(.home) .hd-text > * { max-width: calc(100% - var(--navw) - 16px); }
-.hd:not(.home) h1 { font: 400 clamp(32px, 3.7vw, 51px)/1.05 var(--serif); letter-spacing: -.02em; margin: 0; max-width: 15em; text-wrap: balance; }
+.hd:not(.home) .hd-text { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: max(var(--m), var(--bar)) 0 var(--m); box-sizing: border-box; }
+.hd:not(.home) h1 { font: 400 clamp(32px, 3.7vw, 51px)/1.05 var(--serif); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
 .hd:not(.home) .meta { font: 500 14px/1 var(--sans); color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
 .hd-art { position: absolute; inset: 0; }
 .hd-art::after { pointer-events: none; content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7, 4, 13, .7), rgba(7, 4, 13, .2) 45%, rgba(7, 4, 13, .88)); }
 .on-art { --ink: #f6f1ff; --muted: #d4c8e2; --line: rgba(255, 255, 255, .24); --head: #07040d; --accent: #f9c46b; }
+.hd-bar.on-art:not(.is-docked) .navpill { border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--head) 45%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.hd-bar.on-art:not(.is-docked) .menu-btn { border-color: transparent; }
+:root[data-theme="light"] .on-art.is-docked { --ink: inherit; --muted: inherit; --line: inherit; --head: inherit; --accent: inherit; }
 
 /* to the toolbar, whose middle is --bar / 2 above the header's bottom */
 .home .hd-name { --dy: calc(var(--h) - var(--bar) / 2 - var(--top) - var(--nh) / 2); }
@@ -112,12 +113,14 @@
 }
 .hd-art { transition: opacity .25s; }
 .hd.is-docked .hd-art { opacity: 0; }
-.hd-bar.on-art > div { transition: opacity .25s, visibility .25s; }
-.hd-bar.on-art:not(.is-docked) > div { opacity: 0; visibility: hidden; }
 /* a page's title (and a post's own artwork) stays centred in the shrinking header */
 @keyframes hd-follow { to { translate: 0 calc((var(--h) - var(--bar)) / 2); } }
+@keyframes hd-away { to { translate: 0 calc(-1 * var(--bar)); } }
+@keyframes hd-back { from { opacity: 0; } }
 @supports (animation-timeline: scroll()) {
   .hd:not(.home) :is(.hd-art, .hd-text) { animation: hd-follow linear both; animation-timeline: scroll(root); animation-range: 0 calc(var(--h) - var(--bar)); }
+  .hd-bar:not(.home) .navpill { animation: hd-away linear both; animation-timeline: scroll(root); animation-range: 0 var(--bar); }
+  .hd-bar.is-docked:not(.home) .navpill { animation: hd-back .25s both; }
 }
 .hd:not(.home) .hd-text { transition: opacity .25s; }
 .hd.is-docked:not(.home) .hd-text { opacity: 0; }

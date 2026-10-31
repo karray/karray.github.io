@@ -5,23 +5,20 @@
 {%- assign caption = include.caption | default: g.caption -%}
 {%- assign help = include.help | default: g.help -%}
 {%- assign opacity = g.opacity | default: 100 -%}
-{%- assign reveal = true -%}{%- if g.reveal == false -%}{%- assign reveal = false -%}{%- endif -%}
 {%- assign style = include.style | default: g.style -%}
 {%- unless heatmap_grid_assets -%}
 <link rel="stylesheet" href="{{ '/assets/css/heatmap-grid.css' | relative_url }}">
+<script src="{{ '/assets/js/tile-reveal.js' | relative_url }}" defer></script>
 <script src="{{ '/assets/js/heatmap-grid.js' | relative_url }}" defer></script>
 {%- assign heatmap_grid_assets = true -%}
 {%- endunless -%}
-<figure class="hg" id="{{ uid }}" data-hg style="--hg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
-  {%- if kicker %}<p class="hg-kicker">{{ kicker }}</p>{% endif -%}
+<figure class="fig hg{% if include.class %} {{ include.class }}{% endif %}" id="{{ uid }}" data-hg style="--hg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
+  {%- if kicker %}<p class="fig-kicker">{{ kicker }}</p>{% endif -%}
   <div class="hg-controls">
     <label class="hg-control-slider">Overlay opacity
       <input class="hg-opacity" type="range" min="0" max="100" step="5" value="{{ opacity }}" aria-label="Overlay opacity">
       <output class="hg-opacity-value">{{ opacity }}%</output>
     </label>
-    {%- if reveal %}
-    <label class="hg-control-toggle"><input class="hg-reveal-toggle" type="checkbox" checked> {{ g.reveal_label | default: 'Reveal the image under the pointer' }}</label>
-    {%- endif -%}
   </div>
   <div class="hg-grid"{% if g.columns %} data-cols style="--hg-cols: {{ g.columns }};"{% endif %}>
     {%- for item in items -%}

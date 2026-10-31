@@ -8,7 +8,6 @@
 {%- assign caption = include.caption | default: g.caption -%}
 {%- assign help = include.help | default: g.help -%}
 {%- assign opacity = g.opacity | default: 100 -%}
-{%- assign reveal = true -%}{%- if g.reveal == false -%}{%- assign reveal = false -%}{%- endif -%}
 {%- assign controls = g.controls -%}
 {%- assign layer_control = nil -%}
 {%- for c in controls -%}{%- if c.target == 'layer' and layer_control == nil -%}{%- assign layer_control = c -%}{%- endif -%}{%- endfor -%}
@@ -19,11 +18,12 @@
 {%- capture tok_item -%}{item}{%- endcapture -%}
 {%- unless figure_gallery_assets -%}
 <link rel="stylesheet" href="{{ '/assets/css/figure-gallery.css' | relative_url }}">
+<script src="{{ '/assets/js/tile-reveal.js' | relative_url }}" defer></script>
 <script src="{{ '/assets/js/figure-gallery.js' | relative_url }}" defer></script>
 {%- assign figure_gallery_assets = true -%}
 {%- endunless -%}
-<figure class="fg" id="{{ uid }}" data-fg data-overlay="{{ g.overlay | prepend: site.baseurl }}" style="--fg-cols: {{ columns | size }}; --fg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
-  {%- if kicker %}<p class="fg-kicker">{{ kicker }}</p>{% endif -%}
+<figure class="fig fg{% if include.class %} {{ include.class }}{% endif %}" id="{{ uid }}" data-fg data-overlay="{{ g.overlay | prepend: site.baseurl }}"{% if g.notes %} data-notes='{{ g.notes | jsonify | escape }}'{% endif %} style="--fg-cols: {{ columns | size }}; --fg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
+  {%- if kicker %}<p class="fig-kicker">{{ kicker }}</p>{% endif -%}
   <div class="fg-dock" role="tablist" aria-label="{{ g.dock_label | default: 'Choose an image' }}">
     {%- for item in items -%}
     {%- assign selected = forloop.first -%}
@@ -43,8 +43,9 @@
       {%- for c in controls -%}
       {%- if c.type == 'range' -%}
       <label class="fg-control-slider">{{ c.label }}
-        <input class="fg-axis" type="range" data-axis-target="{{ c.target }}"{% if c.name %} data-control="{{ c.name }}"{% endif %} min="{{ c.min | default: 0 }}" max="{{ c.max | default: 1 }}" step="{{ c.step | default: 1 }}" value="{{ c.default | default: c.min | default: 0 }}" aria-label="{{ c.label }}">
-        <output class="fg-axis-value">{{ c.default | default: c.min | default: 0 }}</output>
+        {%- assign range_value = c.default | default: c.min | default: 0 -%}
+        <input class="fg-axis" type="range" data-axis-target="{{ c.target }}"{% if c.name %} data-control="{{ c.name }}"{% endif %} min="{{ c.min | default: 0 }}" max="{{ c.max | default: 1 }}" step="{{ c.step | default: 1 }}" value="{{ range_value }}" aria-label="{{ c.label }}"{% if c.labels %} data-labels='{{ c.labels | jsonify | escape }}'{% endif %}>
+        <output class="fg-axis-value">{% if c.labels %}{{ c.labels[range_value] }}{% else %}{{ range_value }}{% endif %}</output>
       </label>
       {%- elsif c.type == 'select' -%}
       <label class="fg-control-select">{{ c.label }}
@@ -61,9 +62,6 @@
         <input class="fg-opacity" type="range" min="0" max="100" step="5" value="{{ opacity }}" aria-label="Overlay opacity">
         <output class="fg-opacity-value">{{ opacity }}%</output>
       </label>
-      {%- if reveal %}
-      <label class="fg-control-toggle"><input class="fg-reveal-toggle" type="checkbox" checked> {{ g.reveal_label | default: 'Reveal the image under the pointer' }}</label>
-      {%- endif -%}
     </div>
   </div>
   {%- if help %}<details class="fg-help"><summary>{{ g.help_label | default: 'How to use this figure' }}</summary><p>{{ help }}</p></details>{% endif -%}
@@ -82,6 +80,10 @@
         {%- if has_layer %}<img class="fg-overlay" src="{{ overlay_src }}" alt="{{ column.alt | default: column.label }} overlay{% if row.label != '' %} for {{ row.label }}{% endif %}" loading="lazy" decoding="async"{% if column.rendering %} data-rendering="{{ column.rendering }}"{% endif %}>{% endif -%}
       </div>
       {%- endfor -%}
+      {%- if g.notes -%}
+      {%- if row_labels != '' %}<span aria-hidden="true"></span>{% endif -%}
+      {%- for column in columns %}<span class="fg-cell-note" aria-live="polite"></span>{% endfor -%}
+      {%- endif -%}
       {%- endfor -%}
     </div>
   </div>

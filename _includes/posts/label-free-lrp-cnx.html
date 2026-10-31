@@ -1,0 +1,37 @@
+<figure class="fig lrp-fig lrpc wide" data-lrp-cnx data-src="{{ '/assets/data/label-free-lrp/convnext-mini.json' | relative_url }}">
+  <p class="lrpw-readout" aria-live="polite">This figure needs JavaScript.</p>
+  <div class="lrpw-controls">
+    <div class="lrpw-modes" role="group" aria-label="The residual connections">
+      <span class="lrpw-label">residual</span>
+      <button type="button" class="lrpw-op" data-op="add" data-val="split" aria-pressed="true">Split</button>
+      <button type="button" class="lrpw-op" data-op="add" data-val="copy" aria-pressed="false">Copy</button>
+    </div>
+    <div class="lrpw-modes" role="group" aria-label="LayerNorm">
+      <span class="lrpw-label">LayerNorm</span>
+      <button type="button" class="lrpw-op" data-op="ln" data-val="rule" aria-pressed="true">Fixed spread</button>
+      <button type="button" class="lrpw-op" data-op="ln" data-val="none" aria-pressed="false">Gradient</button>
+    </div>
+    <div class="lrpw-modes" role="group" aria-label="GELU">
+      <span class="lrpw-label">GELU</span>
+      <button type="button" class="lrpw-op" data-op="gelu" data-val="rule" aria-pressed="true">Pass on</button>
+      <button type="button" class="lrpw-op" data-op="gelu" data-val="none" aria-pressed="false">× slope</button>
+    </div>
+    <div class="lrpw-modes" role="group" aria-label="Layer scale">
+      <span class="lrpw-label">layer scale</span>
+      <button type="button" class="lrpw-op" data-op="ls" data-val="rule" aria-pressed="true">Pass on</button>
+      <button type="button" class="lrpw-op" data-op="ls" data-val="none" aria-pressed="false">× γ</button>
+    </div>
+  </div>
+  <div class="lrpw-stage">
+    <svg class="lrpc-scene" viewBox="0 0 1400 486" role="img" aria-label="A small ConvNeXt drawn twice. The top row computes the prediction, from the input through the stem and four blocks to ten classes. The bottom row passes the relevance back to the pixels. Each block has a skip that goes around it and meets its result at a plus sign."></svg>
+    <canvas class="lrpw-pad" width="280" height="280" aria-label="Draw a digit on the input"></canvas>
+    <button class="lrpw-clear" type="button" title="Clear the input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg><span>Clear</span></button>
+  </div>
+  <p class="lrpc-inside-text" aria-live="polite"></p>
+  <details class="lrpc-more">
+    <summary>What each operation in the block does with the relevance</summary>
+    <div class="lrpc-cards"></div>
+  </details>
+  <figcaption>{{ include.caption | default: 'The Prediction half shows how strongly each cell is active, and the Explanation half shows the relevance on its way back, red for positive and blue for negative, with its total beside each map. Bands on either side of the stream carry positive and negative relevance. The selected block is outlined, and the text under the diagram follows the relevance through it. Click or tap another block to select it, open the cards to see each operation, and draw a digit to change the input.' }}</figcaption>
+</figure>
+<script src="{{ '/assets/js/posts/label-free-lrp-cnx.js' | relative_url }}" defer></script>

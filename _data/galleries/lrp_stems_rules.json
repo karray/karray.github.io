@@ -1,0 +1,167 @@
+{
+ "opacity": 100,
+ "rows": [
+  {
+   "id": "convnext",
+   "label": "ConvNeXt Base"
+  },
+  {
+   "id": "swin",
+   "label": "Swin Base"
+  },
+  {
+   "id": "dino_vit",
+   "label": "DINOv1 ViT-B/16"
+  },
+  {
+   "id": "dinov2",
+   "label": "DINOv2 ViT-B/14"
+  },
+  {
+   "id": "dinov3_vit",
+   "label": "DINOv3 ViT-B/16"
+  },
+  {
+   "id": "mae",
+   "label": "MAE ViT-B/16"
+  }
+ ],
+ "columns": [
+  {
+   "label": "z\u207a",
+   "layer": "zplus",
+   "rendering": "auto"
+  },
+  {
+   "label": "WSquare",
+   "layer": "wsquare",
+   "rendering": "auto"
+  },
+  {
+   "label": "Gamma",
+   "layer": "gamma",
+   "rendering": "auto"
+  }
+ ],
+ "overlay": "/assets/img/posts/label-free-lrp/stems/{row}_{item}_{layer}.png",
+ "items": [
+  {
+   "id": "dog_cat",
+   "label": "Dog and cat",
+   "src": "/assets/img/samples/dog_and_cat.jpg"
+  },
+  {
+   "id": "dog_dog",
+   "label": "Two dogs",
+   "src": "/assets/img/samples/two_dogs.jpg"
+  },
+  {
+   "id": "fish_person",
+   "label": "Fish and person",
+   "src": "/assets/img/samples/fish_and_person.jpg"
+  },
+  {
+   "id": "misc",
+   "label": "Six objects",
+   "src": "/assets/img/samples/six_objects.jpg"
+  },
+  {
+   "id": "spider_web",
+   "label": "Spider web",
+   "src": "/assets/img/samples/spider_web.jpg"
+  }
+ ],
+ "notes": {
+  "convnext|zplus|dog_cat": "patch edges 1.58\u00d7",
+  "convnext|wsquare|dog_cat": "patch edges 2.10\u00d7",
+  "convnext|gamma|dog_cat": "patch edges 0.91\u00d7",
+  "convnext|zplus|dog_dog": "patch edges 1.66\u00d7",
+  "convnext|wsquare|dog_dog": "patch edges 2.24\u00d7",
+  "convnext|gamma|dog_dog": "patch edges 0.94\u00d7",
+  "convnext|zplus|fish_person": "patch edges 1.57\u00d7",
+  "convnext|wsquare|fish_person": "patch edges 2.11\u00d7",
+  "convnext|gamma|fish_person": "patch edges 0.97\u00d7",
+  "convnext|zplus|misc": "patch edges 2.07\u00d7",
+  "convnext|wsquare|misc": "patch edges 2.71\u00d7",
+  "convnext|gamma|misc": "patch edges 1.26\u00d7",
+  "convnext|zplus|spider_web": "patch edges 2.02\u00d7",
+  "convnext|wsquare|spider_web": "patch edges 1.95\u00d7",
+  "convnext|gamma|spider_web": "patch edges 1.23\u00d7",
+  "swin|zplus|dog_cat": "patch edges 1.38\u00d7",
+  "swin|wsquare|dog_cat": "patch edges 2.25\u00d7",
+  "swin|gamma|dog_cat": "patch edges 0.87\u00d7",
+  "swin|zplus|dog_dog": "patch edges 1.46\u00d7",
+  "swin|wsquare|dog_dog": "patch edges 2.33\u00d7",
+  "swin|gamma|dog_dog": "patch edges 0.93\u00d7",
+  "swin|zplus|fish_person": "patch edges 1.37\u00d7",
+  "swin|wsquare|fish_person": "patch edges 1.99\u00d7",
+  "swin|gamma|fish_person": "patch edges 0.89\u00d7",
+  "swin|zplus|misc": "patch edges 1.92\u00d7",
+  "swin|wsquare|misc": "patch edges 2.65\u00d7",
+  "swin|gamma|misc": "patch edges 1.06\u00d7",
+  "swin|zplus|spider_web": "patch edges 1.44\u00d7",
+  "swin|wsquare|spider_web": "patch edges 1.65\u00d7",
+  "swin|gamma|spider_web": "patch edges 1.04\u00d7",
+  "dino_vit|zplus|dog_cat": "patch edges 1.75\u00d7",
+  "dino_vit|wsquare|dog_cat": "patch edges 2.75\u00d7",
+  "dino_vit|gamma|dog_cat": "patch edges 1.06\u00d7",
+  "dino_vit|zplus|dog_dog": "patch edges 2.23\u00d7",
+  "dino_vit|wsquare|dog_dog": "patch edges 3.51\u00d7",
+  "dino_vit|gamma|dog_dog": "patch edges 1.25\u00d7",
+  "dino_vit|zplus|fish_person": "patch edges 2.11\u00d7",
+  "dino_vit|wsquare|fish_person": "patch edges 2.46\u00d7",
+  "dino_vit|gamma|fish_person": "patch edges 1.10\u00d7",
+  "dino_vit|zplus|misc": "patch edges 6.24\u00d7",
+  "dino_vit|wsquare|misc": "patch edges 5.75\u00d7",
+  "dino_vit|gamma|misc": "patch edges 2.10\u00d7",
+  "dino_vit|zplus|spider_web": "patch edges 2.49\u00d7",
+  "dino_vit|wsquare|spider_web": "patch edges 2.38\u00d7",
+  "dino_vit|gamma|spider_web": "patch edges 1.49\u00d7",
+  "mae|zplus|dog_cat": "patch edges 2.00\u00d7",
+  "mae|wsquare|dog_cat": "patch edges 1.48\u00d7",
+  "mae|gamma|dog_cat": "patch edges 1.86\u00d7",
+  "mae|zplus|dog_dog": "patch edges 1.98\u00d7",
+  "mae|wsquare|dog_dog": "patch edges 1.61\u00d7",
+  "mae|gamma|dog_dog": "patch edges 2.02\u00d7",
+  "mae|zplus|fish_person": "patch edges 2.26\u00d7",
+  "mae|wsquare|fish_person": "patch edges 1.44\u00d7",
+  "mae|gamma|fish_person": "patch edges 2.03\u00d7",
+  "mae|zplus|misc": "patch edges 5.06\u00d7",
+  "mae|wsquare|misc": "patch edges 3.54\u00d7",
+  "mae|gamma|misc": "patch edges 2.77\u00d7",
+  "mae|zplus|spider_web": "patch edges 2.53\u00d7",
+  "mae|wsquare|spider_web": "patch edges 1.47\u00d7",
+  "mae|gamma|spider_web": "patch edges 2.34\u00d7",
+  "dinov2|zplus|dog_cat": "patch edges 1.58\u00d7",
+  "dinov2|wsquare|dog_cat": "patch edges 3.62\u00d7",
+  "dinov2|gamma|dog_cat": "patch edges 0.90\u00d7",
+  "dinov2|zplus|dog_dog": "patch edges 1.69\u00d7",
+  "dinov2|wsquare|dog_dog": "patch edges 3.83\u00d7",
+  "dinov2|gamma|dog_dog": "patch edges 0.96\u00d7",
+  "dinov2|zplus|fish_person": "patch edges 1.74\u00d7",
+  "dinov2|wsquare|fish_person": "patch edges 2.52\u00d7",
+  "dinov2|gamma|fish_person": "patch edges 1.02\u00d7",
+  "dinov2|zplus|misc": "patch edges 4.00\u00d7",
+  "dinov2|wsquare|misc": "patch edges 7.00\u00d7",
+  "dinov2|gamma|misc": "patch edges 1.59\u00d7",
+  "dinov2|zplus|spider_web": "patch edges 2.21\u00d7",
+  "dinov2|wsquare|spider_web": "patch edges 2.76\u00d7",
+  "dinov2|gamma|spider_web": "patch edges 1.28\u00d7",
+  "dinov3_vit|zplus|dog_cat": "patch edges 1.46\u00d7",
+  "dinov3_vit|wsquare|dog_cat": "patch edges 2.52\u00d7",
+  "dinov3_vit|gamma|dog_cat": "patch edges 0.80\u00d7",
+  "dinov3_vit|zplus|dog_dog": "patch edges 1.55\u00d7",
+  "dinov3_vit|wsquare|dog_dog": "patch edges 2.50\u00d7",
+  "dinov3_vit|gamma|dog_dog": "patch edges 0.89\u00d7",
+  "dinov3_vit|zplus|fish_person": "patch edges 1.69\u00d7",
+  "dinov3_vit|wsquare|fish_person": "patch edges 2.19\u00d7",
+  "dinov3_vit|gamma|fish_person": "patch edges 0.94\u00d7",
+  "dinov3_vit|zplus|misc": "patch edges 3.56\u00d7",
+  "dinov3_vit|wsquare|misc": "patch edges 5.74\u00d7",
+  "dinov3_vit|gamma|misc": "patch edges 1.71\u00d7",
+  "dinov3_vit|zplus|spider_web": "patch edges 2.35\u00d7",
+  "dinov3_vit|wsquare|spider_web": "patch edges 2.08\u00d7",
+  "dinov3_vit|gamma|spider_web": "patch edges 1.65\u00d7"
+ },
+ "help": "Pick an image and compare the three rules for the first layer across a row. Each row is one model, and everything above the first layer is identical. Move the pointer over a map to see the image underneath."
+}

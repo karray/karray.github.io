@@ -1,0 +1,27 @@
+{%- assign items = site.data.galleries.lrp_rules.items -%}
+{%- unless figure_gallery_assets -%}
+<link rel="stylesheet" href="{{ '/assets/css/figure-gallery.css' | relative_url }}">
+<script src="{{ '/assets/js/tile-reveal.js' | relative_url }}" defer></script>
+<script src="{{ '/assets/js/figure-gallery.js' | relative_url }}" defer></script>
+{%- assign figure_gallery_assets = true -%}
+{%- endunless -%}
+<figure class="fig fg lrp-stackfig wide" id="lrp-flow" data-fg>
+  <div class="fg-dock" role="tablist" aria-label="Choose an image">
+    {%- for item in items -%}
+    {%- assign selected = forloop.first -%}
+    <button type="button" class="fg-thumb" id="lrp-flow-tab-{{ forloop.index }}" role="tab"
+      aria-selected="{{ selected }}" tabindex="{% if selected %}0{% else %}-1{% endif %}"
+      {% if selected %}data-selected="true" {% endif %}data-item="{{ item.id }}" data-label="{{ item.label | escape }}"
+      data-src="{{ item.src | relative_url }}">
+      <img src="{{ item.src | relative_url }}" alt="" loading="lazy" decoding="async">
+      <span class="fg-thumb-label">{{ item.label }}</span>
+    </button>
+    {%- endfor -%}
+  </div>
+  <p class="fg-now" aria-live="polite"><strong class="fg-title">{{ items[0].label }}</strong><span class="fg-count">1 / {{ items | size }}</span></p>
+  <div data-lrp-stack data-base="{{ '/assets/data/label-free-lrp/flow/' | relative_url }}"
+    data-models='[{"id": "convnext", "label": "ConvNeXt Base (supervised)"}, {"id": "resnet50", "label": "ResNet-50 (supervised)"}, {"id": "swin", "label": "Swin Base (supervised)"}, {"id": "dino_vit", "label": "DINOv1 ViT-B/16 (self-supervised)"}, {"id": "dinov2", "label": "DINOv2 ViT-B/14 (self-supervised)"}, {"id": "dinov3_vit", "label": "DINOv3 ViT-B/16 (self-supervised)"}, {"id": "mae", "label": "MAE ViT-B/16 (self-supervised)"}]'>
+    <p class="fg-note">This figure needs JavaScript.</p>
+  </div>
+  <figcaption>Hover a cell to preview its relevance, and click cells to follow only them. Each layer shows the positive part of the relevance, and the bands between layers show how much passes from one depth to the next.</figcaption>
+</figure>

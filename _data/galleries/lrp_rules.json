@@ -1,0 +1,130 @@
+{
+ "opacity": 100,
+ "rows": [
+  {
+   "id": "convnext",
+   "label": "ConvNeXt Base"
+  },
+  {
+   "id": "swin",
+   "label": "Swin Base"
+  },
+  {
+   "id": "dino_vit",
+   "label": "DINOv1 ViT-B/16"
+  }
+ ],
+ "columns": [
+  {
+   "label": "Weighted layers only",
+   "layer": "none",
+   "rendering": "auto"
+  },
+  {
+   "label": "+ residual split only",
+   "layer": "residual",
+   "rendering": "auto"
+  },
+  {
+   "label": "+ LayerNorm only",
+   "layer": "layernorm",
+   "rendering": "auto"
+  },
+  {
+   "label": "All rules",
+   "layer": "all",
+   "rendering": "auto"
+  }
+ ],
+ "overlay": "/assets/img/posts/label-free-lrp/rules/{row}_{item}_{layer}.png",
+ "items": [
+  {
+   "id": "dog_cat",
+   "label": "Dog and cat",
+   "src": "/assets/img/samples/dog_and_cat.jpg"
+  },
+  {
+   "id": "dog_dog",
+   "label": "Two dogs",
+   "src": "/assets/img/samples/two_dogs.jpg"
+  },
+  {
+   "id": "fish_person",
+   "label": "Fish and person",
+   "src": "/assets/img/samples/fish_and_person.jpg"
+  },
+  {
+   "id": "misc",
+   "label": "Six objects",
+   "src": "/assets/img/samples/six_objects.jpg"
+  },
+  {
+   "id": "spider_web",
+   "label": "Spider web",
+   "src": "/assets/img/samples/spider_web.jpg"
+  }
+ ],
+ "notes": {
+  "convnext|none|dog_cat": "1.3e-05 reaches the pixels",
+  "convnext|residual|dog_cat": "0.01 reaches the pixels",
+  "convnext|layernorm|dog_cat": "7.2e+02 reaches the pixels",
+  "convnext|all|dog_cat": "0.66 reaches the pixels",
+  "convnext|none|dog_dog": "2.2e-05 reaches the pixels",
+  "convnext|residual|dog_dog": "0.03 reaches the pixels",
+  "convnext|layernorm|dog_dog": "2.6e+02 reaches the pixels",
+  "convnext|all|dog_dog": "0.68 reaches the pixels",
+  "convnext|none|fish_person": "1.5e-05 reaches the pixels",
+  "convnext|residual|fish_person": "0.0086 reaches the pixels",
+  "convnext|layernorm|fish_person": "59 reaches the pixels",
+  "convnext|all|fish_person": "0.61 reaches the pixels",
+  "convnext|none|misc": "2.6e-05 reaches the pixels",
+  "convnext|residual|misc": "0.10 reaches the pixels",
+  "convnext|layernorm|misc": "4.6e+02 reaches the pixels",
+  "convnext|all|misc": "0.56 reaches the pixels",
+  "convnext|none|spider_web": "0.00011 reaches the pixels",
+  "convnext|residual|spider_web": "0.05 reaches the pixels",
+  "convnext|layernorm|spider_web": "1.4e+03 reaches the pixels",
+  "convnext|all|spider_web": "0.35 reaches the pixels",
+  "swin|none|dog_cat": "0.0025 reaches the pixels",
+  "swin|residual|dog_cat": "1.5e+07 reaches the pixels",
+  "swin|layernorm|dog_cat": "2.9e+12 reaches the pixels",
+  "swin|all|dog_cat": "0.69 reaches the pixels",
+  "swin|none|dog_dog": "0.0045 reaches the pixels",
+  "swin|residual|dog_dog": "4e+06 reaches the pixels",
+  "swin|layernorm|dog_dog": "2.7e+12 reaches the pixels",
+  "swin|all|dog_dog": "0.62 reaches the pixels",
+  "swin|none|fish_person": "0.0017 reaches the pixels",
+  "swin|residual|fish_person": "1.7e+07 reaches the pixels",
+  "swin|layernorm|fish_person": "2.2e+12 reaches the pixels",
+  "swin|all|fish_person": "0.58 reaches the pixels",
+  "swin|none|misc": "0.0048 reaches the pixels",
+  "swin|residual|misc": "5.8e+05 reaches the pixels",
+  "swin|layernorm|misc": "3e+12 reaches the pixels",
+  "swin|all|misc": "0.52 reaches the pixels",
+  "swin|none|spider_web": "0.0049 reaches the pixels",
+  "swin|residual|spider_web": "2.1e+08 reaches the pixels",
+  "swin|layernorm|spider_web": "2.6e+12 reaches the pixels",
+  "swin|all|spider_web": "0.37 reaches the pixels",
+  "dino_vit|none|dog_cat": "1.6e+03 reaches the pixels",
+  "dino_vit|residual|dog_cat": "0.28 reaches the pixels",
+  "dino_vit|layernorm|dog_cat": "4.5e+05 reaches the pixels",
+  "dino_vit|all|dog_cat": "0.22 reaches the pixels",
+  "dino_vit|none|dog_dog": "3.5e+03 reaches the pixels",
+  "dino_vit|residual|dog_dog": "0.31 reaches the pixels",
+  "dino_vit|layernorm|dog_dog": "3.8e+05 reaches the pixels",
+  "dino_vit|all|dog_dog": "0.17 reaches the pixels",
+  "dino_vit|none|fish_person": "1.6e+03 reaches the pixels",
+  "dino_vit|residual|fish_person": "0.46 reaches the pixels",
+  "dino_vit|layernorm|fish_person": "3.9e+05 reaches the pixels",
+  "dino_vit|all|fish_person": "0.17 reaches the pixels",
+  "dino_vit|none|misc": "2.4e+03 reaches the pixels",
+  "dino_vit|residual|misc": "0.30 reaches the pixels",
+  "dino_vit|layernorm|misc": "5.2e+05 reaches the pixels",
+  "dino_vit|all|misc": "0.21 reaches the pixels",
+  "dino_vit|none|spider_web": "2.5e+03 reaches the pixels",
+  "dino_vit|residual|spider_web": "0.73 reaches the pixels",
+  "dino_vit|layernorm|spider_web": "1.4e+05 reaches the pixels",
+  "dino_vit|all|spider_web": "0.07 reaches the pixels"
+ },
+ "help": "Pick an image from the dock and compare the columns across a row. Each row is one model. The number under a map is how much of the starting amount of 1 arrives at the pixels."
+}

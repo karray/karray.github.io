@@ -32,6 +32,47 @@
   background-size: 100% 100%;
 }
 
+:root[data-theme="light"] .hd.lafam-header.is-docked {
+  background: color-mix(in srgb, var(--head) 40%, transparent);
+}
+
+.hd.lafam-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -1px;
+  background: url("../../img/posts/lafam/header/shadows.webp") center / auto var(--lh-height) no-repeat, #fff;
+  opacity: 0;
+  transition: opacity 1.6s ease-in-out .3s;
+  pointer-events: none;
+}
+
+.hd.lafam-header.is-docked::before {
+  display: none;
+}
+
+.hd.lafam-header .hd-art::after,
+.hd.lafam-header :is(.kicker, h1, .meta),
+.hd-bar.on-art:not(.is-docked) :is(.navpill, .navpill a, .theme-toggle, .menu-btn) {
+  transition: 1.6s ease-in-out .3s;
+  transition-property: opacity, color, background-color, border-color, text-shadow;
+}
+
+:root:not(:has(.lh[data-fg-ready] .fg-stack:not(.fg-armed))) .hd.lafam-header::before {
+  opacity: 1;
+}
+
+:root:not(:has(.lh[data-fg-ready] .fg-stack:not(.fg-armed))) .hd.lafam-header .hd-art::after {
+  opacity: 0;
+}
+
+:root:not(:has(.lh[data-fg-ready] .fg-stack:not(.fg-armed))) .on-art:not(.is-docked) {
+  --ink: #26211c;
+  --muted: #6f675d;
+  --line: #e3dbcd;
+  --head: #fff;
+  --accent: #b4532a;
+}
+
 .hd.lafam-header .hd-art {
   display: flex;
   align-items: center;
@@ -56,10 +97,11 @@
   margin: 0;
   max-width: none;
   text-align: center;
-  font: 400 clamp(1.05rem, 2.5vw, 2.9rem)/1.16 var(--sans);
-  letter-spacing: -.015em;
-  text-wrap: balance;
-  text-shadow: 0 2px 20px rgb(0 0 4 / .8), 0 1px 3px rgb(0 0 4 / .6);
+  text-shadow: 0 2px 20px color-mix(in srgb, var(--head) 80%, transparent), 0 1px 3px color-mix(in srgb, var(--head) 60%, transparent);
+}
+
+.hd.lafam-header .meta {
+  justify-content: center;
 }
 
 .hd.lafam-header .lh {
@@ -107,8 +149,16 @@
     --lh-side: 0;
   }
 
+  .hd.lafam-header .hd-text {
+    gap: 6px;
+  }
+
   .hd.lafam-header h1 {
-    font-size: clamp(.9rem, 3.3vw, 1.5rem);
-    line-height: 1.2;
+    font-size: clamp(1.05rem, 4.6vw, 1.6rem);
+    line-height: 1.1;
+  }
+
+  .hd.lafam-header :is(.kicker, .meta) {
+    font-size: 11px;
   }
 }

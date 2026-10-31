@@ -1,3 +1,13 @@
+// The scrollbar width, for the page width of .wide and .full blocks (see _sass/figures.scss). Watching the root
+// catches a scrollbar that appears as the page grows, not only window resizes.
+(() => {
+  const root = document.documentElement;
+  const measure = () => root.style.setProperty("--scrollbar", `${window.innerWidth - root.clientWidth}px`);
+  measure();
+  window.addEventListener("resize", measure);
+  if ("ResizeObserver" in window) new ResizeObserver(measure).observe(root);
+})();
+
 (() => {
   const refRoot = document.getElementById("reference-list");
   if (!refRoot) return;
@@ -344,13 +354,12 @@
   }
 
   function bindAnchor(a) {
-    console.log("Binding anchor...", a);
     const rid = a.getAttribute("data-ref");
     const ref = refIndex.get(rid);
-    console.log(ref);
     if (!ref) return;
-    console.log("... found reference", ref);
     a.textContent = `${ref.index}`;
+    const prev = a.previousSibling;
+    if (prev?.nodeType === Node.TEXT_NODE) prev.data = prev.data.replace(/\s+\[$/, " [");
     a.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
