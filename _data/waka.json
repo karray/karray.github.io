@@ -1,49 +1,49 @@
 {
   "start": "2022-07-04T22:00:00Z",
-  "end": "2026-10-24T21:59:59Z",
-  "total": "85d 21h 59m",
+  "end": "2026-10-31T22:59:59Z",
+  "total": "87d 19h 57m",
   "languages": [
     {
       "name": "Python",
-      "time": "47d 10h 23m",
+      "time": "47d 19h 16m",
       "bar": "█████████████▓░░░░░░░░░░░",
-      "percent": "55.21%"
+      "percent": "54.43%"
     },
     {
       "name": "TeX",
       "time": "11d 16h 40m",
       "bar": "███▒░░░░░░░░░░░░░░░░░░░░░",
-      "percent": "13.61%"
+      "percent": "13.31%"
     },
     {
       "name": "HTML",
-      "time": "3d 8h 35m",
+      "time": "3d 9h 31m",
       "bar": "▓░░░░░░░░░░░░░░░░░░░░░░░░",
-      "percent": "03.91%"
+      "percent": "03.87%"
     },
     {
       "name": "TypeScript",
       "time": "2d 0h 4m",
       "bar": "▓░░░░░░░░░░░░░░░░░░░░░░░░",
-      "percent": "02.33%"
+      "percent": "02.28%"
     },
     {
       "name": "Dart",
       "time": "1d 22h 2m",
       "bar": "▓░░░░░░░░░░░░░░░░░░░░░░░░",
-      "percent": "02.23%"
+      "percent": "02.18%"
     },
     {
       "name": "JavaScript",
-      "time": "1d 18h 54m",
+      "time": "1d 21h 3m",
       "bar": "▓░░░░░░░░░░░░░░░░░░░░░░░░",
-      "percent": "02.08%"
+      "percent": "02.14%"
     },
     {
       "name": "Other",
-      "time": "17d 17h 19m",
+      "time": "19d 3h 19m",
       "bar": "█████▒░░░░░░░░░░░░░░░░░░░",
-      "percent": "20.63%"
+      "percent": "21.79%"
     }
   ]
 }
