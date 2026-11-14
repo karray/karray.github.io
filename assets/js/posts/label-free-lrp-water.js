@@ -293,8 +293,8 @@
     const build = () => {
       svg.replaceChildren();
       const titles = [S('text', { class: 'lrpw-title', x: 300, y: 34, 'text-anchor': 'middle' }, svg), S('text', { class: 'lrpw-title lrpw-title--rel', x: 900, y: 34, 'text-anchor': 'middle' }, svg)];
-      titles[0].textContent = 'Prediction';
-      titles[1].textContent = 'Explanation';
+      titles[0].textContent = 'Forward';
+      titles[1].textContent = 'Backward';
       const totalLabel = S('text', { class: 'lrpw-total-label', x: W - LY[L - 1].x - 30, y: 474, 'text-anchor': 'end' }, svg);
       totalLabel.textContent = 'total';
       const totals = LY.slice(0, L).map((ly) => S('text', { class: 'lrpw-total', x: W - ly.x, y: 474, 'text-anchor': 'middle' }, svg));

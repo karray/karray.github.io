@@ -19,9 +19,46 @@
     {%- endfor -%}
   </div>
   <p class="fg-now" aria-live="polite"><strong class="fg-title">{{ items[0].label }}</strong><span class="fg-count">1 / {{ items | size }}</span></p>
-  <div data-lrp-stack data-base="{{ '/assets/data/label-free-lrp/flow/' | relative_url }}"
-    data-models='[{"id": "convnext", "label": "ConvNeXt Base (supervised)"}, {"id": "resnet50", "label": "ResNet-50 (supervised)"}, {"id": "swin", "label": "Swin Base (supervised)"}, {"id": "dino_vit", "label": "DINOv1 ViT-B/16 (self-supervised)"}, {"id": "dinov2", "label": "DINOv2 ViT-B/14 (self-supervised)"}, {"id": "dinov3_vit", "label": "DINOv3 ViT-B/16 (self-supervised)"}, {"id": "mae", "label": "MAE ViT-B/16 (self-supervised)"}]'>
-    <p class="fg-note">This figure needs JavaScript.</p>
+  <div data-lrp-stack data-base="{{ '/assets/data/label-free-lrp/flow/' | relative_url }}">
+    <div class="lrp-stack-controls">
+      <label class="lrp-select">Model
+        <select aria-label="Model">
+          <option value="convnext">ConvNeXt Base (supervised)</option>
+          <option value="resnet50">ResNet-50 (supervised)</option>
+          <option value="swin">Swin Base (supervised)</option>
+          <option value="dino_vit">DINOv1 ViT-B/16 (self-supervised)</option>
+          <option value="dinov2">DINOv2 ViT-B/14 (self-supervised)</option>
+          <option value="dinov3_vit">DINOv3 ViT-B/16 (self-supervised)</option>
+          <option value="mae">MAE ViT-B/16 (self-supervised)</option>
+        </select>
+      </label>
+      <label class="lrp-range">Map opacity
+        <input type="range" min="0" max="100" step="5" value="80" aria-label="Map opacity">
+        <output>80%</output>
+      </label>
+    </div>
+    <div class="lrp-row">
+      <svg class="lrp-ribbons" aria-hidden="true"></svg>
+      <div class="lrp-col lrp-col--start">
+        <p class="lrp-layer-top">where it starts</p>
+        <div class="lrp-start" role="img" aria-label="The start. Hover a cell to preview it, click cells to select them.">
+          <canvas class="lrp-canvas" data-canvas="base" width="448" height="448"></canvas>
+          <canvas class="lrp-canvas lrp-heat" data-canvas="heat" width="448" height="448"></canvas>
+          <canvas class="lrp-canvas" data-canvas="marks" width="448" height="448"></canvas>
+        </div>
+        <p class="lrp-layer-name">the features</p>
+        <div class="lrp-tools" role="toolbar" aria-label="Start cells">
+          <button type="button" class="lrp-icon" data-action="invert" title="Invert the selection" aria-label="Invert the selection">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z"/><path d="M12 4a8 8 0 0 1 0 16z" class="lrp-icon-fill"/></svg>
+          </button>
+          <button type="button" class="lrp-icon" data-action="reset" title="Reset: all cells and default opacity" aria-label="Reset: all cells and default opacity">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <p class="lrp-result" aria-live="polite">This figure needs JavaScript.</p>
+    <p class="lrp-small lrp-status"></p>
   </div>
   <figcaption>Hover a cell to preview its relevance, and click cells to follow only them. Each layer shows the positive part of the relevance, and the bands between layers show how much passes from one depth to the next.</figcaption>
 </figure>

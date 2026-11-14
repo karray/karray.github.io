@@ -25,7 +25,7 @@ This post shows why and fills in the missing rules, which come with a [companion
 
 A deep network passes an image through a stack of layers until the last one makes the prediction. We can view each layer as a separate network in its own right, which takes an input, computes an output and passes it to the next layer. Now think of the output of the whole network as water that we pour back through it. At every layer, the water held by each neuron is divided among the neurons that fed into it, and a neuron that contributed more receives more. To know how much each one contributed, we store the intermediate outputs during the forward pass and reuse them on the way back. Whatever reaches a pixel tells us how much that pixel contributed. This water is called relevance, and the procedure is layer-wise relevance propagation [<a href="#bach2015on" data-ref="bach2015on">Bach et al.</a>]. Spread over all the pixels, the relevance forms a heatmap, and a heatmap like this is what caught the horse classifier reading a copyright tag [<a href="#lapuschkin2019unmasking" data-ref="lapuschkin2019unmasking">Lapuschkin et al.</a>].
 
-The figure below runs LRP on a small network that reads handwritten digits. Its left half computes the prediction, and its right half passes the score back to the pixels. You can draw your own digit on the input.
+The figure below runs LRP on a small network that reads handwritten digits. Its forward half computes the prediction, and its backward half passes the score back to the pixels. You can draw your own digit on the input.
 
 {% include posts/label-free-lrp-water.html %}
 
@@ -40,9 +40,7 @@ Most explanation methods for neural networks are built on the gradient, but the 
 
 The figure below shows this neuron. Like the digit network, it is mirrored around the output. Drag the inputs and the weights on the forward side, and the relevance flows back to the inputs on the other side, red for positive and blue for negative.
 
-<figure class="fig lrp-fig lrp-neuron">
-  <div data-lrp-toy="neuron"><p class="lrp-small">This figure needs JavaScript.</p></div>
-</figure>
+{% include posts/label-free-lrp-neuron.html %}
 
 Relevance asks instead how much of the output came from each input. An input contributes its value times its weight, so $x_1$ contributed 3 and $x_2$ contributed −1, while an input of zero would contribute nothing, however large its weight. LRP divides the relevance that arrives in these proportions, and this basic rule is called LRP-0. Starting from the output of 2, it passes 3 back to $x_1$ and −1 to $x_2$, so the input that worked against the output receives negative relevance, and the total stays 2. The $z^+$ rule of the first figure follows only the positive contributions, with $z$ for a contribution and $+$ for its positive part. It gives all of the 2 to $x_1$ and nothing to $x_2$, so relevance never turns negative. Since every layer is made of such neurons, repeating this step layer by layer carries the relevance all the way to the pixels.
 
@@ -125,11 +123,15 @@ In `zennit`, the identity rule is applied to every standard activation function,
 
 ### Attention
 
-Transformer blocks use attention in place of the convolution. A transformer represents the image as tokens, one feature vector per patch, and attention lets each token take a weighted average of what the other tokens send, with weights computed anew for every image. This is the one part that the toy ConvNeXt example lacks.
+Transformer blocks replace convolutions with self-attention. A vision transformer divides an image into patches and encodes each patch as a feature vector called a token. In an attention layer, every token updates itself by taking a weighted average of all tokens. Unlike the fixed parameters of a linear layer, these attention weights are probabilities computed dynamically for each image via softmax.
 
-Under the gradient fallback, each token receives relevance in proportion to its attention weight alone, however much or little it sent. Another part flows into the computation of the weights, in positive and negative amounts that cancel. The weights of a token add up to 1, so the gradient still divides the relevance among the tokens, only by weight and not by contribution. A missing attention rule therefore does far less harm than a missing rule for LayerNorm or the residual connections.
+A token's true contribution to that average is the token multiplied by its attention weight. Under a standard gradient fallback, the backward pass splits into two paths. Along the token path, relevance flows strictly in proportion to the attention weight, ignoring the magnitude of the token itself. Along the attention path, gradients flow back into the softmax computation that produced those probabilities.
 
-We can treat the weights as constants on the way back, as if they had been given and not computed from the tokens. No relevance then flows into their computation, and the weighted average works like a linear layer, where each token receives relevance in proportion to its contribution, its weight times what it sent. This is the approach of conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further and also passes relevance through the computation of the weights, with rules designed for it, which made its explanations of classifiers more faithful [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, freezing the weights on the backward pass changes the maps only slightly. Without the rule, Swin's maps pick up a few bright squares and the pixel total shifts by up to about 10%.
+Softmax converts raw similarity scores into probabilities that sum to 1, acting as a soft version of argmax. With the attention weights summing to 1 and the attention-path gradients splitting into positive and negative amounts that cancel to zero, a missing attention rule still conserves total relevance. It routes that relevance by attention weight instead of true contribution, doing far less harm than a missing rule for LayerNorm or the residual connections.
+
+Freezing the attention weights during the backward pass corrects this routing. Treated as fixed constants, they receive no gradients and act like the static weights of a standard linear layer, routing relevance by true contribution, where each token is multiplied by its attention weight. This strategy defines conservative propagation [<a href="#ali2022xai" data-ref="ali2022xai">Ali et al.</a>]. AttnLRP goes further by introducing dedicated propagation rules for the attention-weight computation itself, improving faithfulness on image classifiers [<a href="#achtibat2024attnlrp" data-ref="achtibat2024attnlrp">Achtibat et al.</a>]. In our encoders, freezing the attention weights changes the maps only slightly. The figure below demonstrates this on a toy example with three tokens: the total stays the same under all three rules, while each token receives a different amount of relevance.
+
+{% include posts/label-free-lrp-attn.html caption="Self-attention on three 2D token vectors, with query, key, and value projections set to the identity ($q_i = k_i = v_i = t_i$). In the forward pass, scaled dot products feed softmax to set the attention weights that average the tokens into updated vectors. In the backward pass, relevance flows back through both the softmax gradient matrix and the token wires. Drag any input coordinate, adjust the temperature τ, or hover or tap a row or updated token to isolate its wires." %}
 
 ### Smaller pieces
 

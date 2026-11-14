@@ -29,7 +29,6 @@
   const neuronToy = (root) => {
     const v = { x1: 2, x2: 1, w1: 1.5, w2: -1 };
     const LIM = { x1: [-2, 3], x2: [-2, 3], w1: [-2, 2], w2: [-2, 2] };
-    const MODES = { grad: 'Gradient fallback', zplus: 'z⁺ rule', lrp0: 'LRP-0' };
     const RN = 40, RB = 30, UNIT = 7, SUB = '₁₂';
     const GEOM = {
       wide: { W: 840, H: 262, vertical: false, n: [470, 142], fin: [[62, 92], [62, 192]], bin: [[724, 92], [724, 192]],
@@ -165,19 +164,14 @@
         : 'Each input receives exactly what it contributed, so the inputs hold the whole output and nothing more.';
     };
 
-    const buttons = Object.entries(MODES).map(([k, label]) => h('button', { type: 'button', value: k, text: label, onclick: () => { mode = k; update(); } }));
-    const holder = h('div', { class: 'lrp-nt-holder' });
-    const eq = h('output', { class: 'lrp-nt-eq' });
-    const note = h('p', { class: 'lrp-small lrp-nt-note', 'aria-live': 'polite' });
-    root.append(h('div', {},
-      holder,
-      h('div', { class: 'lrp-nt-bar' },
-        h('p', { class: 'lrp-nt-eqline' }, 'output = ', eq),
-        h('div', { class: 'lrp-buttons lrp-nt-modes', role: 'group', 'aria-label': 'How the relevance is passed back' }, buttons)),
-      note));
+    const holder = root.querySelector('.lrp-nt-holder');
+    const eq = root.querySelector('.lrp-nt-eq');
+    const note = root.querySelector('.lrp-nt-note');
+    const buttons = [...root.querySelectorAll('.lrp-nt-modes button')];
+    buttons.forEach((b) => b.addEventListener('click', () => { mode = b.value; update(); }));
 
     const fit = () => {
-      const name = root.clientWidth >= 560 ? 'wide' : 'tall';
+      const name = (holder.clientWidth || root.clientWidth) >= 560 ? 'wide' : 'tall';
       if (name === layout) return;
       layout = name;
       S = build(name);
@@ -200,9 +194,22 @@
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   const stackExplorer = (root, app) => {
-    const models = JSON.parse(app.dataset.models);
+    const modelSelect = app.querySelector('.lrp-select select');
+    const opacity = app.querySelector('.lrp-range input');
+    const opacityOut = app.querySelector('.lrp-range output');
+    const row = app.querySelector('.lrp-row');
+    const ribbons = row.querySelector('.lrp-ribbons');
+    const startCol = row.querySelector('.lrp-col--start');
+    const startBox = startCol.querySelector('.lrp-start');
+    const [startBase, startHeat, startMarks] = ['base', 'heat', 'marks'].map((k) => startBox.querySelector(`[data-canvas="${k}"]`));
+    const tools = startCol.querySelector('.lrp-tools');
+    const invertBtn = tools.querySelector('[data-action="invert"]');
+    const resetBtn = tools.querySelector('[data-action="reset"]');
+    const readout = app.querySelector('.lrp-result');
+    const status = app.querySelector('.lrp-status');
+
     const thumbs = [...root.querySelectorAll('.fg-thumb')];
-    const state = { model: models[0].id, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, amounts: null };
+    const state = { model: modelSelect.value, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, amounts: null };
 
     /* data, fetched once per model and image: int8 maps per level and start cell, with one scale per cell */
     const cache = new Map();
@@ -247,44 +254,22 @@
       const c = Math.floor((e.clientX - r.left) / r.width * gc), q = Math.floor((e.clientY - r.top) / r.height * gr);
       return c >= 0 && c < gc && q >= 0 && q < gr ? q * gc + c : -1;
     };
-    const icon = (label, onclick, ...paths) => h('button', { type: 'button', class: 'lrp-icon', title: label, 'aria-label': label, onclick },
-      svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, paths.map(([d, fill]) => svg('path', { d, class: fill && 'lrp-icon-fill' }))));
     const canvas = (heat) => h('canvas', { class: heat ? 'lrp-canvas lrp-heat' : 'lrp-canvas', width: 448, height: 448 });
 
-    const modelSelect = h('select', { 'aria-label': 'Model', onchange: () => { state.model = modelSelect.value; render(); } },
-      models.map((m) => h('option', { value: m.id, text: m.label })));
-    const opacity = h('input', { type: 'range', min: 0, max: 100, step: 5, value: OPACITY, 'aria-label': 'Map opacity', oninput: () => setOpacity(Number(opacity.value)) });
-    const opacityOut = h('output');
-    const startBase = canvas(), startHeat = canvas(true), startMarks = canvas();
-    const startBox = h('div', {
-      class: 'lrp-start', role: 'img', 'aria-label': 'The start. Hover a cell to preview it, click cells to select them.',
-      onpointermove: (e) => { if (e.pointerType === 'mouse') hover(cellAt(e)); },
-      onpointerleave: () => hover(-1),
-      onclick: (e) => { const c = cellAt(e); if (c >= 0) { state.picked[c] = !state.picked[c]; render(); } },
-    }, startBase, startHeat, startMarks);
-    const tools = h('div', { class: 'lrp-tools', role: 'toolbar', 'aria-label': 'Start cells' },
-      icon('Invert the selection', invert, ['M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z'], ['M12 4a8 8 0 0 1 0 16z', true]),
-      icon('Reset: all cells and default opacity', reset, ['M4 12a8 8 0 1 0 2.4-5.7'], ['M4 4v4.5h4.5']));
-    const startCol = h('div', { class: 'lrp-col lrp-col--start' },
-      h('p', { class: 'lrp-layer-top', text: 'where it starts' }), startBox, h('p', { class: 'lrp-layer-name' }, 'the features'), tools);
-    const ribbons = svg('svg', { class: 'lrp-ribbons', 'aria-hidden': 'true' });
-    const row = h('div', {
-      class: 'lrp-row',
-      onpointermove: (e) => {
-        if (e.pointerType !== 'mouse') return;
-        if (startCol.contains(e.target) || layers.at(-1)?.col.contains(e.target)) return zoomTo(-1);
-        const j = mids().findIndex((l) => { const r = l.col.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right; });
-        if (j >= 0) zoomTo(j);                        // in a gap keep the current one, so the row does not flicker
-      },
-      onpointerleave: () => zoomTo(-1),
-    }, ribbons, startCol);
-    const readout = h('p', { class: 'lrp-result', 'aria-live': 'polite' });
-    const status = h('p', { class: 'lrp-small lrp-status' });
-    app.append(
-      h('div', { class: 'lrp-stack-controls' },
-        h('label', { class: 'lrp-select' }, 'Model', modelSelect),
-        h('label', { class: 'lrp-range' }, 'Map opacity', opacity, opacityOut)),
-      row, readout, status);
+    modelSelect.addEventListener('change', () => { state.model = modelSelect.value; render(); });
+    opacity.addEventListener('input', () => setOpacity(Number(opacity.value)));
+    startBox.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') hover(cellAt(e)); });
+    startBox.addEventListener('pointerleave', () => hover(-1));
+    startBox.addEventListener('click', (e) => { const c = cellAt(e); if (c >= 0) { state.picked[c] = !state.picked[c]; render(); } });
+    invertBtn.addEventListener('click', invert);
+    resetBtn.addEventListener('click', reset);
+    row.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      if (startCol.contains(e.target) || layers.at(-1)?.col.contains(e.target)) return zoomTo(-1);
+      const j = mids().findIndex((l) => { const r = l.col.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right; });
+      if (j >= 0) zoomTo(j);                        // in a gap keep the current one, so the row does not flicker
+    });
+    row.addEventListener('pointerleave', () => zoomTo(-1));
 
     /* relevance arithmetic */
     const sumLevel = (lv, sel) => {
@@ -497,7 +482,6 @@
   const init = () => document.querySelectorAll('[data-lrp-toy], [data-lrp-stack]').forEach((el) => {
     if (el.dataset.ready) return;
     el.dataset.ready = 'true';
-    el.replaceChildren();
     if ('lrpStack' in el.dataset) stackExplorer(el.closest('figure'), el);
     else if (el.dataset.lrpToy === 'neuron') neuronToy(el);
   });
