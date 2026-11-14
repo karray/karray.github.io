@@ -91,7 +91,7 @@ The reduction itself requires a choice. Unlike the ReLU outputs of a ResNet, ViT
 
 {% include heatmap-grid.html id="lafam-results" data=page.lafam_results class="wide" %}
 
-The grid shows label-free heatmaps from a supervised ConvNeXt for five images, four of which contain several objects. When a scene contains more than one object, the map does not pick a winner. The dog and the cat both light up, and so do both dogs and all six objects. With no class to choose, every object the encoder responds to strongly stays in the map.
+The grid shows label-free heatmaps from a supervised ConvNeXt for five images, four of which contain several objects. When a scene contains more than one object, the map does not pick a winner. The dog and the cat both light up, and so do both dogs and all six objects. With no class to choose, every object the encoder responds to strongly stays in the map. You can try it on your own images in the [live demo](/demos/lafam/).
 
 The limitation is just as easy to see. ConvNeXt, like ResNet-50, ends with a $7\times7$ grid of features. The response is already informative, but it is coarse. Nearest-neighbor resizing shows it as large tiles, and bilinear resizing would only blend their edges.
 
