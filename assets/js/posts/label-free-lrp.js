@@ -1,8 +1,6 @@
-/* Interactive figures for the LRP post. The stacked layers read precomputed relevance; the neuron computes in the page. */
 (() => {
   'use strict';
 
-  /* element builders: h(tag, attrs, ...children) for HTML, svg(...) for SVG; on* attributes become listeners */
   const make = (ns) => (tag, attrs = {}, ...kids) => {
     const node = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
@@ -22,10 +20,8 @@
   };
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-  /* matplotlib's "hot" colormap */
   const hot = (t) => [t / 0.365, (t - 0.365) / 0.381, (t - 0.746) / 0.254].map((c) => clamp(c, 0, 1));
 
-  /* -------------------------------------------------------------------------------- neuron toy */
   const neuronToy = (root) => {
     const v = { x1: 2, x2: 1, w1: 1.5, w2: -1 };
     const LIM = { x1: [-2, 3], x2: [-2, 3], w1: [-2, 2], w2: [-2, 2] };
@@ -48,7 +44,6 @@
       const [gTrack, gStream, gFlow, gNodes, gText] = [0, 0, 0, 0, 0].map(() => scene.appendChild(svg('g')));
       const text = (x, y, cls, s = '', anchor = 'middle') => gText.appendChild(svg('text', { x, y, class: cls, 'text-anchor': anchor }, s));
       const path = (p, g, cls) => g.appendChild(svg('path', { d: `M${p[0]}C${p[1]} ${p[2]} ${p[3]}`, class: cls }));
-      // the point on the rim of a node (radius r) that faces t, and the S-curve from a node to the neuron
       const rim = ([cx, cy], [tx, ty], r) => (vert ? [cx, cy + Math.sign(ty - cy) * r] : [cx + Math.sign(tx - cx) * r, cy]);
       const curve = (c, r) => {
         const a = rim(c, N, r), b = rim(N, c, RN), s = Math.sign(vert ? b[1] - a[1] : b[0] - a[0]) * 90;
@@ -56,7 +51,6 @@
         return [a, [a[0] + dx, a[1] + dy], [b[0] - dx, b[1] - dy], b];
       };
 
-      // a value chip: drag sideways or use the arrow keys
       const chip = (key, cx, cy, show) => {
         const t = svg('text', { x: cx, y: cy + 7, 'text-anchor': 'middle' });
         const arrow = (dx, s) => svg('text', { x: cx + dx, y: cy + 6, 'text-anchor': 'middle', class: 'lrp-nt-arrow' }, s);
@@ -90,7 +84,6 @@
           label: vert ? text(x + (i ? 14 : -14), y, 'lrp-nt-small', '', i ? 'start' : 'end') : text(x, i ? y + 30 : y - 16, 'lrp-nt-small'),
         };
       });
-      // backward inputs: the name next to the node, the relevance it receives inside it
       const back = bin.map(([x, y], i) => {
         const p = curve([x, y], RB);
         path(p, gTrack, 'lrp-nt-track');
@@ -119,7 +112,6 @@
       };
     };
 
-    // stream width follows the amount; the moving dashes only show on streams wide enough to carry them
     const thick = (band, flow, q, max, min = 0) => {
       const w = Math.min(Math.abs(q) * UNIT, max);
       band.style.strokeWidth = `${Math.max(w, min)}px`;
@@ -183,13 +175,11 @@
     new IntersectionObserver(([en]) => root.classList.toggle('lrp-nt-paused', !en.isIntersecting)).observe(root);
   };
 
-  /* -------------------------------------------------------------------------------- stack explorer */
-  /* where a level from the exported data sits, for its caption */
   const where = (name) => (name === 'pixels' ? 'the pixels' : name.replace(/^.*→ (?:stage )?(\d+)$/, 'below stage $1'));
   const SHOWN = ['below the final norm', 'below block 9', 'below block 5', 'below block 1', 'pixels'];
-  const OPACITY = 80;                               // default map opacity, in percent
-  const M = 112;                                    // display resolution of the layer maps
-  const GAP = 40, BIG = 1.6, GROW = 1.4, NEAR = 0.3; // space for the bands; end panels vs. the depths; how much a hovered depth and its neighbours grow
+  const OPACITY = 80;
+  const M = 112;
+  const GAP = 40, BIG = 1.6, GROW = 1.4, NEAR = 0.3;
   const narrow = window.matchMedia('(max-width: 640px)');
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -211,7 +201,6 @@
     const thumbs = [...root.querySelectorAll('.fg-thumb')];
     const state = { model: modelSelect.value, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, amounts: null };
 
-    /* data, fetched once per model and image: int8 maps per level and start cell, with one scale per cell */
     const cache = new Map();
     const once = (key, fn) => { if (!cache.has(key)) cache.set(key, fn()); return cache.get(key); };
     const load = (key) => once(key, async () => {
@@ -229,7 +218,6 @@
       onload() { resolve(this); }, onerror: reject, src: thumbs.find((t) => t.dataset.item === item).dataset.src,
     })));
 
-    /* controls */
     const setOpacity = (x) => {
       opacity.value = x; opacityOut.textContent = `${x}%`;
       root.style.setProperty('--lrp-heat-opacity', x / 100);
@@ -258,9 +246,46 @@
 
     modelSelect.addEventListener('change', () => { state.model = modelSelect.value; render(); });
     opacity.addEventListener('input', () => setOpacity(Number(opacity.value)));
-    startBox.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') hover(cellAt(e)); });
-    startBox.addEventListener('pointerleave', () => hover(-1));
-    startBox.addEventListener('click', (e) => { const c = cellAt(e); if (c >= 0) { state.picked[c] = !state.picked[c]; render(); } });
+    let touch = null, suppressClick = false, suppressTimer = 0;
+    const endTouch = (e, cancel = false) => {
+      if (!touch || e.pointerId !== touch.id) return;
+      if (touch.swiped) {
+        if (!cancel) {
+          suppressClick = true;
+          clearTimeout(suppressTimer);
+          suppressTimer = setTimeout(() => { suppressClick = false; }, 100);
+        }
+        hover(-1);
+      }
+      touch = null;
+    };
+    startBox.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || !e.isPrimary) return;
+      suppressClick = false;
+      clearTimeout(suppressTimer);
+      touch = { id: e.pointerId, x: e.clientX, y: e.clientY, swiped: false };
+      if (startBox.setPointerCapture) { try { startBox.setPointerCapture(e.pointerId); } catch (_) {} }
+    });
+    startBox.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'mouse') { hover(cellAt(e)); return; }
+      if (!touch || e.pointerId !== touch.id) return;
+      if (touch.swiped || Math.hypot(e.clientX - touch.x, e.clientY - touch.y) > 6) {
+        touch.swiped = true;
+        hover(cellAt(e));
+      }
+    });
+    startBox.addEventListener('pointerup', (e) => endTouch(e, false));
+    startBox.addEventListener('pointercancel', (e) => endTouch(e, true));
+    startBox.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hover(-1); });
+    startBox.addEventListener('click', (e) => {
+      if (suppressClick) { suppressClick = false; clearTimeout(suppressTimer); return; }
+      const c = cellAt(e);
+      if (c >= 0) {
+        state.picked[c] = !state.picked[c];
+        if (e.pointerType !== 'mouse') state.hover = -1;
+        render();
+      }
+    });
     invertBtn.addEventListener('click', invert);
     resetBtn.addEventListener('click', reset);
     row.addEventListener('pointermove', (e) => {
@@ -271,7 +296,6 @@
     });
     row.addEventListener('pointerleave', () => zoomTo(-1));
 
-    /* relevance arithmetic */
     const sumLevel = (lv, sel) => {
       const n = lv.size[0] * lv.size[1], out = new Float32Array(n);
       sel.forEach((on, c) => {
@@ -288,7 +312,7 @@
       for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) out[((i / fr) | 0) * gc + ((j / fc) | 0)] += v[i * c + j];
       return out;
     };
-    const resample = (v, [r, c]) => {               // nearest, so token and stage grids stay visible
+    const resample = (v, [r, c]) => {
       const out = new Float32Array(M * M);
       for (let y = 0; y < M; y++) {
         const o = Math.min(r - 1, (y * r / M) | 0) * c;
@@ -296,7 +320,7 @@
       }
       return out;
     };
-    const selection = () => {                       // clicked cells plus the hovered one; nothing clicked = all
+    const selection = () => {
       const any = state.picked.some(Boolean);
       if (state.hover < 0) return any ? state.picked : state.picked.map(() => true);
       const sel = state.picked.map((p) => any && p);
@@ -304,10 +328,8 @@
       return sel;
     };
 
-    /* drawing */
     const off = document.createElement('canvas');
     const photo = (c, img) => c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    // The maps are opaque, so the opacity slider blends between the plain photo (0) and the map alone (100).
     const heat = (target, values, [rows, cols], { smooth = false } = {}) => {
       off.width = cols; off.height = rows;
       const octx = off.getContext('2d'), px = octx.createImageData(cols, rows);
@@ -336,9 +358,6 @@
       relayout();
     };
 
-    // The start and the pixels are the large panels at both ends. The depths between them are smaller, and the one
-    // under the pointer grows like a thumbnail in the dock, its neighbours a little, while the others give up the
-    // space, so the row keeps its width.
     const fish = { zoom: -1, sizes: [], target: [], s0: 0, frame: 0 };
     const mids = () => layers.slice(0, -1);
     const sizesFor = (zoom, n) => {
@@ -370,13 +389,12 @@
         return drawRibbons();
       }
       const n = layers.length - 1;
-      // as wide as the row allows, but short enough that the panels and the controls fit on one screen
       fish.s0 = Math.min(0.28 * innerHeight, (row.clientWidth - (n + 1) * GAP) / (n + 2 * BIG));
       fish.target = sizesFor(fish.zoom, n);
       if (fish.sizes.length !== n) fish.sizes = fish.target.slice();
       // room for the largest panel any hover can produce (an end depth, which has one neighbour), so the page below never moves
       const top = Math.max(BIG * fish.s0, ...sizesFor(0, n));
-      const labels = startCol.offsetHeight - startBox.offsetHeight;   // the toolbar hangs below, outside the column
+      const labels = startCol.offsetHeight - startBox.offsetHeight;
       const pad = tools.offsetHeight + 14;
       row.style.paddingBottom = `${pad}px`;
       row.style.height = `${Math.ceil(top + labels + pad)}px`;
@@ -390,7 +408,6 @@
       fish.frame ||= requestAnimationFrame(step);
     };
 
-    // bands between the panels, as high as the amount that passes there (the same scale for all of them)
     const drawRibbons = () => {
       ribbons.replaceChildren();
       const a = state.amounts;
@@ -429,7 +446,6 @@
       }
       const sel = selection(), all = sel.map(() => true), lv0 = meta.levels[0], gc = meta.grid[1];
 
-      // the start: positive features per cell (min to max), with the selection
       const start = toGrid(sumLevel(lv0, all), lv0.size, meta.grid);
       const lo = Math.min(...start), hi = Math.max(...start);
       heat(startHeat, start.map((x) => (x - lo) / (hi - lo || 1)), meta.grid);
@@ -445,7 +461,6 @@
         ctx.strokeRect(x + 2.5, y + 2.5, cw - 5, ch - 5);
       });
 
-      // the layers: exact maps, each scaled to its maximum
       const raw = layers.map(({ lv }) => resample(sumLevel(lv, sel), lv.size).map((x) => Math.max(0, x)));
       const startAmount = amount(lv0, sel);
       const amounts = [1, ...layers.map((l) => amount(l.lv, sel) / startAmount)];
@@ -464,7 +479,6 @@
     };
     const render = () => { queued ||= requestAnimationFrame(() => { queued = 0; draw(); }); };
 
-    // the dock belongs to the shared gallery script; follow its selection
     new MutationObserver(() => {
       const on = thumbs.find((t) => t.getAttribute('aria-selected') === 'true');
       if (on && on.dataset.item !== state.item) { state.item = on.dataset.item; render(); }

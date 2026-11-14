@@ -1,4 +1,3 @@
-/* Interactive 2D-vector (d = 2) self-attention LRP figure for the LRP blog post. */
 (() => {
   'use strict';
 
@@ -71,7 +70,6 @@
     }
   };
 
-  /** Creates an SVG node with attributes and appended children. */
   const svg = (tag, attrs = {}, ...kids) => {
     const node = document.createElementNS(NS, tag);
     for (const [k, v] of Object.entries(attrs)) {
@@ -103,7 +101,6 @@
     return e.map((v) => v / z);
   };
 
-  /** AttnLRP Softmax z+ propagation across scores s with probabilities a and target rel. */
   const softmaxZPlus = (s, a, rel) => {
     const pos = s.map((v) => Math.max(0, v));
     const neg = s.map((v) => Math.max(0, -v));
@@ -118,7 +115,6 @@
     return a.map((ai, i) => ai * (1 - ai) * pos[i] * ratio[i] + ai * neg[i] * (total - ai * ratio[i]));
   };
 
-  /** Computes forward average y and backward relevance split for one scalar coordinate slice. */
   const attnRow = (v, s, R, mode) => {
     const a = softmax(s);
     const y = sum(a.map((aj, j) => aj * v[j]));
@@ -146,7 +142,6 @@
     return [a, [a[0] + dir * k, a[1]], [b[0] - dir * k, b[1]], b];
   };
 
-  /** Vertical S-curve Bezier control points connecting top point a to bottom point b. */
   const bezCurveVert = (a, b, sag) => {
     const k = sag ?? Math.max(40, Math.abs(b[1] - a[1]) * 0.44);
     const dir = Math.sign(b[1] - a[1]) || 1;
@@ -173,7 +168,7 @@
   const bezAtX = (p, targetX) => bezAt(p, targetX, 0);
   const bezAtY = (p, targetY) => bezAt(p, targetY, 1);
 
-  const addText = (g, x, y, s, cls = 'lrpa-small', anchor = 'middle') =>
+  const addText = (g, x, y, s, cls, anchor = 'middle') =>
     g.appendChild(svg('text', { x, y, class: cls, 'text-anchor': anchor }, s));
 
   const wire = (L, p, isFwd) => {
@@ -209,7 +204,6 @@
     };
   };
 
-  /** Draggable, tap-to-step, and keyboard-accessible scalar coordinate chip. */
   const makeChip = (g, { x, y, w = 66, get, set, lim = [-3, 3], step = 0.1, label, onTouch }) => {
     const t = svg('text', { x, y: y + 5, 'text-anchor': 'middle' });
     const arrow = (dx, s) => svg('text', { x: x + dx, y: y + 4.5, 'text-anchor': 'middle', class: 'lrpa-chip-arrow' }, s);
@@ -248,7 +242,6 @@
     return () => { t.textContent = fmt(get(), 1); node.setAttribute('aria-valuenow', get()); };
   };
 
-  /** Binds the HTML controls and parametric SVG scene inside one `[data-lrp-attn]` figure. */
   const initFigure = (root) => {
     const ruleBtns = [...root.querySelectorAll('[data-rule]')];
     const tauInp = root.querySelector('[data-attn-tau]');
@@ -277,7 +270,6 @@
       }
     });
 
-    /** Wires mouse hover, touch/click toggle, and optional keyboard focus/activation on a token or row. */
     const bindRow = (el, i, isPill = false) => {
       const toggleHover = () => { st.hover = st.hover === i ? null : i; update(); };
       el.addEventListener('pointerenter', (e) => {
@@ -303,7 +295,6 @@
     let ui = null;
     let isTall = null;
 
-    /** Clears and constructs all dynamic SVG nodes/wires for either the `wide` or `tall` layout. */
     const buildScene = (tall) => {
       Object.values(L).forEach((layer) => layer.replaceChildren());
       const g = LAYOUT[tall ? 'tall' : 'wide'];
@@ -311,10 +302,7 @@
       svgEl.classList.toggle('is-tall', tall);
       frameWide.toggleAttribute('hidden', tall);
       frameTall.toggleAttribute('hidden', !tall);
-      frameWide.style.display = tall ? 'none' : '';
-      frameTall.style.display = tall ? '' : 'none';
 
-      // Input Token Cards (2D draggable chips) + soft tracks to Forward Softmax rows
       const chips = [];
       const softPathsTall = [
         'M108,108 L108,128 Q108,132 102,132 L32,132 Q26,132 26,138 L26,182 Q26,188 32,188 L138,188',
@@ -348,7 +336,6 @@
         L.track.appendChild(svg('path', { d: td, class: 'lrpa-fwd-soft-track' }));
       });
 
-      // Forward Upper Sub-Box: 3x3 dot-product scores -> softmax -> 3x3 scalar weights
       const softRows = [0, 1, 2].map((i) => {
         const ry = g.softRowY0 + i * 26;
         const rowG = L.nodes.appendChild(svg('g', { class: 'lrpa-srow' }));
@@ -374,7 +361,6 @@
         return { rowG, sCells, cells };
       });
 
-      // Downward weight connectors onto forward wires
       const dropEls = g.fCols.map((cx) => {
         const line = L.flow.appendChild(svg('path', { d: '', class: 'lrpa-drop-line' }));
         const mulG = L.nodes.appendChild(svg('g'));
@@ -386,14 +372,12 @@
         return { cx, line, mulG, pTxt };
       });
 
-      // Forward 9 wires
       const fwdCurves = [0, 1, 2].map((i) => [0, 1, 2].map((j) =>
         (tall
           ? bezCurveVert([g.xs[j] + (i - 1) * 10, 338], [g.xs[i] + (j - 1) * 10, 508], 68)
           : bezCurve([186, YS[j] + (i - 1) * 9], [583, YS[i] + (j - 1) * 9], 145))));
       const fwdWires = fwdCurves.map((row) => row.map((p) => wire(L, p, true)));
 
-      // Center Updated Tokens t_i' in R^2
       const midTokens = [0, 1, 2].map((i) => {
         const mx = tall ? g.xs[i] : CX;
         const my = tall ? 545 : YS[i];
@@ -414,7 +398,6 @@
       });
       const centerTot = addText(L.text, g.centerTot[0], g.centerTot[1], '', 'lrpa-total');
 
-      // Backward Upper Sub-Box: 3x3 Backward Softmax gradient matrix -> column sums "to t_j"
       const softTrackG = L.track.appendChild(svg('g', { class: 'lrpa-soft-group' }));
       const softStreamG = L.stream.appendChild(svg('g', { class: 'lrpa-soft-group' }));
       const softFlowG = L.flow.appendChild(svg('g', { class: 'lrpa-soft-group' }));
@@ -475,14 +458,12 @@
       const cancelRect = cancelBanner.appendChild(svg('rect', { x: g.cancelX, y: g.cancelY, width: 318, height: 22, rx: 11 }));
       const cancelTxt = cancelBanner.appendChild(svg('text', { x: g.cancelX + 159, y: g.cancelY + 15, 'text-anchor': 'middle' }, ''));
 
-      // Backward 9 Token-path wires
       const bwdCurves = [0, 1, 2].map((i) => [0, 1, 2].map((j) =>
         (tall
           ? bezCurveVert([g.xs[i] + (j - 1) * 10, 836], [g.xs[j] + (i - 1) * 10, 1002], 66)
           : bezCurve([757, YS[i] + (j - 1) * 9], [1154, YS[j] + 16 + (i - 1) * 8], 145))));
       const bwdWires = bwdCurves.map((row) => row.map((p) => wire(L, p, false)));
 
-      // Output Relevance Token Cards
       const rightCards = [0, 1, 2].map((j) => {
         const rx0 = tall ? g.xs[j] - g.rightW / 2 : 1154;
         const ry0 = tall ? 1056 : YS[j];
@@ -529,7 +510,6 @@
       };
     };
 
-    // Bind HTML controls
     ruleBtns.forEach((b) => b.addEventListener('click', () => { st.mode = b.dataset.rule; update(); }));
     tauInp.addEventListener('input', () => { st.tau = Number(tauInp.value); update(); });
 
@@ -569,7 +549,6 @@
       const hi = st.hover;
       const totR = sum(rows.map((r) => r.R));
 
-      // Forward score & probability tables
       ui.softRows.forEach((sr, i) => {
         const r = rows[i];
         const dim = hi !== null && hi !== i;
@@ -584,7 +563,6 @@
         });
       });
 
-      // Forward wires + downward weight multiplier drops
       rows.forEach((r, i) => {
         const active = hi === null || hi === i;
         r.a.forEach((aij, j) => ui.fwdWires[i][j](aij, aij * Math.hypot(st.v[j][0], st.v[j][1]), active));
@@ -592,7 +570,6 @@
       const hiInfo = hi === null ? null : { idx: hi, row: rows[hi] };
       ui.dropEls.forEach((el, j) => ui.updateDrop(el, j, hiInfo));
 
-      // Center updated token cards
       rows.forEach((r, i) => {
         ui.midTokens[i].eq.textContent = `${fmt(r.a[0])} t₁ + ${fmt(r.a[1])} t₂ + ${fmt(r.a[2])} t₃`;
         ui.midTokens[i].vec.textContent = fmtVec(r.yVec);
@@ -606,7 +583,6 @@
       });
       ui.centerTot.textContent = `total R = ${fmt(totR)}`;
 
-      // Backward aggregation across coordinates c = 1, 2
       const activeRows = hi === null ? rows : [rows[hi]];
       const shownSoft = [0, 1, 2].map((j) => sum(activeRows.map((r) => r.rs[j])));
       const allTok1 = [0, 1, 2].map((j) => sum(rows.map((r) => r.rv1[j])));
@@ -628,7 +604,6 @@
       ui.softFlowG.classList.toggle('is-frozen', isFrozen);
       ui.softNodeG.classList.toggle('is-frozen', isFrozen);
 
-      // Update 3x3 Backward Softmax matrix
       ui.bwdRows.forEach((br, i) => {
         const r = rows[i];
         const dim = hi !== null && hi !== i;
@@ -687,13 +662,11 @@
         ui.cancelTxt.innerHTML = `AttnLRP z⁺ passes <tspan class="is-pos">${fmtS(netSoft)}</tspan> via keys/queries`;
       }
 
-      // Backward 9 Token-path wires
       rows.forEach((r, i) => {
         const active = hi === null || hi === i;
         r.rv.forEach((rv, j) => ui.bwdWires[i][j](rv, active));
       });
 
-      // Output Relevance Token Cards
       ui.rightCards.forEach((rc, j) => {
         rc.tot.textContent = fmtS(allNet[j]);
         rc.tot.classList.toggle('is-pos', allNet[j] > 0.005);
