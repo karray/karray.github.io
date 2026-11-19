@@ -1,170 +1,163 @@
 ---
 layout: post
-title: "Your classifier sees more than its answer tells you"
-description: "A visual guide to global average pooling, multiple-instance learning, and class evidence hidden by an image-level prediction."
-math: true
-tags: interpretability image-classification multiple-instance-learning GAP
+title: "Your Classifier Has Always Been a Multiple-Instance Learner"
+description: "Why standard image classifiers already recognise multiple objects in space, how certain head designs break that signal, and what comes for free once you read before pooling."
+styles:
+  - /assets/css/gap-mil.css
+tags: XAI, Image Classification, Multiple-Instance Learning, CAM, CNN, ViT
 ---
 
-A photograph shows a dog beside a bicycle. You ask an image classifier what it sees. It answers: “bicycle.”
-
-Did it miss the dog? Perhaps. But there is another possibility: evidence for the dog survived inside the network and lost when the model combined everything into one answer.
-
-In the previous post, we explored LaFAM: a way to highlight feature activity without choosing a class to explain. That leaves a natural question. Once a region lights up, can we read **which classes the model associates with it**? And can that reading disagree with the final answer?
+We keep treating standard image classifiers as single-output models, leaving their built-in spatial capabilities untapped. Bypassing global average pooling in a pretrained classifier turns a single global prediction into a map of local class scores for free. Anyone working with vision models can use this spatial map right away to audit model failures, expose background shortcuts, and examine how networks handle unlabelled background. This post shows why the maths works, how convolutional networks and vision transformers differ under the hood, and what these hidden scores reveal in multi-object scenes.
 
 <!--more-->
 
-<link rel="stylesheet" href="{{ '/assets/css/gap-mil.css' | relative_url }}">
-<script defer src="{{ '/assets/js/gap-mil.js' | relative_url }}"></script>
+Step outside with a camera and snap a photo of a dog on a busy street, a coffee cup on a café table, or a cat resting on a park bench. Real-world pictures almost never isolate a single subject against a blank studio wall. Every frame is packed with competing objects, textures, and large stretches of ordinary background such as pavement, grass, or sky. Standard image classifiers are nevertheless built to return just one category label for the entire scene. That single-label design exists for practical reasons. Training dedicated object detectors is expensive, as human annotators must draw bounding boxes around every item across thousands of images. Assigning one broad tag per image is far cheaper and lets researchers scale datasets into the millions.
 
-This post follows [*Rethinking Global Average Pooling: Your Classifier Is Secretly a Multi-Instance Learner*](https://arxiv.org/abs/2606.14555). We will unpack the averaging operation at the end of many classifiers and see what it lets us inspect. The interactive examples below use invented scores so you can follow every calculation; the research results are identified separately.
+Even when trained with a single tag per picture, a vision network does not process the scene as one undifferentiated block. Whether an architecture relies on convolutional layers or transformer blocks, it transforms an input image into a coarse spatial feature grid. Each cell in that grid holds a vector of numbers describing what the network has detected in the corresponding region of the scene. In an earlier post on [label-free feature attribution]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we averaged each cell across its feature channels to reveal where prominent features respond without using any class labels.
 
-## Before the answer, there is a grid
+To turn those spatial feature vectors into category predictions, most modern vision classifiers apply global average pooling (GAP) followed by a linear classification head. GAP reduces each feature channel to a single number by averaging across every cell in the grid. For an $H \times W$ grid with $C$ channels, this spatial average produces a single $C$-dimensional image-level embedding. A linear classification head then maps this embedding to a $K$-dimensional vector of class logits for $K$ categories.
 
-An image classifier usually does not jump straight from pixels to a word. First, an encoder turns the picture into a collection of numbers called **features**. In the models we are discussing, these features still have spatial positions: a small grid of vectors, each vector being a list of learned measurements.
+Early deep convolutional networks, such as AlexNet and VGG, converted spatial grids into predictions by flattening the entire feature tensor into one long vector and feeding it into parameter-heavy fully connected layers. With millions of weights tied to specific grid coordinates, a classification head had to learn the same object-to-feature associations independently for every location and could easily memorise training pictures instead of learning general visual concepts. Keeping those networks from overfitting forced engineers to rely heavily on aggressive regularisation such as dropout. Flattening also locked models to a fixed spatial layout, breaking whenever an input image arrived at a different resolution.
 
-Think of a group of observers writing notes about a scene. One report may contain evidence about fur and ears, another about wheels, another about the surrounding road. These are an analogy for learned features, not a claim that individual feature coordinates have such tidy meanings.
+GAP addresses these limitations by eliminating learnable parameters at the transition to the classification head. Averaging each feature channel across the grid converts a spatial map of local responses into a single score measuring how strongly a visual pattern appears across the scene. If a channel responds to fur texture or bicycle spokes, its spatial mean captures the overall presence of that feature no matter where the subject appears in the frame. Without a downstream dense layer to recombine scattered signals, individual channels are forced to encode meaningful semantic concepts directly. Computing a mean over whatever grid dimensions the encoder outputs also frees the network from a fixed input resolution while building translation invariance into the representation. The trade-off is that GAP discards relative spatial geometry, treating the picture as an unordered collection of local detections. That geometric blind spot is harmless when assigning a single category label to an image, yet it makes GAP poorly suited for robotics and embodied agents that need exact coordinates to grasp objects or navigate around obstacles.
 
-The reports also overlap. A vector at one position can contain information from a much larger part of the image. A location in the feature grid is not an independently classified crop.
+Training a model with a single label attached to a complex scene turns standard classification into a multiple-instance learning (MIL) problem. Instead of treating an image as one indivisible input, MIL views it as a bag of smaller spatial regions called instances. Supervision applies only to the bag as a whole, leaving the individual instances unlabelled. In a natural image, only some instances belong to the target object, while the rest may hold co-occurring objects or ordinary background with no dedicated category.
 
-Many classifiers combine the reports using **global average pooling**, or **GAP**. They average each feature across all positions, producing one summary vector. A final **linear classification head** converts this summary into one score per class. These scores are called *logits*. The highest score determines the predicted class.
+<details>
+<summary>Where does multiple-instance learning come from?</summary>
+Learning from a single label attached to a complex scene is a classic machine learning problem known as multiple-instance learning. Researchers originally formulated it in the late 1990s for drug discovery, where screening tests indicate whether a candidate molecule is active without revealing which of its possible three-dimensional conformations caused the reaction. In this setup, the candidate molecule acts as a bag, and each individual shape it can adopt counts as an instance inside that bag. Training labels apply only to the bag as a whole while the individual instances remain unlabelled.
 
-That sounds like the spatial information has disappeared. But look at what happens if we change the order of the last two operations.
+The framework later became essential in digital pathology, where gigapixel tissue scans are far too large for GPU memory to process in a single pass and signs of disease often hide in a tiny fraction of the slide. Marking every tumour cell by hand is impractical at scale, yet clinical archives already pair each slide with a single patient diagnosis. Slicing the scan into small tiles lets a model process the slide piece by piece as a bag of unlabelled tissue patches.
+</details>
 
-## Read first, average second
 
-Suppose a head turns a feature value into a score by multiplying it by two and adding one. If two locations contain feature values of 1 and 3, we can calculate the answer either way:
 
-<figure class="fig mil-figure">
-  <div class="fig-kicker">01 / Two routes, one answer</div>
-  <div class="mil-routes">
-    <div><strong>Average, then score</strong><span class="mil-step">Features: 1 and 3</span><span class="mil-arrow">↓ average</span><span class="mil-step">Summary: 2</span><span class="mil-arrow">↓ multiply by 2, add 1</span><span class="mil-answer">Score: 5</span></div>
-    <div><strong>Score, then average</strong><span class="mil-step">Features: 1 and 3</span><span class="mil-arrow">↓ multiply each by 2, add 1</span><span class="mil-step">Local scores: 3 and 7</span><span class="mil-arrow">↓ average</span><span class="mil-answer">Score: 5</span></div>
-  </div>
-  <figcaption>The second route keeps the individual scores available. The final answer is identical. The same calculation works with vectors and many classes.</figcaption>
-</figure>
+There was a simpler explanation sitting right inside the final layer. Most modern image classifiers already act as **multiple-instance learners (MIL)** [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. Before collapsing everything into one decision, the network assigns local class scores across a spatial grid, and it only loses track of the cat, the strawberry, or the bird when the final averaging step blends all those local votes together.
 
-The useful fact is that a linear head, including its bias, **commutes with averaging**: either order gives the same result. Applying the existing head at every grid position therefore reveals a spatial score for every class without training another classifier.
+In the [first post of this series]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we used label-free activation maps to see *where* features respond without labels, and in the [second]({% post_url 2026-10-31-why-lrp-fails-quietly %}) we fixed layer-wise relevance propagation so pixel attributions stay faithful on modern architectures. Now we ask what happens when we let the classifier's own head speak *before* spatial pooling. Once you see that almost every standard classifier is already an MIL model, a handful of free diagnostic tools appear immediately, along with clear rules for how we ought to build classifiers in the first place.
+
+## Score first, average second
+
+An image classifier rarely jumps straight from raw pixels to a class name. First, a backbone network called an **encoder** transforms the input picture into a compact spatial grid of numbers. In a convolutional neural network (CNN) like ResNet-50 or ConvNeXt, this output is a feature map whose cells sit in a coarse grid, typically $7 \times 7$ squares across a $224 \times 224$ image. At each grid position sits a vector of learned measurements called **channels**, numbering anywhere from several hundred to two thousand values. Vision transformers (ViTs) work in a surprisingly similar way. They chop the picture into square patches, encode each patch as a vector called a **patch token**, and pass those tokens through self-attention layers so they can exchange information before landing on a final spatial grid.
+
+Notice that a vector on this grid is not an isolated crop of the image underneath it. In a CNN, stacking layers expands the region of pixels that can influence each position, known as its **receptive field**. In a transformer, self-attention allows any patch token to read from every other token across the entire scene [<a href="#raghu2021do" data-ref="raghu2021do">Raghu et al.</a>]. Still, every feature vector keeps a spatial address on the grid, and in standard classifiers those vectors are combined at the very end by **global average pooling (GAP)** [<a href="#lin2014network" data-ref="lin2014network">Lin et al.</a>]. GAP simply takes the average of all feature vectors across the grid, collapsing forty-nine local summaries into a single vector that represents the whole image. A final **linear classification head** then multiplies that summary vector by a table of class weights and adds a bias to produce one raw score per category, known as a **logit**. Whichever class gets the highest logit wins.
+
+That pipeline makes it sound as though all spatial layout vanished inside the average. Yet matrix multiplication and averaging obey one simple algebraic rule, they commute. Applying the linear head *after* averaging the features gives the exact same image logits as applying that exact same head to *every cell first* and averaging the resulting scores afterwards.
+
+$$
+z_c = w_c^\top \left( \frac{1}{N} \sum_{i=1}^{N} h_i \right) + b_c
+    = \frac{1}{N} \sum_{i=1}^{N} \underbrace{\left( w_c^\top h_i + b_c \right)}_{Z_{c,i}}
+$$
+
+Here $h_i$ is the feature vector at grid position $i$ out of $N$ total positions, while $w_c$ and $b_c$ are the trained weight vector and bias for class $c$. Because the bias is a constant, averaging $b_c$ across $N$ positions returns $b_c$ untouched.
+
+If that grid of class scores sounds familiar, it should. When you evaluate $Z_{c,i}$ for a single chosen class $c$, you obtain **Class Activation Mapping (CAM)** [<a href="#zhou2016learning" data-ref="zhou2016learning">Zhou et al.</a>], one of the classic interpretability methods in deep learning, extended directly to GAP-based vision transformers such as Swin and MaxViT. Traditional CAM asks a *class-first* question, picking one target label such as *banana* and drawing a heatmap showing where the network found banana evidence. Evaluating the linear head for all $K$ classes at every position simply stacks all $K$ Class Activation Maps into a single tensor $Z \in \mathbb{R}^{K \times H \times W}$, which we call a **dense readout**. Instead of asking where one chosen class lives, a dense readout flips the question around and asks what every grid cell predicts across all a thousand classes at once.
+
+{% include posts/gap-mil-cam.html %}
+
+Play with the figure above on the six-object collage or the indoor pets scene. In standard GAP mode, the network looks blind to five of the six objects because all forty-nine feature vectors are averaged before the classifier ever scores them. Switch to **Single-class CAM** and click different class pills to see individual heatmaps light up over the strawberry, the tabby cat, the indigo bunting, or the ox. Switch to **Score, then pool (all CAMs)** and all six objects appear in their own corners simultaneously, while the exact decomposition check confirms that the spatial mean matches the model's pooled logits to within floating-point rounding ($10^{-6}$).
 
 <details class="mil-details" markdown="1">
-<summary>The whole identity in one equation</summary>
+<summary>What happens when Softmax or LayerNorm sits at the end?</summary>
 
-Let $h_i$ be the feature vector at position $i$, with $N$ positions. For class $c$, the head has weights $w_c$ and bias $b_c$. Then
+Two practical operations can break this exact decomposition if you apply them in the wrong place. First, **never average probabilities**. Classifiers turn logits into probabilities using the softmax function, which exponentiates scores and divides by their sum. Because softmax is nonlinear, applying softmax inside each cell and averaging those probabilities changes both the numbers and sometimes the winning class. Try ticking the *Apply Softmax before averaging* box in Figure 1 to watch the two routes diverge.
 
-$$
-z_c = w_c^\top\left(\frac{1}{N}\sum_i h_i\right)+b_c
-    = \frac{1}{N}\sum_i\underbrace{(w_c^\top h_i+b_c)}_{\text{spatial score }s_{ic}}.
-$$
-
-The bias is included at every position and averaged, so it still contributes exactly once. “Linear head” is common shorthand here; with a bias, the precise term is *affine*.
-
-This identity applies to a spatial grid followed by mean pooling and an affine head. A nonlinear operation between pooling and the head needs separate treatment. Nor does the equation automatically describe a transformer that predicts from a special class token.
+Second, some architectures place a **LayerNorm** layer *after* global average pooling and *before* the linear head. ConvNeXt-B does this, and MaxViT-B adds a $\tanh$ layer as well. If you ignore that LayerNorm or normalise each cell independently, the spatial mean can drift away from the actual image logits by dozens of points. To keep the decomposition exact in ConvNeXt, each cell $h_i$ is centred by its own channel mean $\mu_i$ and divided by the *pooled* vector's spread $\sigma(\bar{h})$ before the linear head, preserving the exact sum to $10^{-6}$ [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>].
 
 </details>
 
-There is a related distinction that matters in practice. **Average the scores, not their probabilities.** Softmax, the operation that turns a vector of scores into probabilities, is nonlinear. Applying it at each location and averaging the resulting probabilities generally changes the model's answer.
-
-For these architectures, the class-weighted spatial sums are also the basis of [Class Activation Mapping (CAM)](https://arxiv.org/abs/1512.04150). We can inspect one class map, or compare all class scores at every location to construct a grid of local winners. The multiple-instance perspective gives us a way to think about how these spatial readings combine into the image prediction.
-
 ## An image as a bag of evidence
 
-In **multiple-instance learning (MIL)**, each labeled training example is a collection—a *bag*—of instances. The collection has a label, but its members need not have individual labels.
+That mathematical equivalence does more than hand us a multi-class heatmap. It tells us what kind of learning machine a standard GAP classifier has been all along. In **multiple-instance learning (MIL)**, training data does not arrive with tidy labels for every local detail [<a href="#dietterich1997solving" data-ref="dietterich1997solving">Dietterich et al.</a>, <a href="#maron1998a" data-ref="maron1998a">Maron and Lozano-Pérez</a>]. Instead, examples come in **bags**, each bag holds many **instances**, and the annotator attaches only a single label to the whole bag. A medical slide with dozens of tissue tiles labelled simply *malignant* is an MIL bag, and so is a photograph carrying a single ImageNet tag.
 
-Imagine receiving a box of assorted fruit with the label “contains an apple.” You know something about the box, but nobody has marked which piece is the apple. Learning from that kind of supervision requires connecting a collection-level label to evidence within the collection.
+Under this lens, every GAP classifier with a linear head is an **exact mean-pooling MIL model**. The image is the bag, the $N$ spatial vectors in the final grid are the instances, and global average pooling implements the **collective assumption**, where every instance casts an equal vote and the bag score is the arithmetic mean of all instance logits. Early weakly supervised MIL detectors often replaced that mean with global max pooling so a single strong object patch could carry the label [<a href="#oquab2015is" data-ref="oquab2015is">Oquab et al.</a>], whereas standard classifiers kept the mean. Because convolutional receptive fields and self-attention mix information across positions before the final grid, the instances are not independent crops of pixels. Rather, they form a **contextualised (or correlated) MIL model** [<a href="#shao2021transmil" data-ref="shao2021transmil">Shao et al.</a>], in which each instance can carry both local visual evidence and news gathered from its neighbours.
 
-For our classifier, the image is the bag, the spatial feature vectors are the instances, and GAP is the rule for combining their scores. This is **mean-aggregation MIL**. The familiar “one positive instance is enough” rule is another MIL formulation; an average does not implement that rule.
+Viewing image classification as mean-aggregation MIL immediately explains why capable models appear to fail on complex or cluttered photographs. When a small object occupies only a handful of grid cells while distracting surroundings or a second large object occupy the rest, strong local evidence gets **diluted** by the average. Even if all six cells covering a teddy bear vote enthusiastically for *teddy*, forty-three surrounding cells leaning toward *syringe*, *ashcan*, or *bottle* can easily outvote them in the final sum.
 
-The observers analogy makes the difference clear. “Did anyone report a dog?” and “Which class has the highest average score?” are different questions. A classifier answering the second can lose evidence that would answer the first.
+{% include posts/gap-mil-bag.html %}
 
-## A small object can lose the average
+The sandbox above lets you test this bag dynamic directly on real ImageNet-1K and **ImageNet-A** photographs. On *Pets indoors*, ResNet-50 and Swin-B both output *window screen* globally and leave the cat out of their top-5 predictions, yet silencing the window cells reveals both the *golden retriever* and the *Egyptian cat* waiting underneath. On *ImageNet-A*, a benchmark of natural photographs famous for crushing ImageNet models down to **3.8%** top-1 accuracy on EfficientNet-B0 and **7.2%** on ResNet-50 [<a href="#hendrycks2021natural" data-ref="hendrycks2021natural">Hendrycks et al.</a>], the dense readout tells a completely different story. Across all 7,500 ImageNet-A images, the true class still wins at least one grid cell **30.6% to 56.8%** of the time at top-1, and **57.5% to 80.0%** at top-5. In many of those failures, perception worked fine, and mean aggregation lost the vote.
 
-Consider a toy grid with 36 positions. At object positions, the dog score is 6 and the bicycle score is 0. Elsewhere, the dog score is 0 and the bicycle score is 2. Those other positions might represent another object or context favoring the competing class.
+The same lens clarifies why local cells in a scene sometimes name a close relative of the true object. Look closely at the legs of the ox in the *Six objects* collage under Swin-B or ResNet-50, and you will see two cells predicting *water buffalo*. A single $32 \times 32$ pixel square covering a dark hoof and lower leg genuinely resembles both bovids, so that cell is reporting evidence that is accurate at a coarser level of the WordNet label hierarchy even when it cannot resolve the fine species alone. Deciding whether the animal is an ox or a water buffalo is a bag-level question settled across the whole animal, including the horns and coat, not a mistake by an isolated leg cell.
 
-Every object position favors “dog.” Yet if there are only six such positions, the average dog score is 1 and the average bicycle score is about 1.67. The final prediction is “bicycle.”
+Meanwhile, across the 50,000 ImageNet validation images and their multi-label **ReaL** re-annotations, every tested GAP classifier detects the ground-truth class inside its foreground bounding box on **93.7% to 95.2%** of images and recovers **89.5% to 92.0%** of valid ReaL labels directly on the grid [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. The information we kept trying to patch with top-5 tolerance and expensive human re-labelling was sitting inside the pre-pooling tensor the whole time.
 
-<figure class="fig mil-figure" id="mil-area">
-  <div class="fig-kicker">02 / When local evidence loses</div>
-  <p class="mil-instruction">Change how many positions support the dog. Their individual scores stay fixed.</p>
-  <label for="mil-count">Dog-supporting positions: <output id="mil-count-value" for="mil-count">6 of 36</output></label>
-  <input id="mil-count" type="range" min="1" max="35" value="6" disabled>
-  <div class="mil-demo-columns">
-    <div><div id="mil-grid" class="mil-grid" role="img" aria-label="36 positions: six support dog and thirty support bicycle"><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span aria-hidden="true">D</span><span aria-hidden="true">D</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span aria-hidden="true">D</span><span aria-hidden="true">D</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span aria-hidden="true">D</span><span aria-hidden="true">D</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span><span class="mil-bike-cell" aria-hidden="true">B</span></div><p class="mil-legend"><span class="mil-dog-text">D: dog score 6</span><br><span class="mil-bike-text">B: bicycle score 2</span><br>Other class score: 0</p></div>
-    <div class="mil-score-panel"><div class="mil-score-label">Mean dog score <strong id="mil-dog-value">1.00</strong></div><div class="mil-track"><div id="mil-dog-bar" class="mil-bar mil-dog-bar" style="width:16.667%"></div></div><div class="mil-score-label">Mean bicycle score <strong id="mil-bike-value">1.67</strong></div><div class="mil-track"><div id="mil-bike-bar" class="mil-bar mil-bike-bar" style="width:27.778%"></div></div><p id="mil-area-result" class="mil-result" aria-live="polite">GAP predicts bicycle. All 6 dog positions still predict dog locally.</p></div>
-  </div>
-  <noscript><p>Static example: six dog positions contribute 6 × 6 / 36 = 1.00; thirty bicycle positions contribute 30 × 2 / 36 = 1.67. Enable JavaScript to change the proportions.</p></noscript>
-  <figcaption>A controlled score-grid illustration, not model inference. Increasing the dog region changes its share of the average. In a real image, resizing an object can also change the features themselves.</figcaption>
-</figure>
+## Learning many objects from a single label
 
-A helpful quantity is the **margin**: dog score minus bicycle score. Here it is +6 at dog positions and −2 elsewhere. If the dog occupies a fraction $a$ of the grid, its image-level margin is
+Sceptical readers often raise a fair objection at this point. Showing that a pretrained ImageNet model lights up on multiple objects is neat, yet ImageNet consists mostly of centred single objects, and pretrained models might simply pick up local textures by chance. How could training with *one* label per image teach a network to localise several unrelated objects reliably?
 
-$$
-6a - 2(1-a) = 8a - 2.
-$$
+During training, cross-entropy loss pushes the pooled bag logits toward whichever single label was annotated, which sends the exact same gradient to every spatial cell before pooling. On a single picture containing a dog and a bicycle labelled *dog*, the network receives no hint telling it which pixels belong to the dog and which belong to the bicycle. Across hundreds of thousands of images, however, objects recombine. Dogs appear beside bicycles, sofas, grass, and cars, while bicycles appear beside walls, riders, and dogs. Over many updates, features matching dogs correlate consistently with the *dog* label, while features matching bicycles correlate with images labelled *bicycle*, allowing individual instances to specialise even though no training image ever carries two labels.
 
-It wins only when $a>1/4$. At exactly one quarter, the scores tie.
+To prove this credit-assignment mechanism cleanly without relying on pretrained weights or single-object datasets, we built a controlled synthetic multi-object benchmark (**SynMIL**) [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. Each image contains three to five coloured geometric symbols drawn from twenty distinct shapes, placed at random positions, scales, and rotations. Crucially, the training set attaches **only one randomly chosen visible symbol** as the image label, leaving the other two to four shapes completely unlabelled.
 
-This is about both **strength and extent**. A few strong scores can be outweighed by many weaker scores for a rival. Conversely, more positions can carry the correct class to victory.
+{% include posts/gap-mil-synmil.html %}
 
-There is an important boundary to this example. Adding positions with zero scores for *both* classes would shrink the margin toward zero, but would not reverse its sign. To flip the ranking here, the extra positions must favor the competitor. “Background dilutes the object” is incomplete unless we ask what happens to the competing scores too.
+Think about the mathematical ceiling on image-level accuracy in that game. Even an oracle with perfect vision cannot tell which of the $n \in \{3, 4, 5\}$ visible objects the annotator happened to pick for a given test image, so its best possible single-label accuracy is $\mathbb{E}[1/n] \approx 26.1\%$. When we train a ResNet-18 and a GAP-pooled ViT-S/32 from random initialisation on this ambiguous dataset, both hit that theoretical image-level ceiling (**26.3%** and **26.1%**). Judged by standard validation accuracy, they look terrible.
 
-## Why not listen to the loudest position?
+Open up the dense readout before pooling, however, and **ResNet-18 predicts a visible object at the image level 100.0% of the time and correctly classifies 94.1% of all foreground grid cells** across the twenty symbol classes. Even with only one random label per bag and zero bounding boxes, mean-pooling MIL forces the encoder to become an accurate multi-object detector.
 
-If averaging loses a small object, taking the maximum score sounds attractive. One strong position would be enough. But it would also be enough if that position were wrong.
+## How we broke the readout
 
-<figure class="fig mil-figure" id="mil-outlier">
-  <div class="fig-kicker">03 / The loudest observer can be mistaken</div>
-  <p>Eight positions support dog with score 2. One other position supports bicycle with the score below. All remaining class scores are zero.</p>
-  <label for="mil-spike">One bicycle score: <output id="mil-spike-value" for="mil-spike">5</output></label>
-  <input id="mil-spike" type="range" min="0" max="20" step="1" value="5" disabled>
-  <div class="mil-votes" aria-label="Eight dog positions and one bicycle position"><span>D</span><span>D</span><span>D</span><span>D</span><span>D</span><span>D</span><span>D</span><span>D</span><span class="mil-bike-cell">B</span></div>
-  <div class="mil-routes"><div><strong>Mean pooling</strong><p id="mil-mean-result" aria-live="polite">Dog: 1.78 · Bicycle: 0.56 → dog</p></div><div><strong>Max pooling</strong><p id="mil-max-result" aria-live="polite">Dog: 2.00 · Bicycle: 5.00 → bicycle</p></div></div>
-  <figcaption>Invented scores, holding the feature evidence fixed. Max pooling is sensitive to a single extreme score; mean pooling can also flip if that score becomes large enough. Neither rule knows whether the unusual position is a rare object or a mistake.</figcaption>
-</figure>
+Once you recognise that a classifier with GAP and a linear head is an exact MIL model, two popular architectural habits suddenly look like self-inflicted wounds. Both leave image-level accuracy almost unchanged, yet both silently sever the exact link between local visual evidence and the final decision.
 
-Changing the pooling rule changes what evidence is rewarded. It can be useful, but it is a model change to evaluate, not a free correction obtained from the identity above. Looking inside a classifier helps identify the problem before deciding how to change it.
+The first trap is the **`[CLS]` token** in Vision Transformers. When Dosovitskiy and colleagues introduced the ViT [<a href="#dosovitskiy2021an" data-ref="dosovitskiy2021an">Dosovitskiy et al.</a>], they copied the special classification token from BERT in natural language processing, prepending an extra blank vector to gather information from the patches so the head could read only that vector at the end. Yet in their own ablation appendix (Appendix D.3), the authors noted that an initial poor score with global average pooling had nothing to do with the `[CLS]` token or with GAP itself, and simply reflected a mismatched learning rate. Properly tuned, **GAP performs just as well as `[CLS]`**, while keeping every patch token inside the exact bag sum. When you apply a `[CLS]`-trained head to patch tokens as an informal probe, as shown in Figure 1 with `ViT-B/16 [CLS]`, the spatial average misses the actual image logits by up to **9.47 logits** across ImageNet-1K because the classifier never trained on the patches directly [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>].
 
-## How can it learn several objects from one label?
+The second trap is stacking a **multi-layer perceptron (MLP) head** after pooling instead of a single linear layer. Back in 2016, the original CAM paper already had to strip away AlexNet's and VGG's multi-layer fully connected heads and replace them with GAP plus a single linear projection so spatial scores could be read [<a href="#zhou2016learning" data-ref="zhou2016learning">Zhou et al.</a>]. Years later, in self-supervised learning, the **SimCLR** paper examined why placing a nonlinear MLP projection head after the pooled representation changed what survived at the output (Section 4.2 and Appendix B.4) [<a href="#chen2020a" data-ref="chen2020a">Chen et al.</a>]. A nonlinear MLP acts as an information bottleneck that combines pooled features nonlinearly, discarding spatial and transformation details that live cleanly before the head.
 
-Return to the photograph of a dog and a bicycle. A dataset may attach only “dog,” even though “bicycle” is also true. During training, a standard single-label loss rewards the annotated answer and penalizes competing answers. It does not hand the model a separate label for every object.
+To measure that damage directly in supervised classifiers, we trained pairs of ResNet-18 and GAP ViT-S/32 models on ImageNet-1K, swapping only the final single linear layer for a three-layer MLP with ReLU activations [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. For ResNet-18, image-level top-1 accuracy nudged up slightly from **70.5%** to **71.4%**, looking completely healthy on a standard leaderboard. Underneath, however, **foreground cell localisation collapsed from 52.8% down to 16.3%**. Because the MLP only sees the globally pooled vector during training, it learns to rely on nonlinear interactions between features scattered across the entire image, features that rarely coexist inside a single spatial cell before pooling. (In ViT-S/32, self-attention already mixes features across tokens before pooling, softening the drop from 49.7% to 47.4%, yet the exact bag-sum identity is still lost.)
 
-Across many images, however, objects can appear in different combinations. Dogs occur with bicycles, sofas, people, and sometimes alone. A consistently useful dog-related feature can emerge despite the incomplete labels. This is a possibility of learning across the dataset, not a guarantee for every object or every training distribution. If dogs always appear with the same sofa, the label alone does little to distinguish them.
+The architectural takeaway costs nothing to adopt. Unless a downstream objective forces you to isolate a bottleneck, **average spatial features with GAP and classify them with a single linear layer**.
 
-A simple thought experiment separates visual recognition from the scoring rule. Suppose every picture contains four different shapes, and an annotator randomly chooses one of them as the label. Even a system that recognizes all four cannot predict that random choice better than 25%, if it must return one answer and has no information about the choice. Low single-label accuracy would then coexist with excellent recognition of the visible objects.
+## A free diagnostic toolkit
 
-The paper tests this idea with images containing three to five shapes and one sampled target. Models trained from scratch reach about 26% image-level accuracy, while their spatial readings identify visible objects much more often. See [the synthetic experiment, Sections 4.4–5](https://arxiv.org/html/2606.14555v1#S4.SS4).
+Keeping the MIL structure intact does more than expose secondary objects. Every spatial vector and its local logit vector become a zero-cost diagnostic lens for understanding how a model arrives at its predictions, where it cheats, and even when our own evaluation tools mislead us.
 
-The lesson is to ask what an error actually measures. Failure to choose the one recorded label, failure to recognize an object, and failure to locate it are different failures.
+{% include posts/gap-mil-diagnostics.html %}
 
-## What shows up in real classifiers?
+The workbench above brings together three diagnostics that require zero retraining and only ordinary forward passes (or a single pass of feature inspection):
 
-The paper also checks pretrained ImageNet classifiers against object bounding boxes. For ResNet-50, the image prediction is correct on 80.3% of images; the target wins at least one foreground grid cell on 94.3%. Yet only 33.7% of foreground cells predict the target. These are three different measurements, shown below. [Source: Table 1](https://arxiv.org/html/2606.14555v1#S5.T1).
+1. **Separating context spreading from shortcuts under occlusion.** Because instances can communicate through receptive fields or self-attention, a cell sitting on grass or sky can vote *warthog* for two completely different reasons. Either the network learned a spurious shortcut linking savannah grass to warthogs, or attention carried news about the warthog out into the grass. Covering the annotated foreground box tests the two directly. In **Swin-B** and **MaxViT-B**, background cells predict the true ImageNet class on **89.2%** and **90.1%** of validation images when the object is visible, then plummet to **35.8%** and **37.9%** once the object is occluded. Try toggling *Warthog* in Panel 1 to watch Swin-B's forty-nine *warthog* votes vanish without the animal. Contrast that with *Tench*, where removing the fish cleanly from the angler's hands leaves **43 of 49 cells** in Swin-B still voting *tench* because the model relies on the angler as a shortcut [<a href="#geirhos2020shortcut" data-ref="geirhos2020shortcut">Geirhos et al.</a>]. Meanwhile, for classes like *web site*, *basketball*, and *bearskin*, surrounding court players or uniforms keep background activation above **95%** across architectures even when the target object is masked.
 
-<figure class="fig mil-figure">
-  <div class="fig-kicker">04 / A correct answer somewhere is not a complete object map</div>
-  <p><strong>ResNet-50 · ImageNet validation</strong></p>
-  <div class="mil-evidence-row"><span>Correct image prediction</span><strong>80.3%</strong><div class="mil-track"><div class="mil-bar mil-neutral-bar" style="width:80.3%"></div></div></div>
-  <div class="mil-evidence-row"><span>Target wins somewhere in foreground</span><strong>94.3%</strong><div class="mil-track"><div class="mil-bar mil-dog-bar" style="width:94.3%"></div></div></div>
-  <div class="mil-evidence-row"><span>Foreground cells predicting target</span><strong>33.7%</strong><div class="mil-track"><div class="mil-bar mil-bike-bar" style="width:33.7%"></div></div></div>
-  <figcaption>Reported measurements, not toy scores. The first two metrics count images; the third measures foreground-cell accuracy. Bounding boxes define foreground for evaluation. These bars do not represent interchangeable accuracy estimates.</figcaption>
-</figure>
+2. **Catching evaluation artefacts in occlusion tests.** Occluding pixels with a flat grey rectangle is itself an out-of-distribution edit, and dense readouts catch when that edit fools the model. In ImageNet validation image `15750` (*garden spider*), ResNet-50 predicts *garden spider* on the spider and *spider web* across the surrounding silk. Masking the spider with a grey box leaves the image prediction stuck on *garden spider*, which might tempt you to conclude that the web alone triggered a spider shortcut. Yet when we remove the spider cleanly using generative inpainting, ResNet-50 immediately predicts *spider web* across **39 of 49 cells** and drops *garden spider* to zero. Put that same grey occlusion box back onto the *already spider-free* web, and **12 adjacent web cells flip right back to *garden spider***! Overlapping convolutional receptive fields react to the sharp unnatural box boundary, a hidden evaluation bug you would never spot from a global accuracy score.
 
-Finding the target somewhere gives the model many chances to succeed. It does not tell us how many wrong classes also appear, which region to trust without annotations, or whether the whole object is covered. The higher number is therefore evidence of recoverable spatial information, not the accuracy of an improved classifier.
+3. **Watching an adversarial attack flip the bag.** Standard adversarial evaluations check whether a tiny perturbation fools the global prediction [<a href="#madry2018towards" data-ref="madry2018towards">Madry et al.</a>], leaving the spatial mechanics hidden. Scrub through the twenty Projected Gradient Descent (PGD) steps in Panel 2, pushing ResNet-50's prediction on a bulldog and cat from *bull mastiff* toward *sombrero*. Rather than shifting the entire image uniformly, the attack gradually corrupts local votes until just **5 of 49 cells** shouting loudly enough for *sombrero* tip the pooled average at step 8, reaching **12 of 49 cells** by step 20.
 
-For the same reason, a local winning class is a diagnostic reading, not a calibrated statement that an object occupies that cell. Coarse grids, shared object parts, and context all complicate that interpretation.
+4. **Reading pre-pooling instances without a head.** Even before the linear classifier touches them, the spatial feature vectors give us fine-grained latent representations for free. Comparing cosine similarity across the $7 \times 7$ pre-GAP grids of two scenes (Panel 3) pairs the outdoor tabby cat directly with the indoor tabby cat and the outdoor dog with the indoor golden retriever in a single forward pass, offering a lightweight alternative to bilayer relevance propagation [<a href="#eberle2022building" data-ref="eberle2022building">Eberle et al.</a>]. Indexing those same pre-GAP vectors across an entire dataset with UMAP [<a href="#mcinnes2018umap" data-ref="mcinnes2018umap">McInnes et al.</a>] on COVID-19 chest X-rays [<a href="#cohen2020covid-19" data-ref="cohen2020covid-19">Cohen et al.</a>] even isolates a distinct cluster of radiographer text markers and arrows without a single bounding box, an effect you can explore in this [live COVID-19 patch map](https://karay.me/examples/umap_covid.html). And whenever $7 \times 7$ resolution feels too coarse, you can start [layer-wise relevance propagation]({% post_url 2026-10-31-why-lrp-fails-quietly %}) directly from a single local class score instead of the pooled output to trace exactly which pixels fed that local vote.
 
-## What to look at when the answer is wrong
+## Practical recommendations and what comes next
 
-The next time a classifier returns a surprising label, its spatial scores offer a more specific set of questions:
+Treating standard classifiers as the multiple-instance learners they already are changes how you design, train, and inspect vision models, without adding a single extra parameter or training loss.
 
-- Does the expected class win anywhere, or is its evidence weak throughout the grid?
-- Is a competing class concentrated on another visible object, or spread across much of the scene?
-- Does the dataset's single label leave out something the model correctly recognized?
+- **Pair GAP with a single linear head.** In both CNNs and Vision Transformers, skip the `[CLS]` token and avoid nonlinear MLP heads when you want faithful spatial attribution. You keep full image-level accuracy while retaining an exact, additive decomposition over spatial instances.
+- **Train on pooled embeddings with cheap labels, then unpool at test time.** Single-label supervision over multi-object scenes still teaches accurate local class detectors across the dataset, as SynMIL shows cleanly. Never discard spatial grids before checking what they already separate.
+- **Inspect the dense readout before blaming the encoder.** Whenever a classifier fails on a cluttered image or an adversarial benchmark like ImageNet-A, compare the global winner against the local cell grid to tell perception failures apart from simple pooling dilution, shortcuts, and mask artefacts.
 
-LaFAM supplied a class-agnostic view of feature activity. Applying the classifier at each position adds class-specific readings. GAP then explains exactly how those readings become one set of image scores, for the architecture we have considered.
+One subtle puzzle still remains. Standard classifiers have **no background or abstain option** inside their thousand-class head, which means every single empty patch of sky, carpet, or grass is forced to cast a vote for *some* foreground object class. Simply thresholding low-confidence cells does not fix this cleanly, because sweeping confidence or prototype thresholds reduces background false alarms only by sacrificing foreground localisation along with them [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. How CNNs keep background cells quiet by shrinking their feature vectors while Vision Transformers use attention to fill background tokens with the object's identity is the geometry we will unpack in the next post.
 
-A remaining question is what a spatial vector actually knows about the rest of the image. A score at a background position might depend on an object elsewhere. We will explore that in the next post, on **CNN versus ViT mechanisms**: how information reaches different positions, and what that means when we interpret their maps.
+## References
 
-<!-- Editorial: the preceding LaFAM post is currently on branch `lafam`, at
-_posts/2025-11-01-unsupervised-feature-attribution.md. Add its final URL once
-that post's publication date and slug are fixed. This draft intentionally
-uses no link to an unpublished page. -->
+{%- capture references -%}
+Dietterich, T. G., Lathrop, R. H., & Lozano-Pérez, T. | 1997 | Solving the Multiple Instance Problem with Axis-Parallel Rectangles;
+Maron, O., & Lozano-Pérez, T. | 1998 | A Framework for Multiple-Instance Learning;
+Lin, M., Chen, Q., & Yan, S. | 2014 | Network In Network;
+Oquab, M., Bottou, L., Laptev, I., & Sivic, J. | 2015 | Is Object Localization for Free? Weakly-Supervised Learning with Convolutional Neural Networks;
+Russakovsky, O., et al. | 2015 | ImageNet Large Scale Visual Recognition Challenge;
+Zhou, B., Khosla, A., Lapedriza, A., Oliva, A., & Torralba, A. | 2016 | Learning Deep Features for Discriminative Localization;
+Madry, A., Makelov, A., Schmidt, L., Tsipras, D., & Vladu, A. | 2018 | Towards Deep Learning Models Resistant to Adversarial Attacks;
+Beyer, L., Hénaff, O. J., Kolesnikov, A., Zhai, X., & van den Oord, A. | 2020 | Are We Done with ImageNet?;
+Chen, T., Kornblith, S., Norouzi, M., & Hinton, G. | 2020 | A Simple Framework for Contrastive Learning of Visual Representations;
+Cohen, J. P., Morrison, P., Dao, L., Roth, K., Duong, T. Q., & Ghassemi, M. | 2020 | COVID-19 Image Data Collection: Prospective Predictions Are the Future;
+Geirhos, R., Jacobsen, J.-H., Michaelis, C., Zemel, R., Brendel, W., Bethge, M., & Wichmann, F. A. | 2020 | Shortcut Learning in Deep Neural Networks;
+Dosovitskiy, A., et al. | 2021 | An Image Is Worth 16x16 Words: Transformers for Image Recognition at Scale;
+Hendrycks, D., et al. | 2021 | Natural Adversarial Examples;
+Raghu, M., Unterthiner, T., Kornblith, S., Zhang, C., & Dosovitskiy, A. | 2021 | Do Vision Transformers See Like Convolutional Neural Networks?;
+Shao, Z., Bian, H., Chen, Y., Wang, Y., Zhang, J., Ji, X., & Zhang, Y. | 2021 | TransMIL: Transformer Based Correlated Multiple Instance Learning for Whole Slide Image Classification;
+Yun, S., Oh, S. J., Heo, B., Han, D., Choe, J., & Chun, S. | 2021 | Re-Labeling ImageNet: From Single to Multi-Labels, from Global to Localized Labels;
+Eberle, O., Büttner, J., Kräutli, F., Müller, K.-R., Valleriani, M., & Montavon, G. | 2022 | Building and Interpreting Deep Similarity Models;
+McInnes, L., Healy, J., Saul, N., & Großberger, L. | 2018 | UMAP: Uniform Manifold Approximation and Projection;
+Karjauv, A. | 2026 | Rethinking Global Average Pooling: Your Classifier Is Secretly a Multi-Instance Learner;
+{%- endcapture -%}
+
+{% include reference.html ref=references %}
+
+<script src="{{ '/assets/js/gap-mil.js' | relative_url }}" defer></script>
