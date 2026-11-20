@@ -17,24 +17,38 @@ Even when trained with a single tag per picture, a vision network does not proce
 
 To turn those spatial feature vectors into category predictions, most modern vision classifiers apply global average pooling (GAP) followed by a linear classification head. GAP reduces each feature channel to a single number by averaging across every cell in the grid. For an $H \times W$ grid with $C$ channels, this spatial average produces a single $C$-dimensional image-level embedding. A linear classification head then maps this embedding to a $K$-dimensional vector of class logits for $K$ categories.
 
+<details>
+<summary>Why GAP is a default pooing in modern models</summary>
 Early deep convolutional networks, such as AlexNet and VGG, converted spatial grids into predictions by flattening the entire feature tensor into one long vector and feeding it into parameter-heavy fully connected layers. With millions of weights tied to specific grid coordinates, a classification head had to learn the same object-to-feature associations independently for every location and could easily memorise training pictures instead of learning general visual concepts. Keeping those networks from overfitting forced engineers to rely heavily on aggressive regularisation such as dropout. Flattening also locked models to a fixed spatial layout, breaking whenever an input image arrived at a different resolution.
 
 GAP addresses these limitations by eliminating learnable parameters at the transition to the classification head. Averaging each feature channel across the grid converts a spatial map of local responses into a single score measuring how strongly a visual pattern appears across the scene. If a channel responds to fur texture or bicycle spokes, its spatial mean captures the overall presence of that feature no matter where the subject appears in the frame. Without a downstream dense layer to recombine scattered signals, individual channels are forced to encode meaningful semantic concepts directly. Computing a mean over whatever grid dimensions the encoder outputs also frees the network from a fixed input resolution while building translation invariance into the representation. The trade-off is that GAP discards relative spatial geometry, treating the picture as an unordered collection of local detections. That geometric blind spot is harmless when assigning a single category label to an image, yet it makes GAP poorly suited for robotics and embodied agents that need exact coordinates to grasp objects or navigate around obstacles.
+</details>
 
-Training a model with a single label attached to a complex scene turns standard classification into a multiple-instance learning (MIL) problem. Instead of treating an image as one indivisible input, MIL views it as a bag of smaller spatial regions called instances. Supervision applies only to the bag as a whole, leaving the individual instances unlabelled. In a natural image, only some instances belong to the target object, while the rest may hold co-occurring objects or ordinary background with no dedicated category.
+Combining spatial averaging with a linear classifier creates a useful mathematical symmetry. In ordinary arithmetic, averaging a list of numbers and multiplying by a weight yields the exact same result as multiplying each number by that weight first and averaging afterwards. Spatial pooling is just an average, and a linear head is just a weighted sum. At test time, we can skip pooling altogether and apply the trained classification weights directly to every cell in the spatial grid. Running the classifier pointwise turns a single global output into a coarse map of local class scores, called a dense readout, whose spatial average recovers the original image-level prediction down to the last decimal.
+<details>
+<summary>Math behind it</summary>
+Consider an input image $x$ passed through a vision encoder $E(\cdot)$ to produce a final spatial feature tensor $F = E(x) \in \mathbb{R}^{C \times H \times W}$, where $C$ denotes the number of channels and $(H, W)$ are the spatial dimensions. Each grid coordinate $(u, v)$ holds a spatial feature vector $h_{u,v} \in \mathbb{R}^{C}$. Flattening the spatial dimensions gives $N = HW$ instances indexed as $\{h_i\}_{i=1}^{N}$. Global average pooling computes a single image-level embedding by taking the mean across all spatial positions:
+$$\bar{h} = \frac{1}{N} \sum_{i=1}^{N} h_i$$
+
+A linear classification head $f(h) = \Theta^\top h + b$, parameterised by weights $\Theta \in \mathbb{R}^{C \times K}$ and bias $b \in \mathbb{R}^{K}$ for $K$ classes, maps this pooled vector to image-level logits $z = f(\bar{h})$.
+
+Applying the exact same linear head pointwise to each spatial vector before pooling yields a three-dimensional dense readout $Z \in \mathbb{R}^{K \times H \times W}$:
+$$Z_{:, u, v} = \Theta^\top h_{u,v} + b$$
+
+By linearity of summation, the global image-level logit vector equals the spatial average of these local class scores:
+$$z = f(\bar{h}) = \frac{1}{N} \sum_{u=1}^{H} \sum_{v=1}^{W} Z_{:, u, v}$$
+
+This identity establishes that a GAP classifier with a linear head operates as a mean-aggregation multiple-instance learner over the spatial feature grid.
+</details>
+
+That equivalence reveals how standard classifiers learn from complex scenes. During training, the network scores every cell across the spatial grid, yet the dataset provides only a single image-level label for the whole picture. In machine learning, training on an unlabelled collection of items with a single class label is known as multiple-instance learning (MIL). Each picture acts as a bag, and its grid cells serve as individual instances that remain unlabelled throughout training. Treating those cells as strictly independent instances is only a working approximation, as overlapping convolutional receptive fields and transformer self-attention share context across neighbouring regions. Even so, the linear equivalence holds exactly, meaning every GAP classifier with a linear head already functions as a mean-aggregation MIL model.
 
 <details>
 <summary>Where does multiple-instance learning come from?</summary>
-Learning from a single label attached to a complex scene is a classic machine learning problem known as multiple-instance learning. Researchers originally formulated it in the late 1990s for drug discovery, where screening tests indicate whether a candidate molecule is active without revealing which of its possible three-dimensional conformations caused the reaction. In this setup, the candidate molecule acts as a bag, and each individual shape it can adopt counts as an instance inside that bag. Training labels apply only to the bag as a whole while the individual instances remain unlabelled.
+Researchers originally formulated MIL in the late 1990s for drug discovery, where screening tests indicate whether a candidate molecule is active without revealing which of its possible three-dimensional conformations caused the reaction. In this setup, the candidate molecule acts as a bag, and each individual shape it can adopt counts as an instance inside that bag. Training labels apply only to the bag as a whole while the individual instances remain unlabelled.
 
 The framework later became essential in digital pathology, where gigapixel tissue scans are far too large for GPU memory to process in a single pass and signs of disease often hide in a tiny fraction of the slide. Marking every tumour cell by hand is impractical at scale, yet clinical archives already pair each slide with a single patient diagnosis. Slicing the scan into small tiles lets a model process the slide piece by piece as a bag of unlabelled tissue patches.
 </details>
-
-
-
-There was a simpler explanation sitting right inside the final layer. Most modern image classifiers already act as **multiple-instance learners (MIL)** [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. Before collapsing everything into one decision, the network assigns local class scores across a spatial grid, and it only loses track of the cat, the strawberry, or the bird when the final averaging step blends all those local votes together.
-
-In the [first post of this series]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we used label-free activation maps to see *where* features respond without labels, and in the [second]({% post_url 2026-10-31-why-lrp-fails-quietly %}) we fixed layer-wise relevance propagation so pixel attributions stay faithful on modern architectures. Now we ask what happens when we let the classifier's own head speak *before* spatial pooling. Once you see that almost every standard classifier is already an MIL model, a handful of free diagnostic tools appear immediately, along with clear rules for how we ought to build classifiers in the first place.
 
 ## Score first, average second
 
