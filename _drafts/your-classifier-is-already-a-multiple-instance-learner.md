@@ -62,17 +62,28 @@ Second, some architectures place a LayerNorm layer *after* global average poolin
 
 </details>
 
-## Classifier as implicit MIL
+## A built-in diagnostic toolkit
+
+Keeping the MIL structure intact does more than expose secondary objects. Every spatial vector and its local logit vector become a zero-cost diagnostic lens for understanding how a model arrives at its predictions, where it cheats, and even when our own evaluation tools mislead us.
+
+### Small objects are outvoted
 
 Viewing image classification as mean-aggregation MIL immediately explains why capable models appear to fail on complex or cluttered images. When a small object occupies only a handful of grid cells while distracting surroundings or a second large object occupy the rest, strong local evidence gets diluted by the average. Even if all six cells covering a teddy bear vote enthusiastically for *teddy*, forty-three surrounding cells leaning toward *syringe*, *ashcan*, or *bottle* can easily outvote them in the final sum.
 
 On *Pets indoors*, ResNet-50 and Swin-B both output *window screen* globally and leave the cat out of their top-5 predictions, yet silencing the window cells reveals both the *golden retriever* and the *Egyptian cat* waiting underneath. On *ImageNet-A*, a benchmark of natural images famous for crushing ImageNet models down to 7.2% on ResNet-50 [<a href="#hendrycks2021natural" data-ref="hendrycks2021natural">Hendrycks et al.</a>], the dense readout tells a completely different story. Across all 7,500 ImageNet-A images, the true class still wins at least one grid cell 30.6% to 56.8% of the time at top-1, and 57.5% to 80.0% at top-5. In many of those failures, perception worked fine, and mean aggregation lost the vote.
 
-The same lens clarifies why local cells in a scene sometimes name a close relative of the true object. Look closely at the legs of the ox in the *Six objects* collage under Swin-B or ResNet-50, and you will see two cells predicting *water buffalo*. A single $32 \times 32$ pixel square covering a dark hoof and lower leg genuinely resembles both bovids, so that cell is reporting evidence that is accurate at a coarser level of the WordNet label hierarchy even when it cannot resolve the fine species alone. Deciding whether the animal is an ox or a water buffalo is a bag-level question settled across the whole animal, including the horns and coat, not a mistake by an isolated leg cell.
-
 Meanwhile, across the 50,000 ImageNet validation images and their multi-label ReaL re-annotations, every tested GAP classifier detects the ground-truth class inside its foreground bounding box on 93.7% to 95.2% of images and recovers 89.5% to 92.0% of valid ReaL labels directly on the grid [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. The information we kept trying to patch with top-5 tolerance and expensive human re-labelling was sitting inside the pre-pooling tensor the whole time.
 
-## Learning many objects from a single label
+### Shortcuts and correlations
+
+tk: fish/person, Bearskin/uniform...
+
+### Revealing adversarial attacks
+
+Watching an adversarial attack flip the bag. Standard adversarial evaluations check whether a tiny perturbation fools the global prediction [<a href="#madry2018towards" data-ref="madry2018towards">Madry et al.</a>], leaving the spatial mechanics hidden. Scrub through the twenty Projected Gradient Descent (PGD) steps in Panel 2, pushing ResNet-50's prediction on a bulldog and cat from *bull mastiff* toward *sombrero*. Rather than shifting the entire image uniformly, the attack gradually corrupts local votes until just 5 of 49 cells shouting loudly enough for *sombrero* tip the pooled average at step 8, reaching 12 of 49 cells by step 20.
+
+
+## Classifiers are implicit MIL
 
 A sceptical readers may raise a fair objection at this point. Showing that a pretrained ImageNet model lights up on multiple objects is neat, yet ImageNet consists mostly of centred single objects, and pretrained models might simply pick up local textures by chance. How could training with one label per image teach a network to localise several unrelated objects reliably?
 
@@ -80,13 +91,27 @@ During training, cross-entropy loss pushes the pooled bag logits toward whicheve
 
 To prove this credit-assignment mechanism cleanly without relying on pretrained weights or single-object datasets, we can train a model on a controlled synthetic multi-object benchmark (SynMIL) [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. Each image contains three to five coloured geometric symbols drawn from twenty distinct shapes, placed at random positions, scales, and rotations. Crucially, the training set attaches only one randomly chosen visible symbol as the image label, leaving the other two to four shapes completely unlabelled.
 
-{% include posts/gap-mil-synmil.html %}
-
 Think about the mathematical ceiling on image-level accuracy in that game. Even an oracle with perfect vision cannot tell which of the $n \in \{3, 4, 5\}$ visible objects the annotator happened to pick for a given test image, so its best possible single-label accuracy is $\mathbb{E}[1/n] \approx 26.1\%$. When we train a ResNet-18 and a GAP-pooled ViT-S/32 from random initialisation on this ambiguous dataset, both hit that theoretical image-level ceiling. Judged by standard validation accuracy, they look terrible.
 
 Open up the dense readout before pooling, however, and ResNet-18 predicts a visible object at the image level 100.0% of the time and correctly classifies 94.1% of all foreground grid cells across the twenty symbol classes. Even with only one random label per bag and zero bounding boxes, mean-pooling MIL forces the encoder to become an accurate multi-object detector.
 
-## How we broke the readout
+
+
+
+
+
+
+## CNNs vs. ViTs
+
+tk: local receptive fields vs. self-attention contextualisation
+
+The same lens clarifies why local cells in a scene sometimes name a close relative of the true object. Look closely at the legs of the ox in the *Six objects* collage under Swin-B or ResNet-50, and you will see two cells predicting *water buffalo*. A single $32 \times 32$ pixel square covering a dark hoof and lower leg genuinely resembles both bovids, so that cell is reporting evidence that is accurate at a coarser level of the WordNet label hierarchy even when it cannot resolve the fine species alone. Deciding whether the animal is an ox or a water buffalo is a bag-level question settled across the whole animal, including the horns and coat, not a mistake by an isolated leg cell.
+
+Separating context spreading from shortcuts under occlusion. Because instances can communicate through receptive fields or self-attention, a cell sitting on grass or sky can vote *warthog* for two completely different reasons. Either the network learned a spurious shortcut linking savannah grass to warthogs, or attention carried news about the warthog out into the grass. Covering the annotated foreground box tests the two directly. In Swin-B and MaxViT-B, background cells predict the true ImageNet class on 89.2% and 90.1% of validation images when the object is visible, then plummet to 35.8% and 37.9% once the object is occluded. Try toggling *Warthog* in Panel 1 to watch Swin-B's forty-nine *warthog* votes vanish without the animal. Contrast that with *Tench*, where removing the fish cleanly from the angler's hands leaves 43 of 49 cells in Swin-B still voting *tench* because the model relies on the angler as a shortcut [<a href="#geirhos2020shortcut" data-ref="geirhos2020shortcut">Geirhos et al.</a>]. Meanwhile, for classes like *web site*, *basketball*, and *bearskin*, surrounding court players or uniforms keep background activation above 95% across architectures even when the target object is masked.
+
+note: Catching evaluation artefacts in occlusion tests. Occluding pixels with a flat grey rectangle is itself an out-of-distribution edit, and dense readouts catch when that edit fools the model. In ImageNet validation image `15750` (*garden spider*), ResNet-50 predicts *garden spider* on the spider and *spider web* across the surrounding silk. Masking the spider with a grey box leaves the image prediction stuck on *garden spider*, which might tempt you to conclude that the web alone triggered a spider shortcut. Yet when we remove the spider cleanly using generative inpainting, ResNet-50 immediately predicts *spider web* across 39 of 49 cells and drops *garden spider* to zero. Put that same grey occlusion box back onto the *already spider-free* web, and 12 adjacent web cells flip right back to *garden spider*! Overlapping convolutional receptive fields react to the sharp unnatural box boundary, a hidden evaluation bug you would never spot from a global accuracy score.
+
+## Practical recommendations and what comes next
 
 Once you recognise that a classifier with GAP and a linear head is an exact MIL model, two popular architectural habits suddenly look like self-inflicted wounds. Both leave image-level accuracy almost unchanged, yet both silently sever the exact link between local visual evidence and the final decision.
 
@@ -97,24 +122,6 @@ The second trap is stacking a multi-layer perceptron (MLP) head after pooling in
 To measure that damage directly in supervised classifiers, we can train pairs of ResNet-18 and GAP ViT-S/32 models on ImageNet-1K, swapping only the final single linear layer for a three-layer MLP with ReLU activations [<a href="#karjauv2026rethinking" data-ref="karjauv2026rethinking">Karjauv</a>]. For ResNet-18, image-level top-1 accuracy nudged up slightly from 70.5% to 71.4%, looking completely healthy on a standard leaderboard. Underneath, however, foreground cell localisation collapsed from 52.8% down to 16.3%. Because the MLP only sees the globally pooled vector during training, it learns to rely on nonlinear interactions between features scattered across the entire image, features that rarely coexist inside a single spatial cell before pooling. (In ViT-S/32, self-attention already mixes features across tokens before pooling, softening the drop from 49.7% to 47.4%, yet the exact bag-sum identity is still lost.)
 
 The architectural takeaway costs nothing to adopt. Unless a downstream objective forces you to isolate a bottleneck, average spatial features with GAP and classify them with a single linear layer.
-
-## A free diagnostic toolkit
-
-Keeping the MIL structure intact does more than expose secondary objects. Every spatial vector and its local logit vector become a zero-cost diagnostic lens for understanding how a model arrives at its predictions, where it cheats, and even when our own evaluation tools mislead us.
-
-{% include posts/gap-mil-diagnostics.html %}
-
-The workbench above brings together three diagnostics that require zero retraining and only ordinary forward passes (or a single pass of feature inspection):
-
-1. Separating context spreading from shortcuts under occlusion. Because instances can communicate through receptive fields or self-attention, a cell sitting on grass or sky can vote *warthog* for two completely different reasons. Either the network learned a spurious shortcut linking savannah grass to warthogs, or attention carried news about the warthog out into the grass. Covering the annotated foreground box tests the two directly. In Swin-B and MaxViT-B, background cells predict the true ImageNet class on 89.2% and 90.1% of validation images when the object is visible, then plummet to 35.8% and 37.9% once the object is occluded. Try toggling *Warthog* in Panel 1 to watch Swin-B's forty-nine *warthog* votes vanish without the animal. Contrast that with *Tench*, where removing the fish cleanly from the angler's hands leaves 43 of 49 cells in Swin-B still voting *tench* because the model relies on the angler as a shortcut [<a href="#geirhos2020shortcut" data-ref="geirhos2020shortcut">Geirhos et al.</a>]. Meanwhile, for classes like *web site*, *basketball*, and *bearskin*, surrounding court players or uniforms keep background activation above 95% across architectures even when the target object is masked.
-
-2. Catching evaluation artefacts in occlusion tests. Occluding pixels with a flat grey rectangle is itself an out-of-distribution edit, and dense readouts catch when that edit fools the model. In ImageNet validation image `15750` (*garden spider*), ResNet-50 predicts *garden spider* on the spider and *spider web* across the surrounding silk. Masking the spider with a grey box leaves the image prediction stuck on *garden spider*, which might tempt you to conclude that the web alone triggered a spider shortcut. Yet when we remove the spider cleanly using generative inpainting, ResNet-50 immediately predicts *spider web* across 39 of 49 cells and drops *garden spider* to zero. Put that same grey occlusion box back onto the *already spider-free* web, and 12 adjacent web cells flip right back to *garden spider*! Overlapping convolutional receptive fields react to the sharp unnatural box boundary, a hidden evaluation bug you would never spot from a global accuracy score.
-
-3. Watching an adversarial attack flip the bag. Standard adversarial evaluations check whether a tiny perturbation fools the global prediction [<a href="#madry2018towards" data-ref="madry2018towards">Madry et al.</a>], leaving the spatial mechanics hidden. Scrub through the twenty Projected Gradient Descent (PGD) steps in Panel 2, pushing ResNet-50's prediction on a bulldog and cat from *bull mastiff* toward *sombrero*. Rather than shifting the entire image uniformly, the attack gradually corrupts local votes until just 5 of 49 cells shouting loudly enough for *sombrero* tip the pooled average at step 8, reaching 12 of 49 cells by step 20.
-
-4. Reading pre-pooling instances without a head. Even before the linear classifier touches them, the spatial feature vectors give us fine-grained latent representations for free. Comparing cosine similarity across the $7 \times 7$ pre-GAP grids of two scenes (Panel 3) pairs the outdoor tabby cat directly with the indoor tabby cat and the outdoor dog with the indoor golden retriever in a single forward pass, offering a lightweight alternative to bilayer relevance propagation [<a href="#eberle2022building" data-ref="eberle2022building">Eberle et al.</a>]. Indexing those same pre-GAP vectors across an entire dataset with UMAP [<a href="#mcinnes2018umap" data-ref="mcinnes2018umap">McInnes et al.</a>] on COVID-19 chest X-rays [<a href="#cohen2020covid-19" data-ref="cohen2020covid-19">Cohen et al.</a>] even isolates a distinct cluster of radiographer text markers and arrows without a single bounding box, an effect you can explore in this [live COVID-19 patch map](https://karay.me/examples/umap_covid.html). And whenever $7 \times 7$ resolution feels too coarse, you can start [layer-wise relevance propagation]({% post_url 2026-10-31-why-lrp-fails-quietly %}) directly from a single local class score instead of the pooled output to trace exactly which pixels fed that local vote.
-
-## Practical recommendations and what comes next
 
 Treating standard classifiers as the multiple-instance learners they already are changes how you design, train, and inspect vision models, without adding a single extra parameter or training loss.
 
