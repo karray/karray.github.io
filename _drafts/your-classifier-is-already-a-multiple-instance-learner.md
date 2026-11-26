@@ -11,7 +11,7 @@ We keep treating standard image classifiers as single-output models, leaving the
 
 <!--more-->
 
-Step outside with a camera and snap a photo of a dog on a busy street or a coffee cup on a café table. Real-world images almost never isolate a single subject against a blank studio wall. Large parts of every frame consist of unlabelled background with no dedicated category, often alongside other objects. Standard image classifiers are nevertheless built to return just one class for the entire scene. That single-label design exists for practical reasons, as annotating data for dedicated object detectors is expensive. Assigning one label per image is far cheaper than manually outlining every item across thousands of pictures, allowing researchers to scale datasets into the millions.
+Step outside with a camera and snap a photo of a dog on a busy street or a coffee cup on a café table. Real-world images almost never isolate a single subject against a blank studio wall. Large parts of every frame consist of unlabelled background, often alongside other objects. Standard image classifiers are nevertheless built to return just one class for the entire scene. That single-label design exists for practical reasons, as annotating data for dedicated object detectors is expensive. Assigning one label per image is far cheaper than manually outlining every item across thousands of pictures, allowing researchers to scale datasets into the millions.
 
 Even when trained with a single label per image, a vision network does not process the scene as one undifferentiated block. Whether an architecture relies on convolutional layers or transformer blocks, it transforms an input image into a coarse spatial feature grid. Each cell in that grid holds a vector of numbers describing what the network has detected in the corresponding region of the scene. In an earlier post on [label-free feature attribution]({% post_url 2026-10-01-unsupervised-feature-attribution %}), we averaged each cell across its feature channels to reveal where prominent features respond without using any class labels.
 
@@ -150,5 +150,3 @@ Karjauv, A. | 2026 | Rethinking Global Average Pooling: Your Classifier Is Secre
 {%- endcapture -%}
 
 {% include reference.html ref=references %}
-
-<script src="{{ '/assets/js/gap-mil.js' | relative_url }}" defer></script>
