@@ -1,35 +1,139 @@
-/* Figures of the MIL post; the card, caption and theme colours come from _sass/figures.scss. */
-.mil-details * { box-sizing:border-box; }
-.mil-figure p { margin:.7rem 0; }
-.mil-routes { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
-.mil-routes > div { padding:1rem; background:var(--fig-raised); border:1px solid var(--fig-line); border-radius:8px; text-align:center; min-width:0; }
-.mil-step,.mil-arrow,.mil-answer { display:block; }
-.mil-step { padding:.7rem .3rem; }
-.mil-arrow { color:var(--fig-muted); font-size:.82rem; }
-.mil-answer { color:var(--fig-accent); background:color-mix(in srgb, var(--fig-accent) 14%, var(--fig-surface)); margin-top:.7rem; padding:.5rem; border-radius:4px; font-weight:700; }
-.mil-figure label { display:block; font-weight:600; }
-.mil-figure output { font-variant-numeric:tabular-nums; color:var(--fig-accent); }
-.mil-figure input[type=range] { display:block; width:100%; min-height:44px; margin:.4rem 0 1rem; accent-color:var(--fig-accent); cursor:pointer; }
-.mil-demo-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:1.5rem; align-items:center; }
-.mil-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; max-width:260px; }
-.mil-grid span,.mil-votes span { display:flex; align-items:center; justify-content:center; aspect-ratio:1; border-radius:4px; color:white; background:var(--fig-accent); font-size:.8rem; font-weight:650; }
-.mil-grid .mil-bike-cell,.mil-votes .mil-bike-cell { background:#a04e19; }
-.mil-legend { font-size:.8rem; }
-.mil-dog-text { color:var(--fig-accent); }
-.mil-bike-text { color:#a04e19; }
-.mil-score-label { display:flex; justify-content:space-between; gap:.5rem; font-size:.86rem; }
-.mil-score-label strong { font-variant-numeric:tabular-nums; }
-.mil-track { height:12px; background:var(--fig-track); border-radius:3px; overflow:hidden; margin:.4rem 0 1rem; }
-.mil-bar { height:100%; border-radius:3px; }
-.mil-dog-bar { background:var(--fig-accent); }
-.mil-bike-bar { background:#a04e19; }
-.mil-neutral-bar { background:#657481; }
-.mil-result { font-size:.9rem; min-height:5em; }
-.mil-votes { display:grid; grid-template-columns:repeat(9,1fr); gap:5px; margin:1rem 0; }
-.mil-evidence-row { display:grid; grid-template-columns:1fr auto; gap:0 .8rem; margin-top:1rem; font-size:.88rem; }
-.mil-evidence-row .mil-track { grid-column:1 / -1; margin-bottom:.2rem; }
-.mil-details { border-left:3px solid var(--fig-accent); padding:.8rem 1rem; margin:1.5rem 0; background:var(--fig-surface); }
-.mil-details summary { cursor:pointer; font-weight:600; }
-.mil-details summary:focus-visible { outline:3px solid var(--fig-accent); }
-@media(max-width:540px) { .mil-routes,.mil-demo-columns { grid-template-columns:1fr; } .mil-grid { margin:auto; width:100%; } .mil-result { min-height:0; } }
-@media print { .mil-figure input { display:none; } }
+/* Dense-readout figures of the MIL post (assets/js/gap-mil.js). Card, caption and theme colours come from
+   _sass/figures.scss; the image dock from figure-gallery.css. */
+.gm [data-gm-app] { min-height: 12rem; }
+.gm [data-gm-app].is-loading { opacity: .6; transition: opacity .2s; }
+
+/* layouts: image-level list | image | cell list; on narrow screens the image comes first */
+.gm-3col { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 34rem) minmax(0, 15rem); grid-template-areas: "left centre right"; justify-content: center; gap: 1rem; align-items: start; }
+.gm-centre { grid-area: centre; }
+.gm-left { grid-area: left; display: grid; gap: .8rem; }
+.gm-right { grid-area: right; }
+.gm-pair { display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 24rem) minmax(0, 24rem) minmax(0, 14rem); grid-template-areas: ". ca cb ." "sa a b sb" ". op op ."; justify-content: center; column-gap: .9rem; row-gap: .5rem; align-items: start; }
+.gm-pair.has-film { grid-template-areas: ". strip strip ." ". ca cb ." "sa a b sb" ". op op ."; }
+.gm-pair > .gm-strip { grid-area: strip; margin-bottom: .4rem; }
+.gm-pair.has-under { grid-template-columns: minmax(0, 12rem) minmax(0, 27rem) minmax(0, 27rem) minmax(0, 12rem); grid-template-areas: ". ca cb ." "sa a b sb" ". ua ub ." ". op op ."; }
+.gm-pair > .gm-ua { grid-area: ua; } .gm-pair > .gm-ub { grid-area: ub; }
+/* the image-level top 3 under each picture: a quiet list, no card */
+.gm-under { padding: 0 .1rem; }
+.gm .gm-under .gm-h { margin: .2rem .3rem .15rem; }
+.gm-under .gm-list { max-height: none; overflow: visible; gap: 0; }
+.gm-under .gm-row { padding: .18rem .3rem; font-size: .82rem; }
+.gm > .fig-kicker + .fg-dock { margin-top: -1rem; }   /* the dock reserves room for its grown thumbnail; pull it towards the kicker */
+.gm-pair > .gm-ca { grid-area: ca; margin: 0; } .gm-pair > .gm-cb { grid-area: cb; margin: 0; }
+.gm-pair > .gm-ia { grid-area: a; } .gm-pair > .gm-ib { grid-area: b; }
+.gm-pair > .gm-sa { grid-area: sa; } .gm-pair > .gm-sb { grid-area: sb; }
+.gm-pair > .gm-op { grid-area: op; }
+.gm-pair .gm-film { grid-auto-columns: minmax(0, 2.6rem); width: fit-content; max-width: 100%; margin-inline: auto; }  /* smaller frames, centred over the images */
+/* side panels as tall as the images: they take no height of their own (height 0) and stretch to the image row */
+.gm-pair > .gm-side { align-self: stretch; height: 0; min-height: 100%; display: flex; flex-direction: column; gap: .8rem; }
+.gm-pair > .gm-side > .gm-card { display: flex; flex-direction: column; min-height: 0; }
+.gm-pair > .gm-side > .gm-card:last-child { flex: 1; }
+.gm-pair > .gm-side .gm-swap { flex: 1; height: auto; min-height: 0; }
+.gm-op .gm-opacity { margin-top: 0; }
+.gm-att { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 34rem) minmax(0, 15rem); grid-template-areas: ". strip ." "left img right" ". op ."; justify-content: center; column-gap: 1rem; row-gap: .5rem; align-items: start; }
+.gm-att > .gm-strip { grid-area: strip; margin-bottom: .2rem; }
+.gm-att > .gm-stage { grid-area: img; }
+.gm-att > .gm-op { grid-area: op; }
+.gm-att > .gm-op .gm-opacity { margin-top: 0; }
+.gm-att > .gm-left { grid-area: left; } .gm-att > .gm-right { grid-area: right; }
+/* lists as tall as the image: no height of their own (height 0), stretched to the image row, scrolling inside */
+.gm-att > .gm-left, .gm-att > .gm-right { align-self: stretch; height: 0; min-height: 100%; display: flex; flex-direction: column; }
+.gm-att > div > .gm-card { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.gm-att > div > .gm-card > .gm-list { flex: 1; min-height: 0; max-height: none; }
+@media (max-width: 1100px) {
+  .gm .gm-3col { grid-template-columns: repeat(2, minmax(0, 17rem)); grid-template-areas: "centre centre" "left right"; }
+  .gm .gm-centre { justify-self: center; width: min(100%, 34rem); }
+  .gm .gm-pair { grid-template-columns: repeat(2, minmax(0, 24rem)); grid-template-areas: "ca cb" "a b" "op op" "sa sb"; }
+  .gm .gm-pair.has-film { grid-template-areas: "strip strip" "ca cb" "a b" "op op" "sa sb"; }
+  .gm .gm-pair.has-under { grid-template-columns: repeat(2, minmax(0, 24rem)); grid-template-areas: "ca cb" "a b" "ua ub" "op op" "sa sb"; }
+  .gm .gm-att { grid-template-columns: repeat(2, minmax(0, 17rem)); grid-template-areas: "strip strip" "img img" "op op" "left right"; }
+  .gm .gm-att > .gm-stage { justify-self: center; width: min(100%, 34rem); }
+  .gm .gm-att > .gm-left, .gm .gm-att > .gm-right { height: auto; min-height: 0; }
+  .gm .gm-att > div > .gm-card > .gm-list { max-height: 26rem; }
+  .gm .gm-pair > .gm-side { height: auto; min-height: 0; }
+  .gm .gm-pair > .gm-side .gm-swap { height: 13rem; flex: none; }
+}
+@media (max-width: 560px) {
+  .gm .gm-3col { grid-template-columns: minmax(0, 1fr); grid-template-areas: "centre" "left" "right"; }
+  .gm .gm-att { grid-template-columns: minmax(0, 1fr); grid-template-areas: "strip" "img" "op" "left" "right"; }
+  .gm .gm-pair { gap: .5rem; }
+}
+
+/* the model menu */
+.gm-model { display: flex; justify-content: center; align-items: center; gap: .5rem; margin: 0 0 .9rem; font-size: .84rem; font-weight: 600; }
+.gm-model select { padding: .3rem .6rem; border: 1px solid var(--fig-line); border-radius: 8px; background: var(--fig-raised); color: var(--fig-ink); font: inherit; font-weight: 400; cursor: pointer; }
+
+/* the image and its grid */
+.gm-stage { --gm-alpha: .55; position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; container-type: inline-size; background: var(--fig-cell); user-select: none; -webkit-user-select: none; }
+.gm-img { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; object-fit: cover; }
+.gm-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--gm-n), 1fr); grid-template-rows: repeat(var(--gm-n), 1fr); }
+.gm-cell {
+  display: grid; place-items: center; min-width: 0; min-height: 0; margin: 0; padding: 1px; border: 0; overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, .25); border-bottom: 1px solid rgba(255, 255, 255, .25);
+  background: color-mix(in srgb, var(--c, transparent) calc(var(--gm-alpha) * 100%), transparent);
+  border-radius: 0; color: #fff; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.gm-lab {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  font: 600 clamp(7px, 2.05cqw, 11.5px)/1.12 var(--sans); font-variant-numeric: tabular-nums; text-align: center;
+  overflow-wrap: anywhere; hyphens: auto; text-shadow: 0 0 3px rgba(0, 0, 0, .9), 0 1px 1px rgba(0, 0, 0, .8);
+  opacity: clamp(0, calc(var(--gm-alpha) * 4), 1);
+}
+.gm-cell.is-static { cursor: crosshair; }
+.gm-cell.is-hover { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .9); }
+.gm-cell.is-picked { box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 5px rgba(0, 0, 0, .45); }
+.gm-cell:focus-visible { outline: 3px solid var(--fig-accent); outline-offset: -3px; }
+@container (max-width: 250px) { .gm-lab { display: none; } }
+.gm-stage.is-fine .gm-lab { display: none; }
+.gm-stage.is-fine .gm-cell { border-color: rgba(255, 255, 255, .12); }
+.gm-opacity { display: grid; grid-template-columns: auto minmax(0, 1fr) 3rem; align-items: center; gap: .6rem; margin-top: .5rem; font-size: .82rem; color: var(--fig-muted); }
+.gm-opacity output { font-variant-numeric: tabular-nums; color: var(--fig-accent); }
+.gm input[type=range] { width: 100%; min-height: 36px; margin: 0; accent-color: var(--fig-accent); cursor: pointer; }
+
+/* cards and class lists */
+.gm-card { padding: .8rem .85rem; border: 1px solid var(--fig-line); border-radius: 10px; background: var(--fig-raised); }
+.gm .gm-h { margin: 0 0 .35rem; font: 700 .74rem/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fig-muted); }
+.gm-note { margin: 0 0 .5rem; color: var(--fig-muted); font-size: .8rem; line-height: 1.45; }
+.gm-cap { margin: 0 0 .3rem; font-size: .82rem; font-weight: 700; }
+.gm-sub { margin: .6rem 0 .2rem; font-size: .8rem; font-weight: 700; }
+.gm-card > .gm-h + .gm-sub { margin-top: .2rem; }
+.gm-list { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: .1rem; max-height: 26rem; overflow-y: auto; }
+.gm-list li { margin: 0; }
+.gm-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto 4px; column-gap: .4rem; row-gap: .15rem;
+  width: 100%; padding: .28rem .4rem; border: 1px solid transparent; border-radius: 7px; background: none; color: inherit;
+  font: inherit; font-size: .84rem; line-height: 1.3; text-align: left; cursor: pointer;
+}
+.gm-row:hover:not(:disabled) { background: var(--fig-hover); }
+.gm-row:disabled { cursor: default; opacity: 1; color: inherit; border-color: transparent; background: none; box-shadow: none; }
+.gm-row.is-on { border-color: var(--fig-accent); background: var(--fig-hover); }
+.gm-row .gm-track { grid-column: 1 / -1; }
+.gm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-val { font-variant-numeric: tabular-nums; color: var(--fig-muted); }
+.gm-track { display: block; height: 4px; border-radius: 2px; background: var(--fig-track); overflow: hidden; }
+.gm-fill { display: block; height: 100%; border-radius: 2px; }
+.gm-fill.is-neg { opacity: .45; }
+.gm-sw { display: inline-block; width: .75em; height: .75em; border-radius: 3px; align-self: center; }
+.gm-eq { margin: .3rem 0 0; font-size: .84rem; line-height: 1.5; }
+.gm-eq strong { color: var(--fig-accent); font-variant-numeric: tabular-nums; }
+.gm-link { margin-top: .4rem; padding: 0; border: 0; background: none; color: var(--fig-accent); font: inherit; font-size: .8rem; cursor: pointer; text-decoration: underline; }
+
+/* before and after */
+.gm-side { display: grid; gap: .8rem; align-content: start; }
+.gm-swap { height: 13rem; overflow-y: auto; }
+.gm-swap .gm-list { max-height: none; overflow: visible; }
+.gm-col .gm-list { margin-bottom: .5rem; }
+
+/* attack: the steps as a strip that works as a slider */
+.gm-filmwrap { margin-bottom: .6rem; }
+.gm-filmwrap .gm-note { margin: .35rem 0 0; }
+.gm-pair .gm-filmwrap .gm-note { text-align: center; }
+.gm-film { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; padding: 4px; border-radius: 8px; background: var(--fig-raised); border: 1px solid var(--fig-line); cursor: ew-resize; touch-action: none; user-select: none; }
+.gm-film:focus-visible { outline: 3px solid var(--fig-accent); outline-offset: 2px; }
+.gm-mini { display: grid; align-content: start; gap: 2px; justify-items: center; padding: 2px; border-radius: 4px; }
+.gm-gel { position: absolute; z-index: 1; top: 2px; bottom: 2px; left: 0; border: 2px solid var(--fig-accent); border-radius: 6px; box-shadow: 0 0 0 1px var(--fig-raised), 0 2px 8px -2px rgba(0, 0, 0, .35); transform-origin: left center; pointer-events: none; will-change: transform, width; }
+.gm-mini small { min-height: 1.1em; color: var(--fig-muted); font-size: .62rem; line-height: 1.1; white-space: nowrap; }
+.gm-mini.is-on small { color: var(--fig-accent); font-weight: 700; }
+.gm-mini.is-flip .gm-mini-grid { outline: 1.5px solid #e15759; outline-offset: 1px; }
+.gm-mini-grid { display: grid; grid-template-columns: repeat(var(--gm-n), 1fr); gap: 1px; width: 100%; aspect-ratio: 1; background: var(--fig-surface); }
+.gm-mini-grid i { display: block; }

@@ -69,6 +69,7 @@
   color: var(--fig-ink);
   font: .9375rem/1.6 var(--sans);
   isolation: isolate;
+  scroll-margin-top: calc(var(--bar, 60px) + 1rem);   // a link to #figure-id stops below the sticky header bar
 }
 
 .fig *,

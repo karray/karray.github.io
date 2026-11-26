@@ -202,7 +202,7 @@
   const stackExplorer = (root, app) => {
     const models = JSON.parse(app.dataset.models);
     const thumbs = [...root.querySelectorAll('.fg-thumb')];
-    const state = { model: models[0].id, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, amounts: null };
+    const state = { model: models.some((m) => m.id === app.dataset.model) ? app.dataset.model : models[0].id, item: thumbs[0]?.dataset.item, data: null, hover: -1, picked: null, amounts: null };
 
     /* data, fetched once per model and image: int8 maps per level and start cell, with one scale per cell */
     const cache = new Map();
@@ -251,8 +251,8 @@
       svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, paths.map(([d, fill]) => svg('path', { d, class: fill && 'lrp-icon-fill' }))));
     const canvas = (heat) => h('canvas', { class: heat ? 'lrp-canvas lrp-heat' : 'lrp-canvas', width: 448, height: 448 });
 
-    const modelSelect = h('select', { 'aria-label': 'Model', onchange: () => { state.model = modelSelect.value; render(); } },
-      models.map((m) => h('option', { value: m.id, text: m.label })));
+    const modelSelect = h('select', { 'aria-label': 'Model', disabled: models.length < 2, onchange: () => { state.model = modelSelect.value; render(); } },
+      models.map((m) => h('option', { value: m.id, text: m.label, selected: m.id === state.model })));
     const opacity = h('input', { type: 'range', min: 0, max: 100, step: 5, value: OPACITY, 'aria-label': 'Map opacity', oninput: () => setOpacity(Number(opacity.value)) });
     const opacityOut = h('output');
     const startBase = canvas(), startHeat = canvas(true), startMarks = canvas();

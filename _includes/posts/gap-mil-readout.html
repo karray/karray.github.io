@@ -1,0 +1,54 @@
+{%- comment -%}
+Dense-readout figure of the MIL post (assets/js/gap-mil.js, assets/css/gap-mil.css). Loads its own assets once per page.
+Parameters:
+  id       unique id on the page
+  variant  readout (one image) | pair (before and after an edit) | attack (one readout per attack step)
+  items    "name:Label;name:Label" (data files in assets/data/gap-mil/); a pair item is "before|after:Label"
+  labels   for pairs, "Before|After"
+  image    for pairs, "off" hides the image-level answer (only the cells are listed)
+  models   the model menu, "key:Label;key:Label" (default: ResNet-50, ConvNeXt-B, Swin-B, MaxViT-B); data in assets/data/gap-mil/<key>/
+  width    a narrower width cap for the figure (e.g. 69rem), when its content has a fixed width
+  kicker, caption
+One item hides the image dock.
+{%- endcomment -%}
+{%- assign uid = include.id | default: 'gm' -%}
+{%- assign items = include.items | split: ';' -%}
+{%- unless figure_gallery_assets -%}
+<link rel="stylesheet" href="{{ '/assets/css/figure-gallery.css' | relative_url }}">
+<script src="{{ '/assets/js/tile-reveal.js' | relative_url }}" defer></script>
+<script src="{{ '/assets/js/figure-gallery.js' | relative_url }}" defer></script>
+{%- assign figure_gallery_assets = true -%}
+{%- endunless -%}
+{%- unless gap_mil_assets -%}
+{%- unless page.styles contains '/assets/css/gap-mil.css' -%}
+<link rel="stylesheet" href="{{ '/assets/css/gap-mil.css' | relative_url }}">
+{%- endunless -%}
+<script src="{{ '/assets/js/gap-mil.js' | relative_url }}" defer></script>
+{%- assign gap_mil_assets = true -%}
+{%- endunless -%}
+{%- assign first = items[0] | split: ':' | first -%}
+<figure class="fig wide gm{% if items.size > 1 %} fg{% endif %}" id="{{ uid }}"{% if items.size > 1 %} data-fg{% endif %}{% if include.width %} style="--wide-max: {{ include.width }}"{% endif %}
+  data-gm="{{ include.variant }}" data-base="{{ '/assets/data/gap-mil/' | relative_url }}"
+  {% if include.labels %}data-labels="{{ include.labels }}"{% endif %} {% if include.image %}data-image="{{ include.image }}"{% endif %} {% if include.models %}data-models="{{ include.models }}"{% endif %} {% if items.size == 1 %}data-item="{{ first }}"{% endif %}>
+  {%- if include.kicker %}<div class="fig-kicker">{{ include.kicker }}</div>{% endif %}
+  {%- if items.size > 1 %}
+  <div class="fg-dock" role="tablist" aria-label="Choose an image">
+    {%- for it in items -%}
+    {%- assign parts = it | split: ':' -%}
+    {%- assign key = parts[0] | strip -%}
+    {%- assign label = parts[1] | default: key | strip -%}
+    {%- assign img = key | split: '|' | first -%}
+    {%- assign src = '/assets/img/posts/gap-mil/' | append: img | append: '.jpg' | relative_url -%}
+    {%- assign selected = forloop.first -%}
+    <button type="button" class="fg-thumb" id="{{ uid }}-tab-{{ forloop.index }}" role="tab"
+      aria-selected="{{ selected }}" tabindex="{% if selected %}0{% else %}-1{% endif %}"
+      {% if selected %}data-selected="true" {% endif %}data-item="{{ key }}" data-label="{{ label | escape }}" data-src="{{ src }}">
+      <img src="{{ src }}" alt="" loading="lazy" decoding="async">
+      <span class="fg-thumb-label">{{ label }}</span>
+    </button>
+    {%- endfor -%}
+  </div>
+  {%- endif %}
+  <div data-gm-app><p class="fg-note">This figure needs JavaScript.</p></div>
+  {%- if include.caption %}<figcaption>{{ include.caption }}</figcaption>{% endif %}
+</figure>
