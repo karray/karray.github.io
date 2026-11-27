@@ -1,7 +1,8 @@
 {%- comment -%}
 The kicker of a figure, a <p class="fig-kicker">: "Figure N" for a figure whose id starts with "fig-" (numbered by
 fig-number.html), followed by include.kicker when there is one ("Figure 3 · ConvNeXt Base"); just include.kicker
-otherwise. Prints nothing when both are empty.
+otherwise. A numbered kicker ends with a # link to its figure, like the headings (anchor-headings.html). Prints nothing
+when both are empty.
 {%- endcomment -%}
 {%- assign _fk_n = '' -%}
 {%- assign _fk_prefix = include.id | slice: 0, 4 -%}
@@ -11,5 +12,6 @@ otherwise. Prints nothing when both are empty.
 {%- elsif _fk_n != '' -%}Figure {{ _fk_n }}
 {%- elsif include.kicker -%}{{ include.kicker }}
 {%- endif -%}
+{%- if _fk_n != '' %}<a class="anchor" href="#{{ include.id }}" aria-label="Link to Figure {{ _fk_n }}">#</a>{% endif -%}
 {%- endcapture -%}
 {%- if _fk_text != '' -%}<p class="fig-kicker">{{ _fk_text }}</p>{%- endif -%}

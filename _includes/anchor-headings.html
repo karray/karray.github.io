@@ -1,0 +1,19 @@
+{%- comment -%}
+include.html with a link to itself after the text of every h1 to h4 that has an id (kramdown gives each heading one):
+<a class="anchor" href="#id">#</a>, shown on hover (posts.scss).
+{%- endcomment -%}
+{%- assign _ah = include.html -%}
+{%- for _ah_level in (1..4) -%}
+  {%- capture _ah_open %}<h{{ _ah_level }} id="{% endcapture -%}
+  {%- capture _ah_close %}</h{{ _ah_level }}>{% endcapture -%}
+  {%- assign _ah_parts = _ah | split: _ah_open -%}
+  {%- capture _ah -%}
+    {{- _ah_parts[0] -}}
+    {%- for _ah_part in _ah_parts offset: 1 -%}
+      {%- assign _ah_id = _ah_part | split: '"' | first -%}
+      {%- capture _ah_link %}<a class="anchor" href="#{{ _ah_id }}" aria-label="Link to this section">#</a>{{ _ah_close }}{% endcapture -%}
+      {{- _ah_open -}}{{- _ah_part | replace_first: _ah_close, _ah_link -}}
+    {%- endfor -%}
+  {%- endcapture -%}
+{%- endfor -%}
+{{- _ah -}}

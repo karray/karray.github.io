@@ -65,3 +65,27 @@ summary::marker {
   color: var(--muted);
   transition: transform 0.2s ease;
 }
+
+.anchor {
+  margin-left: .3em;
+  color: var(--muted);
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity .15s;
+}
+h1:hover > .anchor, h2:hover > .anchor, h3:hover > .anchor, h4:hover > .anchor, .fig-kicker:hover > .anchor,
+.anchor:focus-visible {
+  opacity: 1;
+}
+.anchor:hover {
+  color: var(--accent, currentColor);
+}
+@media (hover: none) {
+  .anchor {
+    opacity: .4;
+  }
+}
+.post-content h1[id], .post-content h2[id], .post-content h3[id], .post-content h4[id], .post-content figure[id] {
+  scroll-margin-top: calc(var(--bar, 60px) + 1rem);
+}
