@@ -58,7 +58,6 @@
     };
   };
 
-  // Matches CSS `cubic-bezier(.3, .9, .3, 1)` for transform and `ease` for opacity
   const easeMove = makeBezierLut(0.3, 0.9, 0.3, 1.0);
   const easeOpacity = makeBezierLut(0.25, 0.1, 0.25, 1.0);
 
@@ -116,7 +115,6 @@
 
       this.geometry();
       this.bindMaps(autoArm);
-      // A resized canvas is rebuilt on the next interaction at the new size.
       addEventListener("resize", () => {
         this.geometry();
         this.maps.forEach((map) => {
@@ -204,12 +202,10 @@
       const overlay = map.overlay;
       if (!overlay.complete || !overlay.naturalWidth) return false;
 
-      // Called on every pointer move, so an existing canvas returns immediately.
       if (map.canvas) return true;
 
       const crisp = overlay.dataset.rendering !== "auto";
       const width = overlay.naturalWidth || 0;
-      // Same tile count as the old DOM grid: one tile per pixel for crisp maps, capped otherwise.
       const wanted = parseInt(map.stack.dataset.tiles, 10)
         || (crisp ? width : Math.min(width, TILE_CAP));
       const n = Math.min(Math.max(wanted, 0), MAX_TILES);
@@ -677,7 +673,7 @@
         event.preventDefault();
         try {
           area.setPointerCapture(event.pointerId);
-        } catch (err) { /* ignore */ }
+        } catch {}
         at = { x: event.clientX, y: event.clientY };
         each((map, p) => this.press(map, p.x, p.y, p.w, p.h));
       });
@@ -737,7 +733,7 @@
         event.preventDefault();
         try {
           stack.setPointerCapture(event.pointerId);
-        } catch (err) { /* ignore */ }
+        } catch {}
         const p = local(event);
         this.press(map, p.x, p.y, p.w, p.h);
       });
@@ -759,9 +755,14 @@
     touch(area, press, release) {
       let down = null;
       let tap = 0;
-      const start = () => {
+      const start = (capture = true) => {
         down.pressed = true;
         clearTimeout(tap);
+        if (capture && area.setPointerCapture) {
+          try {
+            area.setPointerCapture(down.id);
+          } catch {}
+        }
         press(down.x, down.y);
       };
       const end = () => {
@@ -771,7 +772,10 @@
 
       area.addEventListener("pointerdown", (event) => {
         if (event.pointerType !== "touch" || !event.isPrimary || !this.pressable()) return;
-        if (down) end();
+        if (down) {
+          if (down.pressed) release();
+          end();
+        }
         down = { id: event.pointerId, x: event.clientX, y: event.clientY, pressed: false };
         down.timer = setTimeout(start, HOLD);
       });
@@ -781,11 +785,15 @@
         if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > SLOP) end();
       });
 
+      area.addEventListener("touchmove", (event) => {
+        if (down && down.pressed && event.cancelable) event.preventDefault();
+      }, { passive: false });
+
       area.addEventListener("pointerup", (event) => {
         if (!down || event.pointerId !== down.id) return;
         if (down.pressed) release();
         else {
-          start();
+          start(false);
           tap = setTimeout(release, TAP);
         }
         end();

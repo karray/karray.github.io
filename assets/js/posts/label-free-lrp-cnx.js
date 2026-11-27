@@ -179,8 +179,8 @@
       const defs = S('defs', {}, svg), mk = S('marker', { id: 'lrpc-head', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, defs);
       S('path', { d: 'M0,0 L10,5 L0,10 z', class: 'lrpc-arrowhead' }, mk);
       const sc = tall ? S('g', { transform: 'matrix(0 1 1 0 0 0)' }, svg) : svg;
-      if (tall) { T(sc, -58, R1, 'Prediction', 'lrpc-row'); T(sc, -58, R2, 'Explanation', 'lrpc-row lrpc-row--rel'); }
-      else { T(sc, 8, 30, 'Prediction', 'lrpc-row', 'start'); T(sc, 8, R2 - 98, 'Explanation', 'lrpc-row lrpc-row--rel', 'start'); }
+      if (tall) { T(sc, -58, R1, 'Forward', 'lrpc-row'); T(sc, -58, R2, 'Backward', 'lrpc-row lrpc-row--rel'); }
+      else { T(sc, 8, 30, 'Forward', 'lrpc-row', 'start'); T(sc, 8, R2 - 98, 'Backward', 'lrpc-row lrpc-row--rel', 'start'); }
       scene.rows = [R1, R2].map((y, r) => {
         const g = S('g', {}, sc), rel = r === 1, out = { maps: [], boxes: [], totals: [], parts: [], skips: [], bands: { blocks: [] } };
         const gB = S('g', {}, g), lane = (sign, w) => y + sign * (GAP / 2 + w / 2), hz = (a, b) => (sign, w) => `M${a},${lane(sign, w)} L${b},${lane(sign, w)}`;

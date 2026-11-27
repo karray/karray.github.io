@@ -1,7 +1,3 @@
-{%- comment -%}
-The water figure of the LRP post: the classic LRP illustration as a live network. The forward pass and LRP run in
-assets/js/posts/label-free-lrp-water.js on a tiny CNN trained on MNIST (weights in assets/data/label-free-lrp/water.json).
-{%- endcomment -%}
 <figure class="fig lrp-fig lrp-water wide" data-lrp-water data-src="{{ '/assets/data/label-free-lrp/water.json' | relative_url }}">
   {%- if include.gradient %}
   <div class="lrpw-controls">
@@ -16,7 +12,7 @@ assets/js/posts/label-free-lrp-water.js on a tiny CNN trained on MNIST (weights 
   </div>
   {%- endif %}
   <div class="lrpw-stage">
-    <svg class="lrpw-scene" viewBox="0 0 1200 490" role="img" aria-label="A small network drawn twice. On the left, the prediction flows from the image to ten class scores. On the right, the relevance flows back from the explained class to the pixels, with the total that arrives under each column."></svg>
+    <svg class="lrpw-scene" viewBox="0 0 1200 490" role="img" aria-label="A small network drawn twice. The Forward half computes ten class scores from the image. The Backward half passes the relevance back from the explained class to the pixels, with the total that arrives under each column."></svg>
     <canvas class="lrpw-pad" width="280" height="280" aria-label="Draw a digit on the input"></canvas>
     <button class="lrpw-clear" type="button" title="Clear the input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg><span>Clear</span></button>
   </div>

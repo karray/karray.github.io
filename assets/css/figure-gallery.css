@@ -334,9 +334,6 @@
 .fg-stack .fg-overlay {
   opacity: var(--fg-overlay-opacity);
   transition: opacity .15s ease;
-}
-
-.fg-stack .fg-overlay {
   image-rendering: pixelated;
 }
 

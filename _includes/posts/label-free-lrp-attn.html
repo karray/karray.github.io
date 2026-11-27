@@ -1,0 +1,113 @@
+<figure class="fig lrp-fig lrp-attn wide" data-lrp-attn>
+  <div class="lrpw-controls lrp-attn-controls">
+    <div class="lrpw-modes" role="group" aria-label="How attention passes relevance back">
+      <span class="lrpw-label">attention rule</span>
+      <button type="button" data-rule="cp" aria-pressed="true">Freeze weights (CP)</button>
+      <button type="button" data-rule="ah" aria-pressed="false">AttnLRP (50/50)</button>
+      <button type="button" data-rule="grad" aria-pressed="false">Gradient fallback</button>
+    </div>
+    <label class="lrp-attn-slider">
+      <span class="lrpw-label">softmax temperature τ</span>
+      <input type="range" min="0.25" max="2.5" step="0.05" value="1" data-attn-tau>
+      <output data-attn-tau-out>1.00</output>
+    </label>
+  </div>
+  <div class="lrp-scroll lrp-attn-scroll">
+    <svg class="lrp-attn-scene" viewBox="0 0 1364 636" role="img" aria-label="Mirrored forward and backward self-attention with three 2D input token vectors on the left, scaled dot-product Softmax scores and weights, updated token vectors in the center, and backward relevance flowing through the Softmax gradient matrix and token wires on the right.">
+      <g class="lrpa-frame" data-frame="wide" aria-hidden="true">
+        <text x="14" y="22" class="lrpa-head" text-anchor="start">FORWARD · 2D VECTORS &amp; DOT-PRODUCT SOFTMAX</text>
+        <text x="670" y="22" class="lrpa-head" text-anchor="middle">UPDATED TOKENS (∈ ℝ²)</text>
+        <text x="1350" y="22" class="lrpa-head" text-anchor="end">BACKWARD · VECTOR RELEVANCE FLOWS BACK</text>
+
+        <rect x="202" y="36" width="374" height="570" rx="16" class="lrpa-zone"/>
+        <rect x="764" y="36" width="374" height="570" rx="16" class="lrpa-zone is-bwd"/>
+
+        <rect x="212" y="46" width="354" height="158" rx="12" class="lrpa-subbox"/>
+        <rect x="212" y="216" width="354" height="378" rx="12" class="lrpa-subbox"/>
+        <text x="224" y="62" class="lrpa-subhead" text-anchor="start">1. SOFTMAX (FORWARD) · DOT sᵢⱼ = (tᵢ·tⱼ)/√2 → WEIGHTS aᵢⱼ</text>
+        <text x="224" y="234" class="lrpa-subhead" text-anchor="start">2. ALL-TO-ALL VECTOR AVERAGE (Σⱼ aᵢⱼ tⱼ)</text>
+
+        <text x="218" y="78" class="lrpa-box-sub" text-anchor="start">sᵢⱼ</text>
+        <text x="248" y="78" class="lrpa-box-sub" text-anchor="middle">t₁</text>
+        <text x="282" y="78" class="lrpa-box-sub" text-anchor="middle">t₂</text>
+        <text x="316" y="78" class="lrpa-box-sub" text-anchor="middle">t₃</text>
+        <text x="354" y="78" class="lrpa-box-sub" text-anchor="middle">softmax</text>
+        <text x="354" y="169" class="lrpa-softmax-sub" text-anchor="middle">exp(s/τ)/Σ</text>
+        <text x="418" y="78" class="lrpa-box-sub" text-anchor="middle">t₁</text>
+        <text x="464" y="78" class="lrpa-box-sub" text-anchor="middle">t₂</text>
+        <text x="510" y="78" class="lrpa-box-sub" text-anchor="middle">t₃</text>
+        <text x="548" y="78" class="lrpa-box-sub" text-anchor="middle">Σ</text>
+        <text x="218" y="190" class="lrpa-box-sub" text-anchor="start">scalar weights × 2D wires:</text>
+
+        <rect x="774" y="46" width="354" height="158" rx="12" class="lrpa-subbox" data-bwd-softbox-wide/>
+        <rect x="774" y="216" width="354" height="378" rx="12" class="lrpa-subbox"/>
+        <text x="786" y="62" class="lrpa-subhead" text-anchor="start">1. SOFTMAX (BACKWARD) · GRADIENTS OF WEIGHTS aᵢⱼ</text>
+        <text x="786" y="234" class="lrpa-subhead" text-anchor="start">2. TOKEN PATH · RELEVANCE ALONG VECTOR WIRES</text>
+
+        <text x="824" y="77" class="lrpa-box-sub" text-anchor="middle">t₁</text>
+        <text x="868" y="77" class="lrpa-box-sub" text-anchor="middle">t₂</text>
+        <text x="912" y="77" class="lrpa-box-sub" text-anchor="middle">t₃</text>
+        <text x="949" y="77" class="lrpa-box-sub" text-anchor="middle">Σ</text>
+        <text x="868" y="167" class="lrpa-box-sub" text-anchor="middle">col sums →</text>
+      </g>
+      <g class="lrpa-frame" data-frame="tall" aria-hidden="true" hidden>
+        <text x="14" y="22" class="lrpa-head" text-anchor="start">FORWARD · 2D VECTORS &amp; DOT-PRODUCT SOFTMAX</text>
+        <text x="210" y="610" class="lrpa-head" text-anchor="middle">UPDATED TOKENS (∈ ℝ²)</text>
+        <text x="14" y="1134" class="lrpa-head" text-anchor="start">BACKWARD · VECTOR RELEVANCE FLOWS BACK</text>
+
+        <rect x="12" y="126" width="600" height="370" rx="16" class="lrpa-zone"/>
+        <rect x="12" y="624" width="600" height="372" rx="16" class="lrpa-zone is-bwd"/>
+
+        <rect x="22" y="136" width="580" height="158" rx="12" class="lrpa-subbox"/>
+        <rect x="22" y="304" width="580" height="182" rx="12" class="lrpa-subbox"/>
+        <text x="34" y="152" class="lrpa-subhead" text-anchor="start">1. SOFTMAX (FORWARD) · DOT sᵢⱼ = (tᵢ·tⱼ)/√2 → WEIGHTS aᵢⱼ</text>
+        <text x="34" y="322" class="lrpa-subhead" text-anchor="start">2. ALL-TO-ALL VECTOR AVERAGE (Σⱼ aᵢⱼ tⱼ)</text>
+
+        <text x="142" y="168" class="lrpa-box-sub" text-anchor="start">sᵢⱼ</text>
+        <text x="172" y="168" class="lrpa-box-sub" text-anchor="middle">t₁</text>
+        <text x="206" y="168" class="lrpa-box-sub" text-anchor="middle">t₂</text>
+        <text x="240" y="168" class="lrpa-box-sub" text-anchor="middle">t₃</text>
+        <text x="278" y="168" class="lrpa-box-sub" text-anchor="middle">softmax</text>
+        <text x="278" y="259" class="lrpa-softmax-sub" text-anchor="middle">exp(s/τ)/Σ</text>
+        <text x="342" y="168" class="lrpa-box-sub" text-anchor="middle">t₁</text>
+        <text x="388" y="168" class="lrpa-box-sub" text-anchor="middle">t₂</text>
+        <text x="434" y="168" class="lrpa-box-sub" text-anchor="middle">t₃</text>
+        <text x="472" y="168" class="lrpa-box-sub" text-anchor="middle">Σ</text>
+        <text x="142" y="280" class="lrpa-box-sub" text-anchor="start">scalar weights × 2D wires:</text>
+
+        <text x="82" y="342" class="lrpa-box-sub" text-anchor="end">t₁</text>
+        <text x="286" y="342" class="lrpa-box-sub" text-anchor="end">t₂</text>
+        <text x="490" y="342" class="lrpa-box-sub" text-anchor="end">t₃</text>
+
+        <rect x="22" y="634" width="580" height="158" rx="12" class="lrpa-subbox" data-bwd-softbox-tall/>
+        <rect x="22" y="802" width="580" height="184" rx="12" class="lrpa-subbox"/>
+        <text x="34" y="650" class="lrpa-subhead" text-anchor="start">1. SOFTMAX (BACKWARD) · GRADIENTS OF WEIGHTS aᵢⱼ</text>
+        <text x="34" y="820" class="lrpa-subhead" text-anchor="start">2. TOKEN PATH · RELEVANCE ALONG VECTOR WIRES</text>
+
+        <text x="184" y="665" class="lrpa-box-sub" text-anchor="middle">t₁</text>
+        <text x="228" y="665" class="lrpa-box-sub" text-anchor="middle">t₂</text>
+        <text x="272" y="665" class="lrpa-box-sub" text-anchor="middle">t₃</text>
+        <text x="309" y="665" class="lrpa-box-sub" text-anchor="middle">Σ</text>
+        <text x="228" y="755" class="lrpa-box-sub" text-anchor="middle">col sums →</text>
+
+        <text x="82" y="840" class="lrpa-box-sub" text-anchor="end">t₁′</text>
+        <text x="286" y="840" class="lrpa-box-sub" text-anchor="end">t₂′</text>
+        <text x="490" y="840" class="lrpa-box-sub" text-anchor="end">t₃′</text>
+      </g>
+      <g data-layer="track"></g>
+      <g data-layer="fwd"></g>
+      <g data-layer="stream"></g>
+      <g data-layer="flow"></g>
+      <g data-layer="nodes"></g>
+      <g data-layer="text"></g>
+    </svg>
+  </div>
+  <p class="lrp-small lrp-attn-note" data-attn-note aria-live="polite">This figure needs JavaScript.</p>
+  {%- if include.caption -%}
+  <figcaption>{{ include.caption }}</figcaption>
+  {%- endif -%}
+</figure>
+{%- unless lrp_attn_script -%}
+<script src="{{ '/assets/js/posts/label-free-lrp-attn.js' | relative_url }}" defer></script>
+{%- assign lrp_attn_script = true -%}
+{%- endunless -%}

@@ -1,6 +1,3 @@
-/* The water figure of the LRP post: a tiny CNN with the shape of the classic LRP illustration, trained on MNIST
-   without biases. The forward pass and the way back (z+, LRP-0, gradient or guided backpropagation) run in the page, for
-   whatever the reader draws on the input. */
 (() => {
   const NS = 'http://www.w3.org/2000/svg';
   const S = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.append(e); return e; };
@@ -8,7 +5,6 @@
   const fmt = (v) => (v > 0 && v < 0.01 ? v.toFixed(3) : Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2));
   const fmtTot = (v) => (Math.abs(v) < 0.005 ? '0.00' : Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)).replace('-', '−');
 
-  /* ---------- the network ---------- */
   const convFwd = (a, C, H, w, O) => {
     const Ho = ((H - 1) >> 1) + 1, z = new Float64Array(O * Ho * Ho), fwd = [...Array(C)].map(() => new Float64Array(O));
     for (let o = 0; o < O; o++) for (let y = 0; y < Ho; y++) for (let x = 0; x < Ho; x++) {
@@ -32,7 +28,6 @@
   };
   const relu = (z) => z.map((v) => Math.max(0, v));
 
-  // z+ redistribution from layer l to l-1: fn(in, out, v) for every share v of R_out that goes to in
   const conv5 = (a, C, H, w, O) => (R, fn) => {
     const Ho = ((H - 1) >> 1) + 1;
     for (let o = 0; o < O; o++) for (let y = 0; y < Ho; y++) for (let x = 0; x < Ho; x++) {
@@ -122,7 +117,6 @@
     ],
   });
 
-  /* ---------- colours and map images ---------- */
   const greyRamp = (t) => { const v = Math.round(255 - 205 * t); return [v, v, v + 2]; };
   const redRamp = (t) => {
     const stops = [[255, 255, 255], [240, 170, 160], [200, 65, 59], [110, 16, 14]];
@@ -155,7 +149,6 @@
   const absMax = (arr) => { let m = 1e-12; for (const v of arr) if (Math.abs(v) > m) m = Math.abs(v); return m; };
   const sum = (arr) => arr.reduce((s, x) => s + x, 0);
 
-  /* ---------- layout (viewBox 1200 x 490; the right half mirrors the left) ---------- */
   const W = 1200, H = 490, CY = 262;
   const curve = (p, q) => { const mx = (p[0] + q[0]) / 2; return `M${p[0]},${p[1]} C${mx},${p[1]} ${mx},${q[1]} ${q[0]},${q[1]}`; };
   const square = (g, cx, cy, s, n) => {
@@ -250,7 +243,6 @@
       LK.forEach((lk) => { flows[lk.n] = lk.to <= only.l ? flowMatrix(lk, C2[lk.n]) : flowMatrix(lk, pass[lk.from] ? C[lk.n] : null, pass[lk.from]); });
       return { disp, flows };
     };
-    // the forward flow from one node on: the share of each later unit's positive input that traces back to it
     const traceForward = (l0, i0) => {
       const steps = net.stepsFor('rules'), share = [], part = LY.map((ly) => new Uint8Array(ly.count)), tr = [];
       part[l0][i0] = 1;
@@ -274,8 +266,6 @@
       return { share, part };
     };
 
-    /* ---------- state ---------- */
-    // cls: the class being explained (the one under the pointer, or else the prediction); pred: the network's prediction
     const state = { pixels: data.start, hover: null, classHover: null, method: root.querySelector('.lrpw-mode[aria-pressed=true]')?.dataset.mode || 'lrp', sign: root.querySelector('.lrpw-sign[aria-pressed=true]')?.dataset.sign || 'pos' };
     const isLRP = () => state.mode === 'rules' || state.mode === 'lrp0';
     const startOf = (k) => (!isLRP() || net.logits[k] >= 0 ? 1 : state.mode === 'lrp0' ? -1 : 0);
@@ -289,12 +279,11 @@
     let net, scene, cls, pred, full, views, probs;
     const fulls = new Map(), viewSets = new Map();
 
-    /* ---------- geometry, once per digit ---------- */
     const build = () => {
       svg.replaceChildren();
       const titles = [S('text', { class: 'lrpw-title', x: 300, y: 34, 'text-anchor': 'middle' }, svg), S('text', { class: 'lrpw-title lrpw-title--rel', x: 900, y: 34, 'text-anchor': 'middle' }, svg)];
-      titles[0].textContent = 'Prediction';
-      titles[1].textContent = 'Explanation';
+      titles[0].textContent = 'Forward';
+      titles[1].textContent = 'Backward';
       const totalLabel = S('text', { class: 'lrpw-total-label', x: W - LY[L - 1].x - 30, y: 474, 'text-anchor': 'end' }, svg);
       totalLabel.textContent = 'total';
       const totals = LY.slice(0, L).map((ly) => S('text', { class: 'lrpw-total', x: W - ly.x, y: 474, 'text-anchor': 'middle' }, svg));
@@ -331,7 +320,6 @@
       const pairs = (lk, fn) => { for (let j = 0; j < LY[lk.from].count; j++) for (let k = 0; k < LY[lk.to].count; k++) fn(j, k); };
       LK.forEach((lk) => pairs(lk, (j, k) => fwdEdges.push(edge('fwd', lk, j, k))));
       [...LK].reverse().forEach((lk) => pairs(lk, (j, k) => relEdges.push(edge('rel', lk, j, k))));
-      // hover: units and whole maps on both sides (not the image, the pixels or the output); a tap does the same
       const half = (l) => (isMap(l) ? LY[l].ms / 2 + 12 : LY[l].kind === 'output' ? 20 : 26);
       const hit = (layer, l, rec) => {
         const k = layer.indexOf(rec), y = rec.y;
@@ -345,7 +333,6 @@
         el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') leaveSoon('unit', () => setHover(null)); });
         el.addEventListener('click', () => { if (touch) setHover(state.hover && key(state.hover) === key(h) ? null : h); });
       });
-      // the output: hover a class to explain it instead of the prediction; a tap does the same
       const showClass = (k) => { state.classHover = k; setClass(k ?? pred); };
       nodes.fwd[L].forEach((rec) => {
         const el = hit(nodes.fwd[L], L, rec);
@@ -354,7 +341,6 @@
         el.addEventListener('click', () => { if (touch) showClass(state.classHover === rec.i ? null : rec.i); });
       });
       scene = { nodes, fwdEdges, relEdges, totals };
-      // the pad and the clear button sit over the input square, in percentages of the scaled figure
       const tall = narrow.matches, x0 = LY[0].x - LY[0].ms / 2, y0 = CY - LY[0].ms / 2, s = LY[0].ms;
       const VW = H + 20, TOP = 24, VH = W + TOP;
       svg.setAttribute('viewBox', tall ? `0 ${-TOP} ${VW} ${VH}` : `0 0 ${W} ${H}`);
@@ -372,8 +358,6 @@
         Object.assign(clearBtn.style, { left: `${LY[0].x / W * 100}%`, top: `calc(${(y0 + s) / H * 100}% + 8px)` });
       }
 
-      // the fixed forward look: activations, and each edge's positive contribution as a share of what the receiving
-      // unit gets, times how active that unit is
       nodes.fwd.forEach((layer, l) => layer.forEach((rec) => {
         if (isMap(l)) rec.img.setAttribute('href', mapImage(net.A[l], LY[l], rec.i, greyRamp, layerMax(net.A[l])));
         else if (l < L) rec.fill.setAttribute('r', Math.max(0, (rec.r - 2.2) * Math.sqrt(clamp(net.act[l][rec.i] / Math.max(1e-9, ...net.act[l]), 0, 1))));
@@ -389,7 +373,6 @@
       });
     };
 
-    /* ---------- views: computed once per hovered node and class, then kept ---------- */
     const key = (h) => `${state.mode}|${h ? `${h.side}|${h.l}|${h.i}` : 'none'}`;
     const view = (h) => {
       const k = key(h);
@@ -401,10 +384,9 @@
         const g = LY[h.l].group;
         let held = 0; for (let p = 0; p < g; p++) held += full.disp[h.l][h.i * g + p];
         v.held = held;
-        boost = Math.abs(held) > 0 && Math.abs(held) < 0.1 ? Math.min(300, 0.4 / Math.abs(held)) : 1;     // only small shares are scaled up
+        boost = Math.abs(held) > 0 && Math.abs(held) < 0.1 ? Math.min(300, 0.4 / Math.abs(held)) : 1;
       }
       v.boost = boost;
-      // a hover on the left shows the round trip through the node, a hover on the right the way on to the pixels
       const edgeOn = (e) => !h || h.side === 'fwd' || LK[e.n].to <= h.l;
       const nodeOn = (l, i) => !h || (l === h.l ? i === h.i : h.side === 'fwd' || l < h.l);
       v.rel.edges = scene.relEdges.map((e) => (edgeOn(e) ? ex.flows[e.n][e.j][e.k] * 26 * boost : 0));
@@ -474,7 +456,6 @@
       refresh(); paint();
     }));
 
-    // the line under the figure: what is under the pointer, then what the flows show
     const readout = (v) => {
       const h = state.hover, k = state.classHover, cap = (t) => t[0].toUpperCase() + t.slice(1), parts = [];
       if (h) {
@@ -513,9 +494,6 @@
       paint();
     };
 
-    /* ---------- drawing on the input ---------- */
-    // ink: a 280 x 280 buffer, white on black like MNIST, that fills the 20 x 20 digit box of the 28 x 28 input.
-    // pad: a transparent canvas over the input square that shows the strokes while the pen is down.
     const pctx = pad.getContext('2d'), P = pad.width;
     const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
     const ink = canvas(P, P), ictx = ink.getContext('2d');
