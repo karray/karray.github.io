@@ -1,13 +1,16 @@
 {%- comment -%}
 The number of the figure with id include.id, like \label and \ref in LaTeX: figures are the elements whose id starts with
 "fig-", counted in the order they appear in the page source (page.content is the unrendered source while the page itself
-renders). Prints nothing when the id is not found, e.g. in an excerpt rendered on another page.
+renders). The ids inside fig-ref.html references are skipped, so a reference before its figure does not number it.
+Prints nothing when the id is not found, e.g. in an excerpt rendered on another page.
 {%- endcomment -%}
 {%- assign _fn_parts = page.content | split: 'id="fig-' -%}
 {%- assign _fn_seen = '|' -%}
 {%- assign _fn_n = 0 -%}
 {%- assign _fn_out = '' -%}
 {%- for _fn_part in _fn_parts offset: 1 -%}
+  {%- assign _fn_before = _fn_parts[forloop.index0] | slice: -13, 13 -%}
+  {%- if _fn_before == 'fig-ref.html ' -%}{%- continue -%}{%- endif -%}
   {%- assign _fn_id = _fn_part | split: '"' | first | prepend: 'fig-' -%}
   {%- assign _fn_key = '|' | append: _fn_id | append: '|' -%}
   {%- unless _fn_seen contains _fn_key -%}

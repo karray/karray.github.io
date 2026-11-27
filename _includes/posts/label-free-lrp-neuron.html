@@ -1,4 +1,6 @@
-<figure class="fig lrp-fig lrp-neuron" data-lrp-toy="neuron">
+<figure class="fig lrp-fig lrp-neuron"{% if include.id %} id="{{ include.id }}"{% endif %} data-lrp-toy="neuron">
+  {%- capture fig_kicker %}{% include fig-kicker.html id=include.id kicker=include.kicker %}{% endcapture %}
+  {%- if fig_kicker != '' %}<p class="fig-kicker">{{ fig_kicker }}</p>{% endif %}
   <div class="lrp-nt-holder"></div>
   <div class="lrp-nt-bar">
     <p class="lrp-nt-eqline">output = <output class="lrp-nt-eq">2.0</output></p>

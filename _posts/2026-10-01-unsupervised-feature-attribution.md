@@ -69,9 +69,9 @@ The reduction itself requires a choice. Unlike the ReLU outputs of a ResNet, ViT
 
 ### Results
 
-{% include heatmap-grid.html id="lafam-results" data=site.data.lafam_results class="wide" %}
+{% include heatmap-grid.html id="fig-lafam-results" data=site.data.lafam_results class="wide" %}
 
-The grid shows label-free heatmaps from a supervised ConvNeXt for five images, four of which contain several objects. When a scene contains more than one object, the map does not pick a winner. The dog and the cat both light up, and so do both dogs and all six objects. With no class to choose, every object the encoder responds to strongly stays in the map. You can try it on your own images in the [live demo](/demos/lafam/).
+{% include fig-ref.html id="fig-lafam-results" %} shows label-free heatmaps from a supervised ConvNeXt for five images, four of which contain several objects. When a scene contains more than one object, the map does not pick a winner. The dog and the cat both light up, and so do both dogs and all six objects. With no class to choose, every object the encoder responds to strongly stays in the map. You can try it on your own images in the [live demo](/demos/lafam/).
 
 The limitation is just as easy to see. ConvNeXt, like ResNet-50, ends with a $7\times7$ grid of features. The response is already informative, but it is coarse. Nearest-neighbor resizing shows it as large tiles, and bilinear resizing would only blend their edges.
 
@@ -81,22 +81,29 @@ The limitation is just as easy to see. ConvNeXt, like ResNet-50, ends with a $7\
 
 The paper systematically compares averaging with RELAX (the prior SSL method) using SSL models (SimCLR and SwAV with ResNet-50 backbones). It also compares averaging with Grad-CAM for a fully supervised ResNet-50 classifier as a sanity check. The heatmaps for ResNet-50 are only $7\times7$ and were upscaled to the input image size with nearest-neighbor interpolation. Since we don't have class labels to evaluate the “correctness” of an explanation, the evaluation was performed on datasets with segmentation masks (ImageNet-S and PASCAL VOC), using a suite of metrics from the Quantus XAI evaluation framework. Essentially, we treat it as a localization task, with the goal of assessing how well the heatmaps align with the segmentation masks.
 
-<figure>
+<figure id="fig-lafam-voc">
+<p class="fig-kicker">{% include fig-kicker.html id="fig-lafam-voc" %}</p>
 <img src="/assets/img/posts/lafam/pascal_voc_2012_results.svg" alt="LaFAM vs. Grad-CAM vs. RELAX" />
   <figcaption>Comparison on PASCAL VOC 2012. Averaging produces heatmaps similar to Grad-CAM but remains robust when the model misclassifies (first row).</figcaption>
 </figure>
 
-The figure above compares averaging, RELAX, and Grad-CAM as a baseline. When applied to the same supervised model, averaging and Grad-CAM produce very similar heatmaps.
+{% include fig-ref.html id="fig-lafam-voc" %} compares averaging, RELAX, and Grad-CAM as a baseline. When applied to the same supervised model, averaging and Grad-CAM produce very similar heatmaps.
 
 In the first row, the model predicted the wrong ImageNet class, so Grad-CAM highlighted a region associated with that wrong class. Averaging does not depend on the predicted label, so it still shows what the model found salient. For SSL models, averaging produces notably less noisy heatmaps than RELAX.
 
-The next figure demonstrates that averaging, being class-agnostic, highlights multiple objects in the image (e.g., both dogs), whereas Grad-CAM focuses on the one tied to the predicted class.
+{% include fig-ref.html id="fig-lafam-objects" %} demonstrates that averaging, being class-agnostic, highlights multiple objects in the image (e.g., both dogs), whereas Grad-CAM focuses on the one tied to the predicted class.
 
-![LaFAM for Multiple Objects](/assets/img/posts/lafam/pascal_voc_2012_2_classes.svg){: .center-image }
+<figure id="fig-lafam-objects">
+<p class="fig-kicker">{% include fig-kicker.html id="fig-lafam-objects" %}</p>
+<img src="/assets/img/posts/lafam/pascal_voc_2012_2_classes.svg" alt="LaFAM for Multiple Objects" />
+</figure>
 
-The last figure shows more misclassified ImageNet examples, with Grad-CAM computed for the wrong predicted class.
+{% include fig-ref.html id="fig-lafam-misclf" %} shows more misclassified ImageNet examples, with Grad-CAM computed for the wrong predicted class.
 
-![Grad-CAM for Misclassification Case](/assets/img/posts/lafam/imgnet_missclf_short.svg){: .center-image }
+<figure id="fig-lafam-misclf">
+<p class="fig-kicker">{% include fig-kicker.html id="fig-lafam-misclf" %}</p>
+<img src="/assets/img/posts/lafam/imgnet_missclf_short.svg" alt="Grad-CAM for Misclassification Case" />
+</figure>
 
 The averaged heatmaps clearly highlight true objects, suggesting that these objects strongly activate multiple channels in the final convolutional layer. However, the prediction is wrong. The reason could be that the last fully connected layer puts more weight on specific features that mislead the final decision, even though many other features correctly identify the object.
 
@@ -244,9 +251,9 @@ Layer-wise relevance propagation (LRP) [<a href="#bach2015on" data-ref="bach2015
 
 LRP was originally designed to explain predictions from supervised models by redistributing the relevance of a target output back to the input. But nothing prevents us from choosing a different starting signal. Instead of a class score, we start from the encoder's features themselves. We place a fixed amount of relevance on the feature tensor and let LRP carry it back to the pixels. Each feature value receives a share in proportion to how strongly it is active, so inactive features start with nothing. This is the same quantity the averaged map shows, the positive feature activity, now traced back to the input. The resulting map shows which input pixels the propagation connects to the active features at the chosen layer.
 
-The figure below shows the CNNs, two transformers that restrict most of their attention to local windows, and three plain vision transformers. Three more plain ViTs follow in a separate figure further down, because the same reduction fails for them.
+{% include fig-ref.html id="fig-lafam-encoders" %} shows the CNNs, two transformers that restrict most of their attention to local windows, and three plain vision transformers. Three more plain ViTs follow in {% include fig-ref.html id="fig-lafam-reductions" %}, because the same reduction fails for them.
 
-{% include figure-gallery.html id="lafam-encoders" data=site.data.galleries.lafam_encoders %}
+{% include figure-gallery.html id="fig-lafam-encoders" data=site.data.galleries.lafam_encoders %}
 
 The Averaging column is blocky by construction, since each block is one feature cell. An object shows up as a cluster of bright blocks that spills over its edges into the background. AnyUp keeps that pattern but redraws it to follow the image. The blocks around the two dogs become two dog silhouettes, and the cluster over the fish takes on the fish's outline. Each object comes out filled in almost evenly, with a sharp border wherever the image has one.
 
@@ -267,7 +274,7 @@ The original LaFAM paper evaluated attribution largely as an object-localization
 
 The spider web image holds a small surprise. In its bottom-right corner sits a tiny sparkle, the watermark of the image generator that created the picture. It covers less than one percent of the image and is easy to miss, but several encoders do not miss it. Subtle artifacts like this often trigger unpredictable behaviour and out-of-distribution failures across deep learning models. Catching them early is precisely what makes label-free maps so useful for debugging.
 
-{% include heatmap-grid.html id="lafam-watermark" data=site.data.galleries.lafam_watermark %}
+{% include heatmap-grid.html id="fig-lafam-watermark" data=site.data.galleries.lafam_watermark %}
 
 The two methods reveal it in different ways. For CLIP ConvNeXt, the watermark's cell is the brightest of all 49 cells in the averaged map, and LRP places about five percent of the relevance on it. MaxViT barely reacts to the watermark in the averaged map, but its LRP map puts almost eight percent of the relevance there, with a peak about four times higher than anywhere else. Since every map is scaled by its own maximum, that single spot turns the rest of the MaxViT map nearly black.
 
@@ -277,9 +284,9 @@ The example also shows where the maps stop. They tell us where the representatio
 
 ## When ReLU Is Not Enough
 
-The first figure includes three plain vision transformers, DINOv1, DINOv3 and MAE, and their maps behave much like those of the CNNs. For three other plain ViTs, a supervised ViT-B/16, a CLIP ViT-B/16 and DINOv2, the same reduction fails. Their maps are bright almost everywhere apart from a handful of much darker tokens, and the objects are hard to find.
+{% include fig-ref.html id="fig-lafam-encoders" %} includes three plain vision transformers, DINOv1, DINOv3 and MAE, and their maps behave much like those of the CNNs. For three other plain ViTs, a supervised ViT-B/16, a CLIP ViT-B/16 and DINOv2, the same reduction fails. Their maps are bright almost everywhere apart from a handful of much darker tokens, and the objects are hard to find.
 
-{% include figure-gallery.html id="lafam-reductions" data=site.data.galleries.lafam_reductions class="wide" %}
+{% include figure-gallery.html id="fig-lafam-reductions" data=site.data.galleries.lafam_reductions class="wide" %}
 
 What sets the two groups apart? The obvious suspect is the ReLU, but it does not throw most of the values away. In every plain ViT we looked at, about half of all feature values are positive, just as in the CNNs. Two other differences stand out.
 

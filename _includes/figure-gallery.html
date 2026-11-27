@@ -23,7 +23,8 @@
 {%- assign figure_gallery_assets = true -%}
 {%- endunless -%}
 <figure class="fig fg{% if include.class %} {{ include.class }}{% endif %}" id="{{ uid }}" data-fg data-overlay="{{ g.overlay | prepend: site.baseurl }}"{% if g.notes %} data-notes='{{ g.notes | jsonify | escape }}'{% endif %} style="--fg-cols: {{ columns | size }}; --fg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
-  {%- if kicker %}<p class="fig-kicker">{{ kicker }}</p>{% endif -%}
+  {%- capture fig_kicker %}{% include fig-kicker.html id=uid kicker=kicker %}{% endcapture %}
+  {%- if fig_kicker != '' %}<p class="fig-kicker">{{ fig_kicker }}</p>{% endif -%}
   <div class="fg-dock" role="tablist" aria-label="{{ g.dock_label | default: 'Choose an image' }}">
     {%- for item in items -%}
     {%- assign selected = forloop.first -%}

@@ -15,7 +15,7 @@ Every map so far has been an input-level pixel map or a starting embedding. None
 
 Choose any of the five images, then switch between ResNet50 and ConvNeXt-B, each supervised and each trained with DINO, at each stage output from right after the stem to the last stage before pooling.
 
-{% include figure-gallery.html id="lrp-intermediate-maps" data=site.data.galleries.lrp_intermediate %}
+{% include figure-gallery.html id="fig-lrp-intermediate" data=site.data.galleries.lrp_intermediate %}
 
 Positive channel mean, clipped and scaled independently at each depth: black means small or nonpositive relevance, not necessarily zero. Depth 4 is where the uniform initial relevance itself lives—every map there is flat by construction; the interesting question is what a network does to it on the way back to depth 0.
 
@@ -25,7 +25,7 @@ A **phase ratio** compares the strongest and weakest of the four spatial phases 
 
 ResNet's imbalance has a mechanism, not just a measurement. Every stage transition (for example `layer4.0`) adds a **main branch**, a 3 × 3 stride-2 convolution, to a **shortcut**, a 1 × 1 stride-2 convolution. Isolate each branch's relevance at the transition it feeds, again on any image and for both the supervised and the DINO checkpoint, and compare an unsplit residual against one split by activation magnitude:
 
-{% include figure-gallery.html id="lrp-checkerboard-maps" data=site.data.galleries.lrp_checkerboard class="wide" %}
+{% include figure-gallery.html id="fig-lrp-checkerboard" data=site.data.galleries.lrp_checkerboard class="wide" %}
 
 Absolute channel-summed relevance; independent full-range scales.
 
@@ -50,9 +50,9 @@ Going backward from one patch token to a 16 × 16 patch means distributing its a
 
 One rule, **WSquare**, distributes according to squared projection weights. Once the incoming relevance is fixed, this local distribution does not depend on the image values. It can repeatedly stamp a learned template inside patches. **ZPlus** also uses the input activations, so its distribution can change with the local image.
 
-Compare the two input-projection rules side by side, then switch models using the image dock below. The incoming patch relevance is identical in each paired experiment; only the final redistribution changes.
+Compare the two input-projection rules side by side, then switch models using the image dock of {% include fig-ref.html id="fig-lrp-projection" %}. The incoming patch relevance is identical in each paired experiment; only the final redistribution changes.
 
-{% include figure-gallery.html id="lrp-projection-maps" data=site.data.galleries.lrp_stems %}
+{% include figure-gallery.html id="fig-lrp-projection" data=site.data.galleries.lrp_stems %}
 
 On this montage, the fraction of within-patch map energy captured by one repeated template drops from **99.6% to 82.8%** for DINOv2 and **99.3% to 84.0%** for DINOv3. That explains a visible change in texture. It does not prove that ZPlus identifies the right pixels, and it does not eliminate all patch structure.
 
@@ -68,7 +68,7 @@ This boundary preference also appears outside LRP. Native gradient energy concen
 
 But where does the grid enter the explanation? Follow an actual backward trace. Start at the final embedding, then move toward the pixels. Compare the last two stages: the pixel map and those same pixel amounts added back together within each original patch.
 
-{% include figure-gallery.html id="lrp-backward-maps" data=site.data.galleries.lrp_trace %}
+{% include figure-gallery.html id="fig-lrp-backward" data=site.data.galleries.lrp_trace %}
 
 Blue is negative, red positive. Each stage has its own symmetric full-range color scale. Coarse panels are actual 14 × 14 channel sums enlarged without smoothing; they are not pixel explanations or selected-patch masks.
 

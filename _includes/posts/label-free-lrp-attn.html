@@ -1,4 +1,6 @@
-<figure class="fig lrp-fig lrp-attn wide" data-lrp-attn>
+<figure class="fig lrp-fig lrp-attn wide"{% if include.id %} id="{{ include.id }}"{% endif %} data-lrp-attn>
+  {%- capture fig_kicker %}{% include fig-kicker.html id=include.id kicker=include.kicker %}{% endcapture %}
+  {%- if fig_kicker != '' %}<p class="fig-kicker">{{ fig_kicker }}</p>{% endif %}
   <div class="lrpw-controls lrp-attn-controls">
     <div class="lrpw-modes" role="group" aria-label="How attention passes relevance back">
       <span class="lrpw-label">attention rule</span>
