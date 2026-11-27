@@ -46,6 +46,6 @@
 .cv-details { padding:.8rem 1rem; margin:1.8rem 0; border-left:3px solid var(--fig-accent); background:var(--fig-surface); }
 .cv-details summary { cursor:pointer; font-weight:650; }
 .cv-details summary:focus-visible { outline:3px solid var(--fig-accent); }
-.cv-details .MathJax_Display { overflow-x:auto; overflow-y:hidden; }
+.cv-details mjx-container[display="true"] { overflow-x:auto; overflow-y:hidden; }
 @media(max-width:600px) { .cv-columns { grid-template-columns:1fr; } .cv-columns svg { max-width:360px; margin:auto; } #cv-vector-result { min-height:0; } .cv-maps { grid-template-columns:1fr; gap:1.5rem; } .cv-maps > div { width:100%; max-width:250px; margin:auto; } .cv-map span { font-size:.8rem; } .cv-token-pair { grid-template-columns:1fr; } .cv-evidence-label { align-items:flex-start; } .cv-evidence-label small { display:block; } }
 @media print { .cv-figure input { display:none; } }
