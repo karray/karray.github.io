@@ -732,6 +732,12 @@ async function init() {
   const start = modelFromUrl(MODELS.find((m) => m.id === START_MODEL));
   els.modelSelect.value = start.id;
   await selectModel(start);
+  // ?mode=imagenet_classes (or another mode) opens the demo in that mode, when the model offers it
+  const mode = new URLSearchParams(location.search).get("mode");
+  if ([...els.modeSelect.options].some((o) => o.value === mode && !o.disabled)) {
+    els.modeSelect.value = mode;
+    els.modeSelect.onchange();
+  }
 }
 
 init();

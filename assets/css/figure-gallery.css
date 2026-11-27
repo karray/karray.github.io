@@ -32,8 +32,17 @@
   justify-content: center;
   gap: var(--fg-dock-gap);
 
-  height: calc(var(--fg-thumb-max) + 1.8rem);
+  /* only as tall as the selected thumbnail: a thumbnail magnified on hover, and its label, grow upwards over the
+     kicker's margin instead of reserving that room (empty most of the time) */
+  position: relative;
+  z-index: 2;
+  height: calc(var(--fg-thumb-selected) + .15rem);
   margin: 0 0 1.4rem;
+}
+
+/* without a kicker above, the dock opens the figure: keep room for the magnified thumbnail and its label */
+.fg-dock:first-child {
+  margin-top: calc(var(--fg-thumb-max) - var(--fg-thumb-selected) + 1.8rem - var(--fig-pad, 1.25rem));
 }
 
 .fg-thumb {

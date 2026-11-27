@@ -1,0 +1,22 @@
+{%- comment -%}
+Live training figure of the MIL post (assets/js/gap-mil-live.js, styles in assets/css/gap-mil.css): a toy SynMIL that
+trains in the browser, one label per picture. Loads its own assets once per page.
+Parameters:
+  id       unique id on the page
+  mode     omitted: the classifier as in the post; background: adds a background class and a control for how pictures
+           are labelled (empty pictures labelled background by default)
+  kicker, caption
+{%- endcomment -%}
+{%- unless page.styles contains '/assets/css/gap-mil.css' or gap_mil_live_assets or gap_mil_assets -%}
+<link rel="stylesheet" href="{{ '/assets/css/gap-mil.css' | relative_url }}">
+{%- endunless -%}
+{%- unless gap_mil_live_assets -%}
+<script src="{{ '/assets/js/gap-mil-live.js' | relative_url }}" defer></script>
+{%- assign gap_mil_live_assets = true -%}
+{%- endunless -%}
+<figure class="fig gm lm" id="{{ include.id | default: 'lm' }}">
+  {%- capture fig_kicker %}{% include fig-kicker.html id=include.id kicker=include.kicker %}{% endcapture %}
+  {%- if fig_kicker != '' %}<div class="fig-kicker">{{ fig_kicker }}</div>{% endif %}
+  <div {% if include.mode %}data-live-mil="{{ include.mode }}"{% else %}data-live-mil{% endif %}><p class="fg-note">This figure needs JavaScript.</p></div>
+  {%- if include.caption %}<figcaption>{{ include.caption }}</figcaption>{% endif %}
+</figure>

@@ -15,26 +15,6 @@ image:
   height: 630
   alt: Two images beside heatmaps for a MaxViT encoder, produced by averaging, AnyUp, and LRP.
 
-lafam_results:
-  kicker: ConvNeXt Base · Averaging
-  opacity: 100
-  columns: 5
-  items:
-    - label: Dog and cat
-      src: /assets/img/samples/dog_and_cat.jpg
-      overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_dog_cat.png
-    - label: Two dogs
-      src: /assets/img/samples/two_dogs.jpg
-      overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_dog_dog.png
-    - label: Fish and person
-      src: /assets/img/samples/fish_and_person.jpg
-      overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_fish_person.png
-    - label: Spider web
-      src: /assets/img/samples/spider_web.jpg
-      overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_spider_web.png
-    - label: Six objects
-      src: /assets/img/samples/six_objects.jpg
-      overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_misc.png
 ---
 
 Foundation models trained without explicit labels can learn remarkably rich representations, but the same lack of supervision that makes this possible also makes them harder to interpret and validate. Without annotations to tell us what the model has learned, where can we look for clues? Convolutional networks and vision transformers offer one in their activations. These activations can be turned into heatmaps that show where the model responds most strongly, without extra labels or gradients. The catch is that these maps are often coarse. In this blog post, we explore how to extract spatial heatmaps from these activations and how they can be refined.
@@ -87,7 +67,7 @@ The reduction itself requires a choice. Unlike the ReLU outputs of a ResNet, ViT
 
 ### Results
 
-{% include heatmap-grid.html id="lafam-results" data=page.lafam_results class="wide" %}
+{% include heatmap-grid.html id="lafam-results" data=site.data.lafam_results class="wide" %}
 
 The grid shows label-free heatmaps from a supervised ConvNeXt for five images, four of which contain several objects. When a scene contains more than one object, the map does not pick a winner. The dog and the cat both light up, and so do both dogs and all six objects. With no class to choose, every object the encoder responds to strongly stays in the map.
 

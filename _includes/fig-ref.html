@@ -1,0 +1,7 @@
+{%- comment -%}
+A reference to a figure, like \ref in LaTeX: {% include fig-ref.html id="fig-layers" %} prints a link "Figure 6" to
+#fig-layers, numbered automatically (fig-number.html). "Figure ??" marks an id that is not on the page.
+{%- endcomment -%}
+{%- capture _fr_n -%}{% include fig-number.html id=include.id %}{%- endcapture -%}
+{%- assign _fr_n = _fr_n | strip -%}
+<a href="#{{ include.id }}" class="fig-ref">Figure {% if _fr_n == '' %}??{% else %}{{ _fr_n }}{% endif %}</a>

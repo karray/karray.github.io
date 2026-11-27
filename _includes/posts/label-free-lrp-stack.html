@@ -19,7 +19,8 @@ so the host post needs nothing in its front matter. Parameters: id (default lrp-
 {%- assign figure_gallery_assets = true -%}
 {%- endunless -%}
 <figure class="fig fg lrp-stackfig wide" id="{{ uid }}" data-fg>
-  {%- if include.kicker %}<div class="fig-kicker">{{ include.kicker }}</div>{% endif %}
+  {%- capture fig_kicker %}{% include fig-kicker.html id=include.id kicker=include.kicker %}{% endcapture %}
+  {%- if fig_kicker != '' %}<div class="fig-kicker">{{ fig_kicker }}</div>{% endif %}
   <div class="fg-dock" role="tablist" aria-label="Choose an image">
     {%- for item in items -%}
     {%- assign selected = forloop.first -%}

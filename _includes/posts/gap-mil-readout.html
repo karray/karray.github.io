@@ -3,11 +3,14 @@ Dense-readout figure of the MIL post (assets/js/gap-mil.js, assets/css/gap-mil.c
 Parameters:
   id       unique id on the page
   variant  readout (one image) | pair (before and after an edit) | attack (one readout per attack step)
+           | pipeline (the classifier drawn as a row, with a switch that bypasses GAP; needs <name>_channels.json)
   items    "name:Label;name:Label" (data files in assets/data/gap-mil/); a pair item is "before|after:Label"
   labels   for pairs, "Before|After"
-  image    for pairs, "off" hides the image-level answer (only the cells are listed)
-  models   the model menu, "key:Label;key:Label" (default: ResNet-50, ConvNeXt-B, Swin-B, MaxViT-B); data in assets/data/gap-mil/<key>/
-  width    a narrower width cap for the figure (e.g. 69rem), when its content has a fixed width
+  image    for pairs, "off": no image-level top 3 in the side panels (only the cells)
+  names    "off": the cells show colours only, no class names
+  models   the model menu, "key:Label;key:Label" (default: ResNet-50, ConvNeXt-B, Swin-B, MaxViT-B, ViT-M/16 GAP); data in assets/data/gap-mil/<key>/;
+           one model hides the menu
+  wide     true: a .wide figure; otherwise the text width
   kicker, caption
 One item hides the image dock.
 {%- endcomment -%}
@@ -27,17 +30,18 @@ One item hides the image dock.
 {%- assign gap_mil_assets = true -%}
 {%- endunless -%}
 {%- assign first = items[0] | split: ':' | first -%}
-<figure class="fig wide gm{% if items.size > 1 %} fg{% endif %}" id="{{ uid }}"{% if items.size > 1 %} data-fg{% endif %}{% if include.width %} style="--wide-max: {{ include.width }}"{% endif %}
+<figure class="fig{% if include.wide %} wide{% endif %} gm{% if items.size > 1 %} fg{% endif %}" id="{{ uid }}"{% if items.size > 1 %} data-fg{% endif %}
   data-gm="{{ include.variant }}" data-base="{{ '/assets/data/gap-mil/' | relative_url }}"
-  {% if include.labels %}data-labels="{{ include.labels }}"{% endif %} {% if include.image %}data-image="{{ include.image }}"{% endif %} {% if include.models %}data-models="{{ include.models }}"{% endif %} {% if items.size == 1 %}data-item="{{ first }}"{% endif %}>
-  {%- if include.kicker %}<div class="fig-kicker">{{ include.kicker }}</div>{% endif %}
+  {% if include.labels %}data-labels="{{ include.labels }}"{% endif %} {% if include.image %}data-image="{{ include.image }}"{% endif %} {% if include.names %}data-names="{{ include.names }}"{% endif %} {% if include.models %}data-models="{{ include.models }}"{% endif %} {% if items.size == 1 %}data-item="{{ first }}"{% endif %}>
+  {%- capture fig_kicker %}{% include fig-kicker.html id=uid kicker=include.kicker %}{% endcapture %}
+  {%- if fig_kicker != '' %}<div class="fig-kicker">{{ fig_kicker }}</div>{% endif %}
   {%- if items.size > 1 %}
   <div class="fg-dock" role="tablist" aria-label="Choose an image">
     {%- for it in items -%}
     {%- assign parts = it | split: ':' -%}
     {%- assign key = parts[0] | strip -%}
     {%- assign label = parts[1] | default: key | strip -%}
-    {%- assign img = key | split: '|' | first -%}
+    {%- assign img = key | split: '|' | first | remove: '_layers' -%}
     {%- assign src = '/assets/img/posts/gap-mil/' | append: img | append: '.jpg' | relative_url -%}
     {%- assign selected = forloop.first -%}
     <button type="button" class="fg-thumb" id="{{ uid }}-tab-{{ forloop.index }}" role="tab"

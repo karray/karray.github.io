@@ -13,7 +13,8 @@
 {%- assign heatmap_grid_assets = true -%}
 {%- endunless -%}
 <figure class="fig hg{% if include.class %} {{ include.class }}{% endif %}" id="{{ uid }}" data-hg style="--hg-overlay-opacity: {{ opacity | divided_by: 100.0 }};{% if style %} {{ style }}{% endif %}">
-  {%- if kicker %}<p class="fig-kicker">{{ kicker }}</p>{% endif -%}
+  {%- capture fig_kicker %}{% include fig-kicker.html id=uid kicker=kicker %}{% endcapture %}
+  {%- if fig_kicker != '' %}<p class="fig-kicker">{{ fig_kicker }}</p>{% endif -%}
   <div class="hg-controls">
     <label class="hg-control-slider">Overlay opacity
       <input class="hg-opacity" type="range" min="0" max="100" step="5" value="{{ opacity }}" aria-label="Overlay opacity">

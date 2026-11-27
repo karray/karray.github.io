@@ -1,0 +1,20 @@
+# The LaFAM result grid (heatmap-grid.html), shared by the LaFAM post and the MIL post.
+kicker: ConvNeXt Base · Averaging
+opacity: 100
+columns: 5
+items:
+  - label: Dog and cat
+    src: /assets/img/samples/dog_and_cat.jpg
+    overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_dog_cat.png
+  - label: Two dogs
+    src: /assets/img/samples/two_dogs.jpg
+    overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_dog_dog.png
+  - label: Fish and person
+    src: /assets/img/samples/fish_and_person.jpg
+    overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_fish_person.png
+  - label: Spider web
+    src: /assets/img/samples/spider_web.jpg
+    overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_spider_web.png
+  - label: Six objects
+    src: /assets/img/samples/six_objects.jpg
+    overlay: /assets/img/posts/lafam/figures/heatmaps/lafam_ConvNeXtBaseIN1K_misc.png
