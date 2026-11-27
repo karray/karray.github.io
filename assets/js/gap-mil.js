@@ -207,7 +207,7 @@
     });
     new ResizeObserver(() => { placed = false; kick(); }).observe(el);
     return {
-      el: h('div', { class: 'gm-filmwrap' }, el, h('p', { class: 'gm-note', text })),
+      el: h('div', {}, el, h('p', { class: 'gm-note', text })),
       update(t, valuetext) {
         cur = t;
         requestAnimationFrame(kick);
@@ -333,7 +333,7 @@
     const front = image5[0];
     const colour = (c) => (c === front ? PALETTE[0] : d.colour(c) === PALETTE[0] ? d.colour(front) : d.colour(c));
     let bypass = false;
-    const toggle = h('button', { type: 'button', class: 'gmp-switch', role: 'switch', 'aria-checked': 'false', onclick: () => { bypass = !bypass; paint(); } },
+    const toggle = h('button', { type: 'button', class: 'gmp-switch', role: 'switch', 'aria-checked': 'false', onclick: () => set(!bypass) },
       h('span', { class: 'gmp-knob' }), h('span', { text: 'Bypass GAP' }));
     const mapEl = () => { const cells = range(49).map(() => h('i')); return { el: h('div', { class: 'gmp-map gmp-slice' }, cells), cells }; };
     const slices = ch.maps.map(() => mapEl());
@@ -347,12 +347,13 @@
     const zmax = new Map(heat.map((c) => [c, Math.max(1e-9, ...zOf(c))]));
     const layers = [null, ...heat].map((c) => {
       const cells = range(49).map((i) => {
+        if (c != null) return h('span', { class: 'gmp-lc', style: `background:${seq(Math.max(0, zOf(c)[i]) / zmax.get(c))}` });
         const dist = Math.hypot(i % 7 - 3, Math.floor(i / 7) - 3);
-        return h('span', { class: `gmp-lc${i === 24 ? ' is-centre' : ''}`, style: `--din:${i === 24 ? 0 : 330 + dist * 55}ms;--dout:${i === 24 ? 330 : (4.3 - dist) * 55}ms` },
-          c == null ? h('span', { class: 'gm-lab gmp-lv', text: d.name(top1(i)) }) : null);
+        return h('span', { class: 'gmp-lc', style: `background:color-mix(in srgb, ${colour(top1(i))} 60%, transparent);--din:${i === 24 ? 0 : 330 + dist * 55}ms;--dout:${i === 24 ? 330 : (4.3 - dist) * 55}ms` });
       });
-      const el = h('div', { class: `gmp-layer${c == null ? ' is-front' : ''}` }, c == null ? h('img', { class: 'gm-img', alt: '', src: d.image, decoding: 'async' }) : null, h('div', { class: 'gmp-lgrid' }, cells));
-      return { c, el, cells };
+      const tile = h('span', { class: 'gmp-tile', style: `background:${c == null ? `color-mix(in srgb, ${colour(front)} 60%, transparent)` : seq(Math.max(0, s.image(c)) / zmax.get(c))}` });
+      const names = c == null ? h('div', { class: 'gmp-lgrid gmp-names' }, range(49).map((i) => h('span', { class: 'gm-lab', text: d.name(top1(i)) }))) : null;
+      return h('div', { class: `gmp-layer${c == null ? ' is-front' : ''}` }, c == null ? h('img', { class: 'gm-img', alt: '', src: d.image, decoding: 'async' }) : null, h('div', { class: 'gmp-lgrid' }, cells), names, tile);
     });
     const one = h('span', { class: 'gmp-one' }, h('strong', { text: d.name(front) }), h('span', { text: fmt(s.image(front)) }));
     const outShape = h('small', { class: 'gmp-shape' }), headShape = h('small', { class: 'gmp-shape' });
@@ -371,19 +372,40 @@
       arrow('gmp-skip'),
       h('div', { class: 'gmp-node' }, block('gmp-head', 'Linear head', h('span', { text: 'W · h + b' })), headShape),
       arrow(),
-      h('div', { class: 'gmp-node gmp-n-out' }, h('div', { class: 'gmp-ostack' }, layers.map((l) => l.el), one), outShape));
+      h('div', { class: 'gmp-node gmp-n-out' }, h('div', { class: 'gmp-ostack' }, layers, one), outShape));
     app.replaceChildren(h('div', { class: 'gmp-controls' }, toggle), pipe);
     typeset(pipe);
-    const paint = () => {
-      toggle.setAttribute('aria-checked', String(bypass));
+    const D = 600, EASE = 'cubic-bezier(.4, 0, .2, 1)';
+    const parts = [...pipe.children].flatMap((el) => (el.classList.contains('gmp-node') && !el.classList.contains('gmp-skip') ? [...el.children] : [el]));
+    let anims = [];
+    const apply = () => {
       pipe.classList.toggle('is-bypass', bypass);
-      for (const l of layers) l.cells.forEach((el, i) => {
-        el.style.background = l.c == null ? `color-mix(in srgb, ${colour(bypass ? top1(i) : front)} 60%, transparent)` : seq(Math.max(0, bypass ? zOf(l.c)[i] : s.image(l.c)) / zmax.get(l.c));
-      });
       headShape.textContent = bypass ? 'applied to every cell' : '';
       outShape.textContent = bypass ? 'dense readout · 1000 × 7 × 7; front: each cell’s top class, behind: score maps' : 'logits · 1000 × 1 × 1, one answer for the whole picture';
     };
-    paint();
+    const set = (on) => {
+      anims.forEach((a) => a.finish()); anims = [];
+      const first = parts.map((el) => el.getBoundingClientRect());
+      parts.forEach((el, k) => { if (el.classList.contains('gmp-skip')) el.style.width = on ? `${first[k].width}px` : ''; });
+      bypass = on;
+      toggle.setAttribute('aria-checked', String(on));
+      apply();
+      if (calm.matches) return;
+      parts.forEach((el, k) => {
+        const f = first[k], l = el.getBoundingClientRect();
+        if (!l.width || !l.height) return;
+        const dx = f.left + f.width / 2 - l.left - l.width / 2, dy = f.top + f.height / 2 - l.top - l.height / 2;
+        const scale = el.classList.contains('gmp-arrow') ? `${f.width / l.width}, 1` : el.classList.contains('gmp-shape') ? '1' : `${f.height / l.height}`;
+        const from = { transform: `translate(${dx}px, ${dy}px) scale(${scale})` }, to = { transform: 'none' };
+        if (el.classList.contains('gmp-skip')) {
+          const small = el.classList.contains('gmp-arrow') ? '.3, 1' : '.3';
+          if (on) Object.assign(to, { transform: `scale(${small})`, opacity: 0 }), from.opacity = 1;
+          else Object.assign(from, { transform: `translate(${dx}px, ${dy}px) scale(${small})`, opacity: 0 }), to.opacity = 1;
+        }
+        anims.push(el.animate([from, to], { duration: D, easing: EASE }));
+      });
+    };
+    apply();
   };
 
   const MODELS = 'resnet50:ResNet-50;convnext:ConvNeXt-B;swin:Swin-B;maxvit:MaxViT-B;vitm:ViT-M/16 GAP';
