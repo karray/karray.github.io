@@ -322,7 +322,6 @@
   const typeset = (el) => {
     const mj = window.MathJax;
     if (mj?.typesetPromise) mj.typesetPromise([el]);
-    else if (mj?.Hub) mj.Hub.Queue(['Typeset', mj.Hub, el]);
     else if (document.readyState !== 'complete') window.addEventListener('load', () => typeset(el), { once: true });
   };
   const pipeline = (app, d, ch) => {

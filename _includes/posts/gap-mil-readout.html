@@ -33,8 +33,7 @@ One item hides the image dock.
 <figure class="fig{% if include.wide %} wide{% endif %} gm{% if items.size > 1 %} fg{% endif %}" id="{{ uid }}"{% if items.size > 1 %} data-fg{% endif %}
   data-gm="{{ include.variant }}" data-base="{{ '/assets/data/gap-mil/' | relative_url }}"
   {% if include.labels %}data-labels="{{ include.labels }}"{% endif %} {% if include.image %}data-image="{{ include.image }}"{% endif %} {% if include.names %}data-names="{{ include.names }}"{% endif %} {% if include.models %}data-models="{{ include.models }}"{% endif %} {% if items.size == 1 %}data-item="{{ first }}"{% endif %}>
-  {%- capture fig_kicker %}{% include fig-kicker.html id=uid kicker=include.kicker %}{% endcapture %}
-  {%- if fig_kicker != '' %}<div class="fig-kicker">{{ fig_kicker }}</div>{% endif %}
+  {%- include fig-kicker.html id=uid kicker=include.kicker %}
   {%- if items.size > 1 %}
   <div class="fg-dock" role="tablist" aria-label="Choose an image">
     {%- for it in items -%}

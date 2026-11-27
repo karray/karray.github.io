@@ -1,6 +1,6 @@
 /* Figures of the CNN and ViT post; the card, caption and theme colours come from _sass/figures.scss. */
 .cv-details * { box-sizing:border-box; }
-.cv-figure p { margin:.8rem 0; }
+.cv-figure p:not(.fig-kicker) { margin:.8rem 0; }
 .cv-columns { display:grid; grid-template-columns:1.12fr 1fr; gap:1rem; align-items:center; }
 .cv-columns > *, .cv-maps > * { min-width:0; }
 .cv-figure svg { width:100%; height:auto; display:block; overflow:visible; }

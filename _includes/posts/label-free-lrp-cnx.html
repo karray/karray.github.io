@@ -1,6 +1,5 @@
 <figure class="fig lrp-fig lrpc wide"{% if include.id %} id="{{ include.id }}"{% endif %} data-lrp-cnx data-src="{{ '/assets/data/label-free-lrp/convnext-mini.json' | relative_url }}">
-  {%- capture fig_kicker %}{% include fig-kicker.html id=include.id kicker=include.kicker %}{% endcapture %}
-  {%- if fig_kicker != '' %}<p class="fig-kicker">{{ fig_kicker }}</p>{% endif %}
+  {%- include fig-kicker.html id=include.id kicker=include.kicker %}
   <p class="lrpw-readout" aria-live="polite">This figure needs JavaScript.</p>
   <div class="lrpw-controls">
     <div class="lrpw-modes" role="group" aria-label="The residual connections">

@@ -82,7 +82,7 @@ The limitation is just as easy to see. ConvNeXt, like ResNet-50, ends with a $7\
 The paper systematically compares averaging with RELAX (the prior SSL method) using SSL models (SimCLR and SwAV with ResNet-50 backbones). It also compares averaging with Grad-CAM for a fully supervised ResNet-50 classifier as a sanity check. The heatmaps for ResNet-50 are only $7\times7$ and were upscaled to the input image size with nearest-neighbor interpolation. Since we don't have class labels to evaluate the “correctness” of an explanation, the evaluation was performed on datasets with segmentation masks (ImageNet-S and PASCAL VOC), using a suite of metrics from the Quantus XAI evaluation framework. Essentially, we treat it as a localization task, with the goal of assessing how well the heatmaps align with the segmentation masks.
 
 <figure id="fig-lafam-voc">
-<p class="fig-kicker">{% include fig-kicker.html id="fig-lafam-voc" %}</p>
+{% include fig-kicker.html id="fig-lafam-voc" %}
 <img src="/assets/img/posts/lafam/pascal_voc_2012_results.svg" alt="LaFAM vs. Grad-CAM vs. RELAX" />
   <figcaption>Comparison on PASCAL VOC 2012. Averaging produces heatmaps similar to Grad-CAM but remains robust when the model misclassifies (first row).</figcaption>
 </figure>
@@ -94,14 +94,14 @@ In the first row, the model predicted the wrong ImageNet class, so Grad-CAM high
 {% include fig-ref.html id="fig-lafam-objects" %} demonstrates that averaging, being class-agnostic, highlights multiple objects in the image (e.g., both dogs), whereas Grad-CAM focuses on the one tied to the predicted class.
 
 <figure id="fig-lafam-objects">
-<p class="fig-kicker">{% include fig-kicker.html id="fig-lafam-objects" %}</p>
+{% include fig-kicker.html id="fig-lafam-objects" %}
 <img src="/assets/img/posts/lafam/pascal_voc_2012_2_classes.svg" alt="LaFAM for Multiple Objects" />
 </figure>
 
 {% include fig-ref.html id="fig-lafam-misclf" %} shows more misclassified ImageNet examples, with Grad-CAM computed for the wrong predicted class.
 
 <figure id="fig-lafam-misclf">
-<p class="fig-kicker">{% include fig-kicker.html id="fig-lafam-misclf" %}</p>
+{% include fig-kicker.html id="fig-lafam-misclf" %}
 <img src="/assets/img/posts/lafam/imgnet_missclf_short.svg" alt="Grad-CAM for Misclassification Case" />
 </figure>
 

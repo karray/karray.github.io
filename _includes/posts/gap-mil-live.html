@@ -15,8 +15,7 @@ Parameters:
 {%- assign gap_mil_live_assets = true -%}
 {%- endunless -%}
 <figure class="fig gm lm" id="{{ include.id | default: 'lm' }}">
-  {%- capture fig_kicker %}{% include fig-kicker.html id=include.id kicker=include.kicker %}{% endcapture %}
-  {%- if fig_kicker != '' %}<div class="fig-kicker">{{ fig_kicker }}</div>{% endif %}
+  {%- include fig-kicker.html id=include.id kicker=include.kicker %}
   <div {% if include.mode %}data-live-mil="{{ include.mode }}"{% else %}data-live-mil{% endif %}><p class="fg-note">This figure needs JavaScript.</p></div>
   {%- if include.caption %}<figcaption>{{ include.caption }}</figcaption>{% endif %}
 </figure>

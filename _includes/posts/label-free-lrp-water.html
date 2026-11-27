@@ -1,6 +1,5 @@
 <figure class="fig lrp-fig lrp-water wide"{% if include.id %} id="{{ include.id }}"{% endif %} data-lrp-water data-src="{{ '/assets/data/label-free-lrp/water.json' | relative_url }}">
-  {%- capture fig_kicker %}{% include fig-kicker.html id=include.id kicker=include.kicker %}{% endcapture %}
-  {%- if fig_kicker != '' %}<p class="fig-kicker">{{ fig_kicker }}</p>{% endif %}
+  {%- include fig-kicker.html id=include.id kicker=include.kicker %}
   {%- if include.gradient %}
   <div class="lrpw-controls">
     <div class="lrpw-modes" role="group" aria-label="How the relevance is passed back">
